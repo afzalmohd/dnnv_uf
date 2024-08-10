@@ -133,6 +133,45 @@ def save_vnnlib_tf(lb, ub, label: int, spec_path: str, dataset, total_output_cla
         f.write("))")
 
 
+def save_vnnlib_tf_1(lb, ub, label: int, spec_path: str, dataset, total_output_class: int = 9):
+     tolerance_param = 1e-3
+     with open(spec_path, "w") as f:
+        if dataset == 'MNIST':
+            f.write(f"; Mnist property with label: {label}.\n")
+        else:
+            f.write(f"; Cifar10 property with label: {label}.\n")
+
+        # Declare input variables.
+        f.write("\n")
+        for i in range(0, len(lb)):
+            f.write(f"(declare-const X_{i} Real)\n")
+        f.write("\n")
+
+        # Declare output variables.
+        f.write("\n")
+        for i in range(total_output_class):
+            f.write(f"(declare-const Y_{i} Real)\n")
+        f.write("\n")
+
+        # Define input constraints.
+        f.write(f"; Input constraints:\n")
+        for i in range(0,len(lb)):
+            f.write(f"(assert (<= X_{i} {ub[i]}))\n")
+            f.write(f"(assert (>= X_{i} {lb[i]}))\n")
+            f.write("\n")
+        f.write("\n")
+
+        # Define output constraints.
+        f.write(f"; Output constraints:\n")
+        f.write("(assert (or\n")
+        for i in range(total_output_class):
+            f.write(f"    (and (>= Y_{i} -{tolerance_param}))\n")
+
+        
+
+        f.write("))")
+
+
 
 
 def create_instances_csv(nets: List, eps: List, wrong_classified, num_props: int = 15, path: str = "mnistfc_instances.csv"):
@@ -213,7 +252,7 @@ if __name__ == '__main__':
             lb,ub = create_input_bounds_tf(image, eps)
             spec_path = f"prop_{ind}_{eps}.vnnlib"
             spec_path = os.path.join(spec_dir, spec_path)
-            save_vnnlib_tf(lb, ub, label, spec_path, dataset)
+            save_vnnlib_tf_1(lb, ub, label, spec_path, dataset)
 
 
     # ins_path = os.path.join(spec_dir, "mnist_instances.csv")

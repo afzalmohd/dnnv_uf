@@ -79,7 +79,7 @@ def get_output_layer_weight():
     for i in range(9):
         l = [0.0]*81
         for j in range(9):
-            l[9*i + j] = 1.0
+            l[9*i + j] = -1.0
         weights += l
 
     return weights
@@ -310,7 +310,7 @@ def get_delta(conf):
 
 # Example usage
 
-output_dir = '/home/afzal/Documents/tools/networks/conf/nets'
+output_dir = '/home/afzal/Documents/tools/networks/conf/nets1'
 input_model_path = '/home/afzal/Documents/tools/networks/vnncomp2021/benchmarks/mnistfc/mnist-net_256x2.onnx'
 dataset_path = '/home/afzal/Documents/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
 conf = 90
@@ -338,7 +338,7 @@ for i in range(num_images):
 delta = get_delta(float(conf))
 
 for i in range(num_images):
-    update_fc_to_model(input_model_path, output_models[i], labels[i], delta)
+    update_fc_relu_to_model(input_model_path, output_models[i], labels[i], delta)
 
 # output_model_path = 'temp_appended_layer.onnx'
 # # update_fc_relu_to_model(input_model_path, output_model_path)
