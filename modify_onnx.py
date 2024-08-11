@@ -521,28 +521,29 @@ def get_delta(conf):
 
 # Example usage
 
-output_dir = '/home/u1411251/Documents/tools/networks/onnx/eran_mnist_mod_conf'
-input_model_path = '/home/u1411251/Documents/tools/networks/onnx/eran_mnist_mod/mnist_relu_4_1024.onnx'
-dataset_path = '/home/u1411251/Documents/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
-conf = 95
+output_dir = '/home/afzal/Documents/tools/networks/onnx/eran_mod_conf'
+input_dir = '/home/afzal/Documents/tools/networks/onnx/eran_mod'
+
+nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_4_1024.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
+nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx', 'ffnnRELU__Point_6_500.onnx']
+nets += ['ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx']
+
+input_model_paths = []
+for net in nets:
+    input_model_paths.append(os.path.join(input_dir, net))
+
+dataset_path = '/home/afzal/Documents/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
+confs = [60, 80, 90, 95]
 num_images= 100
 
-output_model_path = os.path.join(output_dir, os.path.basename(input_model_path))
 
-# input_model_path = "/home/u1411251/Documents/tools/networks/onnx/mnist/mnist_relu_3_50.onnx"
+# for i in range(len(input_model_paths)):
+#     input_path = input_model_paths[i]
+#     output_path = os.path.join(output_dir, os.path.basename(input_path))
+#     modify_onnx_model(input_path, output_path)
 
-# output_model_path =  "temp.onnx"
 
-# modify_onnx_model(input_model_path, output_model_path)
 
-# exit(0)
-
-if len(sys.argv) == 3:
-    input_model_path = str(sys.argv[1])
-    conf = str(sys.argv[2])
-
-net_name = os.path.basename(input_model_path)
-output_models= []
 
 labels = []
 with open(dataset_path) as f:
@@ -550,16 +551,16 @@ with open(dataset_path) as f:
     for line in Lines:
         labels.append(int(line[0]))
 
-for i in range(num_images):
-    net_name1 = net_name[:-5]+"_"+str(conf)+"_"+str(i)+".onnx"
-    output_model_path = os.path.join(output_dir, net_name1)
 
-    output_models.append(output_model_path)
+for input_path in input_model_paths:
+    for conf in confs:
+        delta = get_delta(float(conf))
+        for i in range(num_images):
+            net_name = os.path.basename(input_path)
+            net_name = net_name[:-5]+"_"+str(conf)+"_"+str(i)+".onnx"
+            out_path = os.path.join(output_dir, net_name)
+            update_fc_relu_to_model_with_relu_output(input_path, out_path, labels[i], delta)
 
-delta = get_delta(float(conf))
-
-for i in range(num_images):
-    update_fc_relu_to_model_with_relu_output(input_model_path, output_models[i], labels[i], delta)
 
 # output_model_path = 'temp_appended_layer.onnx'
 # # update_fc_relu_to_model(input_model_path, output_model_path)
