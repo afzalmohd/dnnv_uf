@@ -5,6 +5,128 @@ import math
 import os
 import sys
 
+def layers_index_reduce(model):
+    graph = model.graph
+    rename_map = {}
+    for init in model.graph.initializer:
+        name = init.name
+        layer_idx = int(str(name).split('.')[0])
+        w_name = str(init.name).split('.')[1]
+        layer_idx -= 2
+        name1 = f"{layer_idx}.{w_name}"
+        rename_map[name] = name1
+
+    # print(rename_map)
+
+    for initializer in graph.initializer:
+        if initializer.name in rename_map:
+            initializer.name = rename_map[initializer.name]
+
+    for node in graph.node:
+        for i, input_name in enumerate(node.input):
+            if input_name in rename_map:
+                node.input[i] = rename_map[input_name]
+        for i, output_name in enumerate(node.output):
+            if output_name in rename_map:
+                node.output[i] = rename_map[output_name]
+
+def change_input_dims(model):
+    graph = model.graph
+    for input_tensor in graph.input:
+        # Assuming there's only one input tensor
+        shape = input_tensor.type.tensor_type.shape.dim        
+        # Update the dimensions to (1, 784, 1)
+        shape[1].dim_value = 784  # Update the second dimension
+        shape[2].dim_value = 1    # Update the third dimension
+        shape.pop(3)              # Remove the fourth dimension
+
+def get_input_of_output_node(model):
+    graph = model.graph
+    output_name = graph.output[0].name  # Assuming there's one output
+    output_node = None
+
+    for node in graph.node:
+        if output_name in node.output:
+            output_node = node
+            break
+
+    if output_node:
+        print("Output node name:", output_node.name)
+        print("Input(s) to the output node:", output_node.input)
+        return output_node.input
+    else:
+        print("Output node not found.")
+
+
+def change_output_node(model):
+    graph = model.graph
+    new_input_name = str(0)
+    if len(graph.input) > 0:
+        original_input = graph.input[0]
+        print(f"Original input name: {original_input.name}")
+
+        # Change the name of the input tensor
+        old_input_name = original_input.name
+        original_input.name = new_input_name
+
+        # Update all nodes that use this input
+        for node in graph.node:
+            for i, input_name in enumerate(node.input):
+                if input_name == old_input_name:
+                    node.input[i] = new_input_name
+
+        print(f"Updated input name: {new_input_name}")
+
+    
+    output_name = graph.output[0].name  # Assuming there's one output
+    output_node = None
+    input_name = None
+    for node in graph.node:
+        if output_name in node.output:
+            output_node = node
+            break
+
+    if output_node:
+        input_name = int(output_node.input[0])
+    else:
+        print("Output node not found")
+
+
+    new_output_name = str(input_name+1)
+
+    if len(graph.output) > 0:
+        original_output = graph.output[0]
+        print(f"Original output name: {original_output.name}")
+
+        # Change the name of the output tensor
+        old_output_name = original_output.name
+        original_output.name = new_output_name
+
+        # Update all nodes that produce this output
+        for node in graph.node:
+            for i, output_name in enumerate(node.output):
+                if output_name == old_output_name:
+                    node.output[i] = new_output_name
+
+        print(f"Updated output name: {new_output_name}")
+
+
+    # if len(graph.output) > 0:
+    #     original_output = graph.output[0]
+    #     print(f"Original output name: {original_output.name}")
+    #     original_output_name = original_output.name
+    #     # Set the new output name
+    #     original_output.name = new_output_name
+
+    #     # Also, change the corresponding node output name to match
+    #     for node in graph.node:
+    #         for i, output_name in enumerate(node.output):
+    #             if output_name == original_output_name:
+    #                 node.output[i] = new_output_name
+
+    #     print(f"Updated output name: {new_output_name}")
+
+
 def modify_onnx_model(input_model_path, output_model_path):
     # Load the existing model
     model = onnx.load(input_model_path)
@@ -16,7 +138,11 @@ def modify_onnx_model(input_model_path, output_model_path):
     nodes_to_keep = []
     add_nodes = False
 
+    layers_index_reduce(model)
+    change_input_dims(model)
+
     for node in graph.node:
+        # print(node.name)
         if node.op_type == "Flatten":
             flatten_node = node
             add_nodes = True
@@ -38,11 +164,15 @@ def modify_onnx_model(input_model_path, output_model_path):
         initializer=graph.initializer
     )
 
+
     # Create a new model
     new_model = helper.make_model(new_graph, producer_name='onnx-example')
 
+    change_output_node(new_model)
+
     # Infer shapes (optional but recommended)
     new_model = shape_inference.infer_shapes(new_model)
+
 
     # Save the new model
     onnx.save(new_model, output_model_path)
@@ -85,6 +215,135 @@ def get_output_layer_weight():
     return weights
 
 
+def update_fc_relu_to_model_with_relu_output(model_path, output_model_path, label = 0, delta=1.98, fc_output_dim=81):
+      # Load the existing ONNX model
+    model = onnx.load(model_path)
+    graph = model.graph
+    
+    # Retrieve the weight and bias initializers for the existing output FC layer
+    output_layer_weight = None
+    output_layer_bias = None
+    output_layer_input_dim = None
+    output_layer_output_dim = None
+
+    out_layer_idx = 0
+    for initializer in graph.initializer:
+        output_init = initializer.name
+        layer_idx = int(output_init.split('.')[0])
+        if layer_idx > out_layer_idx:
+            out_layer_idx = layer_idx
+
+    print(out_layer_idx)
+    for initializer in graph.initializer:
+        # print(initializer.name)
+        if f"{out_layer_idx}.weight" in  initializer.name:
+            output_layer_weight = np.frombuffer(initializer.raw_data, dtype=np.float32).reshape(initializer.dims)
+            output_layer_input_dim = initializer.dims[1]
+            output_layer_output_dim = initializer.dims[0]
+        elif f"{out_layer_idx}.bias" in  initializer.name:
+            output_layer_bias = np.frombuffer(initializer.raw_data, dtype=np.float32)
+    
+    # Initialize the new fully connected layer's weights and biases
+    new_w = get_fc_layer_weights(label)
+    new_fc_weight1 = np.reshape(new_w, (fc_output_dim, output_layer_output_dim))
+    new_fc_weight1 = np.asarray(new_fc_weight1, dtype=np.float32)
+    new_fc_bias1 = np.array([delta]*fc_output_dim, dtype=np.float32)
+
+    
+    
+    prev_output_name = int(graph.output[0].name)
+
+    fc1_output_name = prev_output_name+1
+
+    weight_name1 = f"{out_layer_idx+2}.weight"
+    bias_name1 = f"{out_layer_idx+2}.bias"
+
+    fc_node1 = helper.make_node(
+        'Gemm',
+        inputs=[str(prev_output_name), weight_name1, bias_name1],
+        outputs=[str(fc1_output_name)],
+        alpha=1.0,
+        beta=1.0,
+        transB=1,
+        name=str(fc1_output_name)
+    )
+
+
+    fc_weight1 = helper.make_tensor(
+        name=weight_name1,
+        data_type=TensorProto.FLOAT,
+        dims=[81, 10],
+        vals=new_fc_weight1
+    )
+
+    fc_bias1 = helper.make_tensor(
+        name=bias_name1,
+        data_type=TensorProto.FLOAT,
+        dims=[81],
+        vals=new_fc_bias1
+    )
+
+
+
+    relu_output_name = fc1_output_name+1
+
+    relu_node = helper.make_node(
+        'Relu',
+        inputs=[str(fc1_output_name)],
+        outputs=[str(relu_output_name)],
+        name=str(relu_output_name)
+    )
+
+    output_fc_layer_name = relu_output_name+1
+
+    weight_name2 = f"layers.{out_layer_idx+4}.weight"
+    bias_name2 = f"layers.{out_layer_idx+4}.bias"
+
+    fc_node2 = helper.make_node(
+        'Gemm',
+        inputs=[str(relu_output_name), weight_name2, bias_name2],
+        outputs=[str(output_fc_layer_name)],
+        alpha=1.0,
+        beta=1.0,
+        transB=1,
+        name=str(output_fc_layer_name)
+    )
+
+    new_fc_weight2 = get_output_layer_weight()
+    fc_weight2 = helper.make_tensor(
+        name=weight_name2,
+        data_type=TensorProto.FLOAT,
+        dims=[9, 81],
+        vals=new_fc_weight2
+    )
+
+    fc_bias2 = helper.make_tensor(
+        name=bias_name2,
+        data_type=TensorProto.FLOAT,
+        dims=[9],
+        vals=[0.0] * 9
+    )
+    # print(graph.node)
+    graph.node.append(fc_node1)
+    graph.node.append(relu_node)
+    graph.node.append(fc_node2)
+    graph.initializer.append(fc_weight1)
+    graph.initializer.append(fc_bias1)
+    graph.initializer.append(fc_weight2)
+    graph.initializer.append(fc_bias2)
+    graph.output[0].name = str(output_fc_layer_name)
+
+    for output in graph.output:
+        # Assuming there is only one output tensor, if there are multiple, you may need to specify the exact one
+        dim_value = output.type.tensor_type.shape.dim
+        if len(dim_value) == 2:
+            dim_value[1].dim_value = 9
+
+    # Infer shapes (optional but recommended)
+    model = shape_inference.infer_shapes(model)
+
+    onnx.save(model, output_model_path)
+
 
 def update_fc_relu_to_model(model_path, output_model_path, label = 0, delta=1.98, fc_output_dim=81):
       # Load the existing ONNX model
@@ -104,7 +363,7 @@ def update_fc_relu_to_model(model_path, output_model_path, label = 0, delta=1.98
         if layer_idx > out_layer_idx:
             out_layer_idx = layer_idx
 
-    # print(out_layer_idx)
+    print(out_layer_idx)
     for initializer in graph.initializer:
         # print(initializer.name)
         if f"{out_layer_idx}.weight" in  initializer.name:
@@ -244,54 +503,6 @@ def update_fc_to_model(model_path, output_model_path, label = 0, delta=1.98, fc_
         elif f"{out_layer_idx}.bias" in  initializer.name:
             initializer.raw_data = combined_bias.tobytes()
             initializer.dims[:] = combined_bias.shape
-    # Save the modified model
-
-    # prev_output_name = int(graph.output[0].name)
-    # relu_output_name = prev_output_name+1
-
-    # relu_node = helper.make_node(
-    #     'Relu',
-    #     inputs=[str(prev_output_name)],
-    #     outputs=[str(relu_output_name)],
-    #     name=str(relu_output_name)
-    # )
-
-    # output_fc_layer_name = relu_output_name+1
-
-    # weight_name = f"layers.{out_layer_idx+2}.weight"
-    # bias_name = f"layers.{out_layer_idx+2}.bias"
-
-    # fc_node = helper.make_node(
-    #     'Gemm',
-    #     inputs=[str(relu_output_name), weight_name, bias_name],
-    #     outputs=[str(output_fc_layer_name)],
-    #     alpha=1.0,
-    #     beta=1.0,
-    #     transB=1,
-    #     name=str(output_fc_layer_name)
-    # )
-
-    # weight = get_output_layer_weight()
-    # fc_weight = helper.make_tensor(
-    #     name=weight_name,
-    #     data_type=TensorProto.FLOAT,
-    #     dims=[9, 81],
-    #     vals=weight
-    # )
-
-    # fc_bias = helper.make_tensor(
-    #     name=bias_name,
-    #     data_type=TensorProto.FLOAT,
-    #     dims=[9],
-    #     vals=[0.0] * 9
-    # )
-
-
-    # graph.node.append(relu_node)
-    # graph.node.append(fc_node)
-    # graph.initializer.append(fc_weight)
-    # graph.initializer.append(fc_bias)
-    # graph.output[0].name = str(output_fc_layer_name)
 
     for output in graph.output:
         # Assuming there is only one output tensor, if there are multiple, you may need to specify the exact one
@@ -310,11 +521,21 @@ def get_delta(conf):
 
 # Example usage
 
-output_dir = '/home/afzal/Documents/tools/networks/conf/nets1'
-input_model_path = '/home/afzal/Documents/tools/networks/vnncomp2021/benchmarks/mnistfc/mnist-net_256x2.onnx'
-dataset_path = '/home/afzal/Documents/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
-conf = 90
+output_dir = '/home/u1411251/Documents/tools/networks/onnx/eran_mnist_mod_conf'
+input_model_path = '/home/u1411251/Documents/tools/networks/onnx/eran_mnist_mod/mnist_relu_4_1024.onnx'
+dataset_path = '/home/u1411251/Documents/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
+conf = 95
 num_images= 100
+
+output_model_path = os.path.join(output_dir, os.path.basename(input_model_path))
+
+# input_model_path = "/home/u1411251/Documents/tools/networks/onnx/mnist/mnist_relu_3_50.onnx"
+
+# output_model_path =  "temp.onnx"
+
+# modify_onnx_model(input_model_path, output_model_path)
+
+# exit(0)
 
 if len(sys.argv) == 3:
     input_model_path = str(sys.argv[1])
@@ -338,9 +559,9 @@ for i in range(num_images):
 delta = get_delta(float(conf))
 
 for i in range(num_images):
-    update_fc_relu_to_model(input_model_path, output_models[i], labels[i], delta)
+    update_fc_relu_to_model_with_relu_output(input_model_path, output_models[i], labels[i], delta)
 
 # output_model_path = 'temp_appended_layer.onnx'
 # # update_fc_relu_to_model(input_model_path, output_model_path)
-# update_fc_to_model(input_model_path, output_model_path)
+# update_fc_relu_to_model_with_relu_output(input_model_path, "temp.onnx", 7, delta)
 # get_output_layer_weight()
