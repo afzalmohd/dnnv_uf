@@ -591,8 +591,8 @@ def get_delta(conf):
 
 # Example usage
 
-output_dir = '/home/afzal/Documents/tools/networks/onnx/eran_mod_conf'
-input_dir = '/home/afzal/Documents/tools/networks/onnx/eran_mod'
+input_dir = '/home/afzal/tools/networks/conf_final/eran_mod'
+output_dir = '/home/afzal/tools/networks/conf_final/eran_mod_conf'
 
 nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_4_1024.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
 nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx', 'ffnnRELU__Point_6_500.onnx']
@@ -602,7 +602,7 @@ input_model_paths = []
 for net in nets:
     input_model_paths.append(os.path.join(input_dir, net))
 
-dataset_path = '/home/afzal/Documents/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
+dataset_path = '/home/afzal/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
 confs = [60, 80, 90, 95]
 num_images= 100
 
@@ -613,7 +613,7 @@ num_images= 100
 #     modify_onnx_model(input_path, output_path)
 
 
-
+# exit(0)
 
 labels = []
 with open(dataset_path) as f:
@@ -633,7 +633,7 @@ for input_path in input_model_paths:
             append_fc_layer_to_model(input_path, out_path, labels[i], conf)
 
 
-
-# input_model = '/home/u1411251/Documents/tools/networks/conf_final/eran_mod/mnist_relu_3_50.onnx'
-# output_model = 'temp.onnx'
-# append_fc_layer_to_model(input_model, output_model)
+# output_model_path = 'temp_appended_layer.onnx'
+# # update_fc_relu_to_model(input_model_path, output_model_path)
+# update_fc_relu_to_model_with_relu_output(input_model_path, "temp.onnx", 7, delta)
+# get_output_layer_weight()
