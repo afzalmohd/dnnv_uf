@@ -134,7 +134,8 @@ def save_vnnlib_tf(lb, ub, label: int, spec_path: str, dataset, total_output_cla
 
 
 def save_vnnlib_tf_1(lb, ub, label: int, spec_path: str, dataset, total_output_class: int = 9):
-     tolerance_param = 1e-3
+     tolerance_param = -1e-3
+     tolerance_param = 0.0
      with open(spec_path, "w") as f:
         if dataset == 'MNIST':
             f.write(f"; Mnist property with label: {label}.\n")
@@ -165,7 +166,7 @@ def save_vnnlib_tf_1(lb, ub, label: int, spec_path: str, dataset, total_output_c
         f.write(f"; Output constraints:\n")
         f.write("(assert (or\n")
         for i in range(total_output_class):
-            f.write(f"    (and (>= Y_{i} -{tolerance_param}))\n")
+            f.write(f"    (and (>= Y_{i} {tolerance_param}))\n")
 
         
 

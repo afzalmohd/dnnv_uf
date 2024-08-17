@@ -513,7 +513,8 @@ def update_fc_to_model(model_path, output_model_path, label = 0, delta=1.98, fc_
     onnx.save(model, output_model_path)
 
 def append_fc_layer_to_model(model_path, output_model_path, label = 7, conf = 0.6, fc_output_dim=9):
-      # Load the existing ONNX model
+    # Load the existing ONNX model
+    conf = conf / 100
     model = onnx.load(model_path)
     graph = model.graph
     
@@ -531,8 +532,8 @@ def append_fc_layer_to_model(model_path, output_model_path, label = 7, conf = 0.
     new_w = []
     for i in range(output_layer_output_dim):
         if i != label:
-            l = [1.0]*output_layer_output_dim
-            l[i] = conf - 1.0
+            l = [-conf]*output_layer_output_dim
+            l[i] = 1.0 - conf
             new_w.append(l)
     
     new_fc_weight = np.reshape(new_w, (fc_output_dim, output_layer_output_dim))
@@ -592,7 +593,7 @@ def get_delta(conf):
 # Example usage
 
 input_dir = '/home/afzal/tools/networks/conf_final/eran_mod'
-output_dir = '/home/afzal/tools/networks/conf_final/eran_mod_conf'
+output_dir = '/home/afzal/tools/networks/conf_final/eran_mod_simple_conf'
 
 nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_4_1024.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
 nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx', 'ffnnRELU__Point_6_500.onnx']
@@ -603,7 +604,7 @@ for net in nets:
     input_model_paths.append(os.path.join(input_dir, net))
 
 dataset_path = '/home/afzal/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
-confs = [60, 80, 90, 95]
+confs = [40, 60, 80]
 num_images= 100
 
 
