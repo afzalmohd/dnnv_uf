@@ -177,6 +177,22 @@ def modify_onnx_model(input_model_path, output_model_path):
     # Save the new model
     onnx.save(new_model, output_model_path)
 
+def get_fc_layer_weights_simple(label, output_dims=10, conf=0.40):
+    weights = []
+    for i in range(output_dims):
+        if i != label:
+            l1 = [conf]*output_dims
+            l1[i] = (conf - 1)
+            l2 = [0.0]*output_dims
+            l2[label] = 1.0
+            l2[i] = -1.0
+            weights += l1
+            weights += l2
+    
+    # print(len(weights))
+    # print(np.array(weights).reshape(18,10))
+    return weights
+
 def get_fc_layer_weights(label, output_dims=10):
     weights = []
     for i in range(output_dims):
@@ -188,6 +204,8 @@ def get_fc_layer_weights(label, output_dims=10):
                     l[j] = 1.0
                     weights += l
 
+    print(len(weights))
+    print(np.array(weights).reshape(81,10))
     return weights
 
 def get_fc_layer_weights_inverse(label, output_dims=10):
@@ -214,8 +232,20 @@ def get_output_layer_weight():
 
     return weights
 
+def get_output_layer_weight_simple():
+    weights = []
+    for i in range(9):
+        l = [0.0]*18
+        l[2*i] = -1.0
+        l[2*i + 1] = -1.0
+        weights += l
 
-def update_fc_relu_to_model_with_relu_output(model_path, output_model_path, label = 0, delta=1.98, fc_output_dim=81):
+    # print(len(weights))
+    # print(np.array([weights]).reshape(9,18))
+    return weights
+
+
+def update_fc_relu_softmax(model_path, output_model_path, label = 0, delta=1.98, fc_output_dim=81):
       # Load the existing ONNX model
     model = onnx.load(model_path)
     graph = model.graph
@@ -343,6 +373,138 @@ def update_fc_relu_to_model_with_relu_output(model_path, output_model_path, labe
     model = shape_inference.infer_shapes(model)
 
     onnx.save(model, output_model_path)
+
+
+def update_fc_relu_simple(model_path, output_model_path, label = 0, conf=40, fc_output_dim=18):
+      # Load the existing ONNX model
+    conf = conf / 100
+    model = onnx.load(model_path)
+    graph = model.graph
+    
+    # Retrieve the weight and bias initializers for the existing output FC layer
+    output_layer_weight = None
+    output_layer_bias = None
+    output_layer_input_dim = None
+    output_layer_output_dim = 10
+
+    out_layer_idx = 0
+    for initializer in graph.initializer:
+        output_init = initializer.name
+        layer_idx = int(output_init.split('.')[0])
+        if layer_idx > out_layer_idx:
+            out_layer_idx = layer_idx
+
+    print(out_layer_idx)
+    # for initializer in graph.initializer:
+    #     # print(initializer.name)
+    #     if f"{out_layer_idx}.weight" in  initializer.name:
+    #         output_layer_weight = np.frombuffer(initializer.raw_data, dtype=np.float32).reshape(initializer.dims)
+    #         output_layer_input_dim = initializer.dims[1]
+    #         output_layer_output_dim = initializer.dims[0]
+    #     elif f"{out_layer_idx}.bias" in  initializer.name:
+    #         output_layer_bias = np.frombuffer(initializer.raw_data, dtype=np.float32)
+    
+    # Initialize the new fully connected layer's weights and biases
+    new_w = get_fc_layer_weights_simple(label, conf=conf)
+    new_fc_weight1 = np.reshape(new_w, (fc_output_dim, output_layer_output_dim))
+    new_fc_weight1 = np.asarray(new_fc_weight1, dtype=np.float32)
+    new_fc_bias1 = np.array([0.0]*fc_output_dim, dtype=np.float32)
+
+    
+    
+    prev_output_name = int(graph.output[0].name)
+
+    fc1_output_name = prev_output_name+1
+
+    weight_name1 = f"{out_layer_idx+2}.weight"
+    bias_name1 = f"{out_layer_idx+2}.bias"
+
+    fc_node1 = helper.make_node(
+        'Gemm',
+        inputs=[str(prev_output_name), weight_name1, bias_name1],
+        outputs=[str(fc1_output_name)],
+        alpha=1.0,
+        beta=1.0,
+        transB=1,
+        name=str(fc1_output_name)
+    )
+
+
+    fc_weight1 = helper.make_tensor(
+        name=weight_name1,
+        data_type=TensorProto.FLOAT,
+        dims=[fc_output_dim, output_layer_output_dim],
+        vals=new_fc_weight1
+    )
+
+    fc_bias1 = helper.make_tensor(
+        name=bias_name1,
+        data_type=TensorProto.FLOAT,
+        dims=[fc_output_dim],
+        vals=new_fc_bias1
+    )
+
+
+
+    relu_output_name = fc1_output_name+1
+
+    relu_node = helper.make_node(
+        'Relu',
+        inputs=[str(fc1_output_name)],
+        outputs=[str(relu_output_name)],
+        name=str(relu_output_name)
+    )
+
+    output_fc_layer_name = relu_output_name+1
+
+    weight_name2 = f"layers.{out_layer_idx+4}.weight"
+    bias_name2 = f"layers.{out_layer_idx+4}.bias"
+
+    fc_node2 = helper.make_node(
+        'Gemm',
+        inputs=[str(relu_output_name), weight_name2, bias_name2],
+        outputs=[str(output_fc_layer_name)],
+        alpha=1.0,
+        beta=1.0,
+        transB=1,
+        name=str(output_fc_layer_name)
+    )
+
+    new_fc_weight2 = get_output_layer_weight_simple()
+    fc_weight2 = helper.make_tensor(
+        name=weight_name2,
+        data_type=TensorProto.FLOAT,
+        dims=[9, 18],
+        vals=new_fc_weight2
+    )
+
+    fc_bias2 = helper.make_tensor(
+        name=bias_name2,
+        data_type=TensorProto.FLOAT,
+        dims=[9],
+        vals=[0.0] * 9
+    )
+    # print(graph.node)
+    graph.node.append(fc_node1)
+    graph.node.append(relu_node)
+    graph.node.append(fc_node2)
+    graph.initializer.append(fc_weight1)
+    graph.initializer.append(fc_bias1)
+    graph.initializer.append(fc_weight2)
+    graph.initializer.append(fc_bias2)
+    graph.output[0].name = str(output_fc_layer_name)
+
+    for output in graph.output:
+        # Assuming there is only one output tensor, if there are multiple, you may need to specify the exact one
+        dim_value = output.type.tensor_type.shape.dim
+        if len(dim_value) == 2:
+            dim_value[1].dim_value = 9
+
+    # Infer shapes (optional but recommended)
+    model = shape_inference.infer_shapes(model)
+
+    onnx.save(model, output_model_path)
+
 
 
 def update_fc_relu_to_model(model_path, output_model_path, label = 0, delta=1.98, fc_output_dim=81):
@@ -513,8 +675,7 @@ def update_fc_to_model(model_path, output_model_path, label = 0, delta=1.98, fc_
     onnx.save(model, output_model_path)
 
 def append_fc_layer_to_model(model_path, output_model_path, label = 7, conf = 0.6, fc_output_dim=9):
-    # Load the existing ONNX model
-    conf = conf / 100
+      # Load the existing ONNX model
     model = onnx.load(model_path)
     graph = model.graph
     
@@ -532,8 +693,8 @@ def append_fc_layer_to_model(model_path, output_model_path, label = 7, conf = 0.
     new_w = []
     for i in range(output_layer_output_dim):
         if i != label:
-            l = [-conf]*output_layer_output_dim
-            l[i] = 1.0 - conf
+            l = [1.0]*output_layer_output_dim
+            l[i] = conf - 1.0
             new_w.append(l)
     
     new_fc_weight = np.reshape(new_w, (fc_output_dim, output_layer_output_dim))
@@ -592,8 +753,8 @@ def get_delta(conf):
 
 # Example usage
 
+output_dir = '/home/afzal/tools/networks/conf_final/eran_mod_simple_conf1'
 input_dir = '/home/afzal/tools/networks/conf_final/eran_mod'
-output_dir = '/home/afzal/tools/networks/conf_final/eran_mod_simple_conf'
 
 nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_4_1024.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
 nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx', 'ffnnRELU__Point_6_500.onnx']
@@ -604,9 +765,14 @@ for net in nets:
     input_model_paths.append(os.path.join(input_dir, net))
 
 dataset_path = '/home/afzal/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
+confs = [60, 80, 90, 95]
 confs = [40, 60, 80]
 num_images= 100
 
+# get_fc_layer_weights_simple(0)
+# get_fc_layer_weights(3)
+# get_output_layer_weight_simple()
+# exit(0)
 
 # for i in range(len(input_model_paths)):
 #     input_path = input_model_paths[i]
@@ -614,7 +780,7 @@ num_images= 100
 #     modify_onnx_model(input_path, output_path)
 
 
-# exit(0)
+
 
 labels = []
 with open(dataset_path) as f:
@@ -630,11 +796,11 @@ for input_path in input_model_paths:
             net_name = os.path.basename(input_path)
             net_name = net_name[:-5]+"_"+str(conf)+"_"+str(i)+".onnx"
             out_path = os.path.join(output_dir, net_name)
-            # update_fc_relu_to_model_with_relu_output(input_path, out_path, labels[i], delta)
-            append_fc_layer_to_model(input_path, out_path, labels[i], conf)
+            update_fc_relu_simple(input_path, out_path, labels[i], conf)
+            # append_fc_layer_to_model(input_path, out_path, labels[i], conf)
 
 
-# output_model_path = 'temp_appended_layer.onnx'
-# # update_fc_relu_to_model(input_model_path, output_model_path)
-# update_fc_relu_to_model_with_relu_output(input_model_path, "temp.onnx", 7, delta)
-# get_output_layer_weight()
+
+# input_model = '/home/u1411251/Documents/tools/networks/conf_final/eran_mod/mnist_relu_3_50.onnx'
+# output_model = 'temp.onnx'
+# update_fc_relu_simple(input_model, output_model)
