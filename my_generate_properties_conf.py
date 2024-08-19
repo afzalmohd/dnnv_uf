@@ -135,7 +135,6 @@ def save_vnnlib_tf(lb, ub, label: int, spec_path: str, dataset, total_output_cla
 
 def save_vnnlib_tf_1(lb, ub, label: int, spec_path: str, dataset, total_output_class: int = 9):
      tolerance_param = -1e-3
-     tolerance_param = 0.0
      with open(spec_path, "w") as f:
         if dataset == 'MNIST':
             f.write(f"; Mnist property with label: {label}.\n")
@@ -219,9 +218,12 @@ def create_instances_csv(nets: List, eps: List, wrong_classified, num_props: int
 
 if __name__ == '__main__':
     epsilons = [0.005, 0.01, 0.015, 0.02, 0.025, 0.03, 0.04, 0.05]
-    epsilons = [0.06]
+    epsilons = [0.02, 0.025, 0.03, 0.035, 0.04, 0.045, 0.05]
+    epsilons += [0.055, 0.06, 0.065, 0.07]
+    epsilons += [0.075, 0.08, 0.085, 0.09]
+    epsilons += [0.095, 0.1]
     dataset = 'MNIST'
-    num_images = 100
+    num_images = 2
     net_format = 'tf' #onnx/tf
     num_props = len(epsilons)*num_images
     if len(sys.argv) == 5:

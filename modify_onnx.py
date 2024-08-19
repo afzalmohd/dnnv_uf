@@ -753,22 +753,23 @@ def get_delta(conf):
 
 # Example usage
 
-output_dir = '/home/afzal/tools/networks/conf_final/eran_mod_simple_conf1'
-input_dir = '/home/afzal/tools/networks/conf_final/eran_mod'
+output_dir = '/home/afzal/Documents/tools/networks/conf_final/max_e/softmax/nets'
+input_dir = '/home/afzal/Documents/tools/networks/conf_final/eran_mod'
 
 nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_4_1024.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
 nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx', 'ffnnRELU__Point_6_500.onnx']
 nets += ['ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx']
 
+nets = ['mnist_relu_3_50.onnx', 'mnist_relu_6_100.onnx', 'mnist_relu_9_200.onnx']
+
 input_model_paths = []
 for net in nets:
     input_model_paths.append(os.path.join(input_dir, net))
 
-dataset_path = '/home/afzal/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
-confs = [60, 80, 90, 95]
-confs = [40, 60, 80]
+dataset_path = '/home/afzal/Documents/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
+confs = [60, 80, 70, 90, 95]
+# confs = [40, 60, 80]
 num_images= 100
-
 # get_fc_layer_weights_simple(0)
 # get_fc_layer_weights(3)
 # get_output_layer_weight_simple()
@@ -789,14 +790,16 @@ with open(dataset_path) as f:
         labels.append(int(line[0]))
 
 
+
 for input_path in input_model_paths:
     for conf in confs:
         delta = get_delta(float(conf))
         for i in range(num_images):
             net_name = os.path.basename(input_path)
-            net_name = net_name[:-5]+"_"+str(conf)+"_"+str(i)+".onnx"
+            # net_name = net_name[:-5]+"_"+str(conf)+"_"+str(i)+""+".onnx"
+            net_name = f"{net_name[:-5]}_{conf}_{i}.onnx"
             out_path = os.path.join(output_dir, net_name)
-            update_fc_relu_simple(input_path, out_path, labels[i], conf)
+            update_fc_relu_softmax(input_path, out_path, labels[i], delta)
             # append_fc_layer_to_model(input_path, out_path, labels[i], conf)
 
 
