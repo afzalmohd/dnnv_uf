@@ -222,6 +222,7 @@ if __name__ == '__main__':
     epsilons += [0.055, 0.06, 0.065, 0.07]
     epsilons += [0.075, 0.08, 0.085, 0.09]
     epsilons += [0.095, 0.1]
+    epsilons = [0.105, 0.11, 0.115, 0.12, 0.125, 0.13]
     dataset = 'MNIST'
     num_images = 2
     net_format = 'tf' #onnx/tf

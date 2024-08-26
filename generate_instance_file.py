@@ -2,7 +2,7 @@ import csv
 import os
 
 
-file_path = '/home/afzal/Documents/tools/networks/conf_final/max_e/softmax/instances.csv'
+file_path = '/home/afzal/tools/networks/conf_final/max_e/softmax/instances.csv'
 if os.path.isfile(file_path):
     os.remove(file_path)
     
@@ -14,27 +14,27 @@ def write_to_file(net_path, prop_path):
 
 
 
-net_dir = '/home/afzal/Documents/tools/networks/conf_final/max_e/softmax/nets'
-prop_dir = '/home/afzal/Documents/tools/networks/conf_final/max_e/softmax/props'
+net_dir = '/home/afzal/tools/networks/conf_final/max_e/softmax/nets'
+prop_dir = '/home/afzal/tools/networks/conf_final/max_e/softmax/props'
 
 nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
 nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
 
 nets = []
-# nets = ['mnist_relu_3_50.onnx']
+nets = ['mnist_relu_3_50.onnx']
 # nets += ['mnist_relu_6_100.onnx']
-nets += ['mnist_relu_9_200.onnx']
+# nets += ['mnist_relu_9_200.onnx']
 
 confs = [60, 80, 70, 90, 95]
 confs = [60]
 # confs = [40, 60, 80]
 epsilons = []
 # epsilons = [0.02, 0.025, 0.03]
-epsilons += [0.035, 0.04, 0.045, 0.05]
-# epsilons += ['0.05', '0.06', '0.065', '0.07']
-# epsilons += ['0.075', '0.08']
-# epsilons += ['0.085', '0.09']
-# epsilons += ['0.1']
+# epsilons += [0.035, 0.04, 0.045, 0.05]
+epsilons += ['0.065']
+# epsilons += ['0.09']
+# epsilons += ['0.095']
+# epsilons += ['0.105', '0.11']
 
 images = [i for i in range(2) if i != 0]
 

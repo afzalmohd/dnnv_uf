@@ -204,8 +204,8 @@ def get_fc_layer_weights(label, output_dims=10):
                     l[j] = 1.0
                     weights += l
 
-    print(len(weights))
-    print(np.array(weights).reshape(81,10))
+    # print(len(weights))
+    # print(np.array(weights).reshape(81,10))
     return weights
 
 def get_fc_layer_weights_inverse(label, output_dims=10):
@@ -382,9 +382,6 @@ def update_fc_relu_simple(model_path, output_model_path, label = 0, conf=40, fc_
     graph = model.graph
     
     # Retrieve the weight and bias initializers for the existing output FC layer
-    output_layer_weight = None
-    output_layer_bias = None
-    output_layer_input_dim = None
     output_layer_output_dim = 10
 
     out_layer_idx = 0
@@ -395,14 +392,6 @@ def update_fc_relu_simple(model_path, output_model_path, label = 0, conf=40, fc_
             out_layer_idx = layer_idx
 
     print(out_layer_idx)
-    # for initializer in graph.initializer:
-    #     # print(initializer.name)
-    #     if f"{out_layer_idx}.weight" in  initializer.name:
-    #         output_layer_weight = np.frombuffer(initializer.raw_data, dtype=np.float32).reshape(initializer.dims)
-    #         output_layer_input_dim = initializer.dims[1]
-    #         output_layer_output_dim = initializer.dims[0]
-    #     elif f"{out_layer_idx}.bias" in  initializer.name:
-    #         output_layer_bias = np.frombuffer(initializer.raw_data, dtype=np.float32)
     
     # Initialize the new fully connected layer's weights and biases
     new_w = get_fc_layer_weights_simple(label, conf=conf)
@@ -521,9 +510,15 @@ def update_fc_relu_to_model(model_path, output_model_path, label = 0, delta=1.98
     out_layer_idx = 0
     for initializer in graph.initializer:
         output_init = initializer.name
-        layer_idx = int(output_init.split('.')[1])
-        if layer_idx > out_layer_idx:
-            out_layer_idx = layer_idx
+        # print(output_init)
+        try:
+            layer_idx = int(output_init.split('.')[0])
+            if layer_idx > out_layer_idx:
+                out_layer_idx = layer_idx
+        except:
+            layer_idx = int(output_init.split('.')[1])
+            if layer_idx > out_layer_idx:
+                out_layer_idx = layer_idx
 
     print(out_layer_idx)
     for initializer in graph.initializer:
@@ -538,14 +533,12 @@ def update_fc_relu_to_model(model_path, output_model_path, label = 0, delta=1.98
     # Initialize the new fully connected layer's weights and biases
     new_w = get_fc_layer_weights(label)
     new_fc_weight = np.reshape(new_w, (fc_output_dim, output_layer_output_dim))
-    new_fc_bias = np.array([delta]*fc_output_dim)
-
+    new_fc_weight = np.asarray(new_fc_weight, dtype=np.float32)
+    new_fc_bias = np.array([delta]*fc_output_dim, dtype=np.float32)
     # Combine the weights and biases
     combined_weight = np.dot(new_fc_weight, output_layer_weight)
     combined_bias = np.dot(new_fc_weight, output_layer_bias) + new_fc_bias
 
-    combined_weight = np.asarray(combined_weight, dtype=np.float32)
-    combined_bias = np.asarray(combined_bias, dtype=np.float32)
 
 
     # Update the initializers in the graph
@@ -783,27 +776,29 @@ num_images= 100
 
 
 
-labels = []
-with open(dataset_path) as f:
-    Lines = f.readlines()
-    for line in Lines:
-        labels.append(int(line[0]))
+# labels = []
+# with open(dataset_path) as f:
+#     Lines = f.readlines()
+#     for line in Lines:
+#         labels.append(int(line[0]))
 
 
 
-for input_path in input_model_paths:
-    for conf in confs:
-        delta = get_delta(float(conf))
-        for i in range(num_images):
-            net_name = os.path.basename(input_path)
-            # net_name = net_name[:-5]+"_"+str(conf)+"_"+str(i)+""+".onnx"
-            net_name = f"{net_name[:-5]}_{conf}_{i}.onnx"
-            out_path = os.path.join(output_dir, net_name)
-            update_fc_relu_softmax(input_path, out_path, labels[i], delta)
-            # append_fc_layer_to_model(input_path, out_path, labels[i], conf)
+# for input_path in input_model_paths:
+#     for conf in confs:
+#         delta = get_delta(float(conf))
+#         for i in range(num_images):
+#             net_name = os.path.basename(input_path)
+#             # net_name = net_name[:-5]+"_"+str(conf)+"_"+str(i)+""+".onnx"
+#             net_name = f"{net_name[:-5]}_{conf}_{i}.onnx"
+#             out_path = os.path.join(output_dir, net_name)
+#             update_fc_relu_softmax(input_path, out_path, labels[i], delta)
+#             # append_fc_layer_to_model(input_path, out_path, labels[i], conf)
 
 
 
-# input_model = '/home/u1411251/Documents/tools/networks/conf_final/eran_mod/mnist_relu_3_50.onnx'
-# output_model = 'temp.onnx'
+input_model = '/home/u1411251/Documents/tools/networks/vnncomp2021/benchmarks/mnistfc/mnist-net_256x2.onnx'
+input_model = '/home/u1411251/Documents/tools/networks/conf_final/eran_mod/ffnnRELU__Point_6_500.onnx'
+output_model = 'temp.onnx'
 # update_fc_relu_simple(input_model, output_model)
+update_fc_relu_to_model(input_model, output_model)
