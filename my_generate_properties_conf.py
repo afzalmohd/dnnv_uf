@@ -18,7 +18,7 @@ import numpy as np
 
 def gen_props_specific(spec_dir):
     eps = [0.04, 0.06]
-    net_dirs = '/home/u1411251/Documents/tools/networks/conf_final/eran_mod' 
+    net_dirs = '/home/afzal/tools/networks/conf_final/eran_mod' 
     nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx', 'mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
     nets += ['mnist_relu_4_1024.onnx', 'ffnnRELU__Point_6_500.onnx', 'ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx']
     

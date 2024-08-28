@@ -747,8 +747,8 @@ def get_delta(conf):
 
 # Example usage
 
-output_dir = '/home/u1411251/Documents/tools/networks/conf_final/orig_dataset/nets'
-input_dir = '/home/u1411251/Documents/tools/networks/conf_final/eran_mod'
+output_dir = '/home/afzal/tools/networks/conf_final/orig_dataset/nets'
+input_dir = '/home/afzal/tools/networks/conf_final/eran_mod'
 
 nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
 nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']

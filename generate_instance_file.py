@@ -3,7 +3,7 @@ import os
 from simulate_network import read_images_from_dataset
 
 
-file_path = '/home/u1411251/Documents/tools/networks/conf_final/orig_dataset/instances.csv'
+file_path = '/home/afzal/tools/networks/conf_final/orig_dataset/instances.csv'
 if os.path.isfile(file_path):
     os.remove(file_path)
     
@@ -15,9 +15,9 @@ def write_to_file(net_path, prop_path):
 
 
 
-net_dir = '/home/u1411251/Documents/tools/networks/conf_final/orig_dataset/nets'
-orig_net_dir = '/home/u1411251/Documents/tools/networks/conf_final/eran_mod'
-prop_dir = '/home/u1411251/Documents/tools/networks/conf_final/orig_dataset/props'
+net_dir = '/home/afzal/tools/networks/conf_final/orig_dataset/nets'
+orig_net_dir = '/home/afzal/tools/networks/conf_final/eran_mod'
+prop_dir = '/home/afzal/tools/networks/conf_final/orig_dataset/props'
 
 nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
 nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
@@ -27,18 +27,19 @@ for net in nets:
     input_net_paths.append(os.path.join(orig_net_dir, net))
 
 confs = [60, 80, 90, 95]
-epsilons = [0.04, 0.06]
+epsilons = [0.06]
 
 
 
 for input_path in input_net_paths:
     images, labels, idxs = read_images_from_dataset(input_path)
-    net_name = os.path.basename(input_path)
+    net_name_orig = os.path.basename(input_path)
+    print(f"{net_name_orig} : {len(images)}")
     for i in range(len(images)):
         idx = idxs[i]
         for conf in confs:
             for ep in epsilons:
-                net_name = f"{net[:-5]}_{conf}_{idx}.onnx"
+                net_name = f"{net_name_orig[:-5]}_{conf}_{idx}.onnx"
                 net_path = os.path.join(net_dir, net_name)
                 prop_name = f"prop_{idx}_{ep}.vnnlib"
                 prop_path = os.path.join(prop_dir, prop_name)
