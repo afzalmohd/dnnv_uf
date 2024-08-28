@@ -4,6 +4,7 @@ import numpy as np
 import math
 import os
 import sys
+from simulate_network import read_images_from_dataset
 
 def layers_index_reduce(model):
     graph = model.graph
@@ -746,21 +747,19 @@ def get_delta(conf):
 
 # Example usage
 
-output_dir = '/home/afzal/Documents/tools/networks/conf_final/max_e/softmax/nets'
-input_dir = '/home/afzal/Documents/tools/networks/conf_final/eran_mod'
+output_dir = '/home/u1411251/Documents/tools/networks/conf_final/orig_dataset/nets'
+input_dir = '/home/u1411251/Documents/tools/networks/conf_final/eran_mod'
 
-nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_4_1024.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
-nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx', 'ffnnRELU__Point_6_500.onnx']
-nets += ['ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx']
-
-nets = ['mnist_relu_3_50.onnx', 'mnist_relu_6_100.onnx', 'mnist_relu_9_200.onnx']
+nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
+nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
+# nets += ['mnist_relu_4_1024.onnx', 'ffnnRELU__Point_6_500.onnx', 'ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx']
 
 input_model_paths = []
 for net in nets:
     input_model_paths.append(os.path.join(input_dir, net))
 
 dataset_path = '/home/afzal/Documents/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
-confs = [60, 80, 70, 90, 95]
+confs = [60, 80, 90, 95]
 # confs = [40, 60, 80]
 num_images= 100
 # get_fc_layer_weights_simple(0)
@@ -796,9 +795,29 @@ num_images= 100
 #             # append_fc_layer_to_model(input_path, out_path, labels[i], conf)
 
 
+for input_model in input_model_paths:
+    images, labels, idxs = read_images_from_dataset(input_model)
+    for i in range(len(images)):
+        image = images[i]
+        label = labels[i]
+        idx = idxs[i]
+        for conf in confs:
+            delta = get_delta(float(conf))
+            net_name = os.path.basename(input_model)
+            net_name = f"{net_name[:-5]}_{conf}_{idx}.onnx"
+            out_path = os.path.join(output_dir, net_name)
+            update_fc_relu_softmax(input_model, out_path, label, delta)
 
-input_model = '/home/u1411251/Documents/tools/networks/vnncomp2021/benchmarks/mnistfc/mnist-net_256x2.onnx'
-input_model = '/home/u1411251/Documents/tools/networks/conf_final/eran_mod/ffnnRELU__Point_6_500.onnx'
-output_model = 'temp.onnx'
-# update_fc_relu_simple(input_model, output_model)
-update_fc_relu_to_model(input_model, output_model)
+
+
+    
+
+
+
+
+
+# input_model = '/home/u1411251/Documents/tools/networks/vnncomp2021/benchmarks/mnistfc/mnist-net_256x2.onnx'
+# input_model = '/home/u1411251/Documents/tools/networks/conf_final/eran_mod/ffnnRELU__Point_6_500.onnx'
+# output_model = 'temp.onnx'
+# # update_fc_relu_simple(input_model, output_model)
+# update_fc_relu_to_model(input_model, output_model)
