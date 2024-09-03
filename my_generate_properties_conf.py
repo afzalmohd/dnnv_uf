@@ -3,6 +3,7 @@ import os
 import sys
 from typing import List
 from simulate_network import read_images_from_dataset
+from simulate_network import get_selected_images
 
 
 # import torch
@@ -38,8 +39,27 @@ def gen_props_specific(spec_dir):
                 counter += 1
 
     print(f"Total number of props: {counter}")
-    
 
+
+    
+def gen_props_standard(spec_dir):
+    eps = [0.04, 0.06]
+
+    counter = 0
+    selected_images, selected_labels, selected_idxs = get_selected_images()
+    for i in range(len(selected_images)):
+        image = selected_images[i]
+        image = image.reshape(784)
+        label = selected_labels[i]
+        idx = selected_idxs[i]
+        for ep in eps:
+            lb,ub = create_input_bounds_tf(image, ep)
+            spec_path = f"prop_{idx}_{ep}.vnnlib"
+            spec_path = os.path.join(spec_dir, spec_path)
+            save_vnnlib_tf_standard(lb, ub, label, spec_path, dataset)
+            counter += 1
+
+    print(f"Total number of props: {counter}")
 
 def read_images_from_file(filepath):
     labels = []
@@ -118,6 +138,48 @@ def create_input_bounds_tf(img, ep):
     return list(lb), list(ub)
 
 
+def save_vnnlib_tf_standard(lb, ub, label: int, spec_path: str, dataset, total_output_class: int = 10):
+     with open(spec_path, "w") as f:
+        if dataset == 'MNIST':
+            f.write(f"; Mnist property with label: {label}.\n")
+        else:
+            f.write(f"; Cifar10 property with label: {label}.\n")
+
+        # Declare input variables.
+        f.write("\n")
+        for i in range(0, len(lb)):
+            f.write(f"(declare-const X_{i} Real)\n")
+        f.write("\n")
+
+        # Declare output variables.
+        f.write("\n")
+        for i in range(total_output_class):
+            f.write(f"(declare-const Y_{i} Real)\n")
+        f.write("\n")
+
+        # Define input constraints.
+        f.write(f"; Input constraints:\n")
+        for i in range(0,len(lb)):
+            f.write(f"(assert (<= X_{i} {ub[i]}))\n")
+            f.write(f"(assert (>= X_{i} {lb[i]}))\n")
+            f.write("\n")
+        f.write("\n")
+
+        # Define output constraints.
+        f.write(f"; Output constraints:\n")
+        f.write("(assert (or\n")
+        for i in range(total_output_class):
+            if i != label:
+                f.write(f"    (and (>= Y_{i} Y_{label}))\n")
+
+        # for i in range(9):
+        #     and_str = "     (and "
+        #     for j in range(9):
+        #         and_str = f"{and_str} (>= Y_{9*i+j} 0.0)"
+        #     and_str = f"{and_str})\n"
+        #     f.write(and_str)
+
+        f.write("))")
     
 def save_vnnlib_tf(lb, ub, label: int, spec_path: str, dataset, total_output_class: int = 81):
      with open(spec_path, "w") as f:
@@ -251,6 +313,7 @@ if __name__ == '__main__':
     num_images = 2
     net_format = 'tf' #onnx/tf
     num_props = len(epsilons)*num_images
+    # get_selected_images()
     if len(sys.argv) == 5:
         net_path_onnx = str(sys.argv[1])
         net_path_tf = str(sys.argv[2])
@@ -260,7 +323,7 @@ if __name__ == '__main__':
         print("Please provide the network,dataset path and spec dir")
         sys.exit(0)
 
-    gen_props_specific(spec_dir)
+    gen_props_standard(spec_dir)
     exit(0)
     
     labels, images = read_images_from_file(dataset_path)

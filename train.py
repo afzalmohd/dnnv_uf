@@ -2,8 +2,8 @@ import tensorflow as tf
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-num_epochs = 20
-saved_model_name = 'tf_model'
+num_epochs = 40
+saved_model_name = 'tf_model.h5'
 
 class myCallback(tf.keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs={}):
@@ -82,8 +82,8 @@ x_test = x_test.reshape(x_test.shape[0], 28, 28, 1)
 x_train, x_val, y_train, y_val = train_test_split(x_train_full, y_train_full, test_size=0.2, random_state=42)
 
 # trained_model = training(x_train, y_train, x_val, y_val, model)
-# trained_model = training_with_augmentation(x_train, y_train, x_val, y_val, model)
-trained_model = retrain_with_augmentation(x_train, y_train, x_val, y_val, saved_model_name)
+trained_model = training_with_augmentation(x_train, y_train, x_val, y_val, model)
+# trained_model = retrain_with_augmentation(x_train, y_train, x_val, y_val, saved_model_name)
 
 print(f"Evaluation on test data")
 test_loss, test_accuracy = trained_model.evaluate(x_test, y_test, verbose=2)

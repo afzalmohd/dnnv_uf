@@ -31,6 +31,24 @@ def get_mnist_train_data():
     return x_train, y_train
 
 
+def get_selected_images():
+    image_idxs = []
+    file_path = '/home/afzal/tools/my_scripts/low_conf_images.txt'
+    with open(file_path, 'r') as f:
+        Lines = f.readlines()
+        for line in Lines:
+            line = line.strip()
+            # print(line)
+            image_idxs.append(int(line))
+
+    image_idxs = list(set(image_idxs))
+    # print(image_idxs)
+    print(len(image_idxs))
+    x_train, y_train = get_mnist_train_data()
+    x_train = x_train[image_idxs]
+    y_train = y_train[image_idxs]
+    return x_train, y_train, image_idxs
+
 def read_images_from_dataset(model_path):
     _ , _ , images_idx = run_network_mnist_test(model_path)
     x_test, y_test = get_mnist_test_data()
