@@ -1,14 +1,23 @@
 import os
 import csv
+import sys
 import onnxruntime as ort
 import numpy as np
 import matplotlib.pyplot as plt
+from simulate_network import get_mnist_test_data
 
+
+IS_CONF_ANALYSIS = False
 dataset_file = '/home/u1411251/Documents/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
 net_dir = '/home/u1411251/Documents/tools/networks/conf_final/eran_mod'
-out_dir = '/home/u1411251/Documents/tools/my_scripts/logs'
+if IS_CONF_ANALYSIS:
+    out_dir = '/home/u1411251/Documents/tools/my_scripts/ce_confs'
+else:
+    out_dir = '/home/u1411251/Documents/tools/my_scripts/ce_normal'
 IMAGES = []
 LABELS = []
+
+top_k = 3
 
 
 def extract_ce(log_file):
@@ -46,6 +55,16 @@ def softmax(x):
     e_x = np.exp(x - np.max(x))  # Subtract max for numerical stability
     return e_x / e_x.sum(axis=-1, keepdims=True)
 
+def top_k_pred(softmax_output, k):
+    top_indices = np.argsort(softmax_output)[-k:][::-1]
+
+    # Get the top three confidence scores
+    top_confidences = softmax_output[top_indices]
+
+    return top_indices, top_confidences
+
+
+
 def run_network(net_path, image, is_normalized=False):
     session = ort.InferenceSession(net_path)
     input_name = session.get_inputs()[0].name
@@ -56,9 +75,11 @@ def run_network(net_path, image, is_normalized=False):
         test_input /= 255
     test_input = test_input.astype(np.float32)
     output = session.run(None, {input_name: test_input})
-    predicted_class = np.argmax(output[0][0])
+    # predicted_class = np.argmax(output[0][0])
     softmax_output= softmax(output[0][0])
-    return predicted_class, softmax_output[predicted_class]
+    top_indeces, top_confidences = top_k_pred(softmax_output, top_k)
+    # print(f"Classification with class: {top_indeces}, conf: {top_confidences}")
+    return top_indeces, top_confidences
 
 
 def get_result(file_path):
@@ -75,21 +96,22 @@ def extract_dir_conf(dir_name):
         file_path = os.path.join(dir_name, filename)
         if os.path.isfile(file_path) and (not 'res' in filename) and (not 'script' in filename):
             res = get_result(file_path)
+            # print(res)
             filename_split = filename.split('+')
             filename_split_1 = filename_split[0]
             conf_imidx = filename_split_1.split('_')
             im_idx = conf_imidx[-1]
             conf = conf_imidx[-2]
             netname = "_".join(conf_imidx[:-2])+".onnx"
-            _, orig_conf = run_network(os.path.join(net_dir, netname), IMAGES[int(im_idx)])
+            _, orig_conf = run_network(os.path.join(net_dir, netname), IMAGES[int(im_idx)], is_normalized=True)
             filename_split_2 = filename_split[1]
             ep = filename_split_2.split('_')[-1]
-            ce_conf = 1
+            ce_conf = [1,0,0]
             if res == 'sat':
                 ce = extract_ce(file_path)
-                print_ce(ce, out_dir, is_conf_logs=True)
+                print_ce(file_path, out_dir, is_conf_logs=True)
                 _, ce_conf = run_network(os.path.join(net_dir, netname), ce, is_normalized=True)
-            print(f"{netname},{im_idx},{ep},{conf},{orig_conf * 100:.2f},{ce_conf * 100:.2f},{res}")
+            print(f"{netname},{im_idx},{ep},{conf},{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
 
 def extract_dir_normal(dir_name):
     for filename in os.listdir(dir_name):
@@ -102,13 +124,13 @@ def extract_dir_normal(dir_name):
             filename_split_2 = filename_split[1]
             ep = filename_split_2.split('_')[-1]
             im_idx = filename_split_2.split('_')[-2]
-            _, orig_conf = run_network(os.path.join(net_dir, netname), IMAGES[int(im_idx)])
-            ce_conf = 1
+            _, orig_conf = run_network(os.path.join(net_dir, netname), IMAGES[int(im_idx)], is_normalized=True)
+            ce_conf = [1,0,0]
             if res == 'sat':
                 ce = extract_ce(file_path)
                 _, ce_conf = run_network(os.path.join(net_dir, netname), ce, is_normalized=True)
                 print_ce(file_path, out_dir, is_conf_logs=False)
-            print(f"{netname},{im_idx},{ep},0,{orig_conf * 100:.2f},{ce_conf * 100:.2f},{res}")
+            print(f"{netname},{im_idx},{ep},0,{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
 
 def get_images_list(dataset_file):
     labels = []
@@ -139,18 +161,19 @@ def print_ce(log_file, output_dir, is_conf_logs=True):
         filename_split_2 = filename_split[1]
         im_idx = filename_split_2.split('_')[-2]
         image_idx = int(im_idx)
-    
+    # print(image_idx)
     orig_image = IMAGES[image_idx]
-    orig_image /= 255
     ce = ce.reshape(28,28)
     orig_image = orig_image.reshape(28,28)
-    pred_class, orig_conf = run_network(os.path.join(net_dir, netname), orig_image)
-    ce_pred_class, ce_conf = run_network(os.path.join(net_dir, netname), ce, is_normalized=True)
-
-    fig, axes = plt.subplots(1, 3, figsize=(4, 4))
-
+    top_classes, top_confidences = run_network(os.path.join(net_dir, netname), orig_image, is_normalized=True)
+    ce_top_classes, ce_top_confs = run_network(os.path.join(net_dir, netname), ce, is_normalized=True)
+    # print(f"Original class: {LABELS[image_idx]}")
+    fig, axes = plt.subplots(1, 3, figsize=(6, 6))
+    titled_str = ""
+    for i in range(top_k):
+        titled_str += f"{top_classes[i]},{top_confidences[i] * 100:.2f}\n"
     axes[0].imshow(orig_image, cmap='gray_r')
-    axes[0].set_title(f"{pred_class},{orig_conf * 100:.2f}")
+    axes[0].set_title(titled_str)
     axes[0].axis('off')
 
     diff_image = np.absolute(orig_image - ce)
@@ -159,12 +182,16 @@ def print_ce(log_file, output_dir, is_conf_logs=True):
     # axes[1].set_title(f"{ce_pred_class},{ce_conf * 100:.2f}")
     axes[1].axis('off')
 
+    titled_str = ""
+    for i in range(top_k):
+        titled_str += f"{ce_top_classes[i]},{ce_top_confs[i] * 100:.2f}\n"
     axes[2].imshow(ce, cmap='gray_r')
-    axes[2].set_title(f"{ce_pred_class},{ce_conf * 100:.2f}")
+    axes[2].set_title(titled_str)
     axes[2].axis('off')
 
-    # plt.tight_layout()
-    # plt.show()
+    plt.tight_layout()
+    plt.show()
+    return
     output_file = os.path.join(output_dir, f"{filename}.png")
     plt.savefig(output_file)
 
@@ -178,16 +205,25 @@ def print_ce(log_file, output_dir, is_conf_logs=True):
 
 if __name__ == '__main__':
     dir_name = '/home/u1411251/Documents/tools/result_dir/aaai25/abcrown/conf/logs'
-    dir_name = '/home/u1411251/Documents/tools/result_dir/aaai25/abcrown/logs_normal'
-    is_conf_logs = False
-    IMAGES, LABELS =  get_images_list(dataset_file)
+    if IS_CONF_ANALYSIS:
+        dir_name = '/home/u1411251/Documents/tools/result_dir/aaai25/abcrown/logs_orig_dataset_conf'
+    else:
+        dir_name = '/home/u1411251/Documents/tools/result_dir/aaai25/abcrown/logs_orig_dataset_normal'
+    
+    # IMAGES, LABELS =  get_images_list(dataset_file)
+    IMAGES, LABELS = get_mnist_test_data()
+
     # log_file = '/home/u1411251/Documents/tools/result_dir/aaai25/abcrown/conf/logs/mnist_relu_3_50_60_12+prop_12_0.06'
     # extract_ce(log_file)
     # print(images[0]/255)  
-    if is_conf_logs:
+    if IS_CONF_ANALYSIS:
         extract_dir_conf(dir_name)
     else:
         extract_dir_normal(dir_name)
 
-    # log_file = '/home/u1411251/Documents/tools/result_dir/aaai25/abcrown/logs_normal/mnist_relu_9_200+prop_4_0.06'
+    # log_file = '/home/u1411251/Documents/tools/result_dir/aaai25/abcrown/logs_orig_dataset_normal/mnist_relu_3_50+prop_9954_0.06'
+    # if len(sys.argv) > 1:
+    #     log_file = str(sys.argv[1])
+
+    
     # print_ce(log_file, out_dir, is_conf_logs=False)

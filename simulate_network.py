@@ -19,14 +19,31 @@ def get_mnist_test_data():
     x_test = x_test.reshape(x_test.shape[0], 1, 784, 1)
     return x_test, y_test
 
+def get_mnist_train_data():
+    mnist = tf.keras.datasets.mnist
+    (x_train, y_train), (_, _) = mnist.load_data()
+
+    # Normalize the test images to the range [0, 1]
+    x_train = x_train.astype("float32") / 255.0
+
+    # Flatten the images to match the input shape (1, 784) of the model
+    x_train = x_train.reshape(x_train.shape[0], 1, 784, 1)
+    return x_train, y_train
+
+
 def read_images_from_dataset(model_path):
     _ , _ , images_idx = run_network_mnist_test(model_path)
     x_test, y_test = get_mnist_test_data()
     x_test, y_test = x_test[images_idx], y_test[images_idx]
     return x_test, y_test, images_idx
 
-def run_network_mnist_test(model_path):
-    x_test, y_test = get_mnist_test_data()
+def run_network_mnist_test(model_path, is_test_dataset = False, is_cnn = False):
+    if is_test_dataset:
+        x_test, y_test = get_mnist_test_data()
+    else:
+        x_test, y_test = get_mnist_train_data()
+    if is_cnn:
+        x_test = x_test.reshape(x_test.shape[0], 1, 28,28)
     session = ort.InferenceSession(model_path)
     # Get the model's input name
     input_name = session.get_inputs()[0].name
@@ -39,6 +56,8 @@ def run_network_mnist_test(model_path):
     for i in range(len(x_test)):
         # Prepare the test input
         test_input = x_test[i].astype(np.float32)
+        if is_cnn:
+            test_input = test_input.reshape(1,1,28,28)
         
         # Run the model on the test input
         output = session.run(None, {input_name: test_input})
@@ -50,7 +69,7 @@ def run_network_mnist_test(model_path):
         # Compare with the true label
         if predicted_class == y_test[i]:
             correct_predictions += 1
-            if softmax_output[predicted_class] <= 0.4:
+            if softmax_output[predicted_class] < 0.5:
                 num_low_conf_im += 1
                 low_conf_images_idx.append(i)
                 confs.append(softmax_output[predicted_class])
@@ -60,7 +79,7 @@ def run_network_mnist_test(model_path):
     accuracy = correct_predictions / len(x_test)
     # print(f"Accuracy on MNIST test dataset: {accuracy * 100:.2f}%")
     # print(f"Number of low confidence images: {num_low_conf_im}")
-    return accuracy, num_low_conf_im, low_conf_images_idx
+    return accuracy, num_low_conf_im, low_conf_images_idx, confs
 
 def print_images(x_test, y_test, images_idx, confs):
     x_test, y_test = get_mnist_test_data()
@@ -85,6 +104,64 @@ def print_images(x_test, y_test, images_idx, confs):
 
     plt.tight_layout()
     plt.show()
+
+def print_images_1(images_idx, confs, is_test_dataset=False):
+
+    # Assuming x_test and y_test are provided
+    if is_test_dataset:
+        x_test, y_test = get_mnist_test_data()
+    else:
+        x_test, y_test = get_mnist_train_data()
+
+    # Reshape x_test back to 2D images for visualization
+    x_test_2d = x_test.reshape(x_test.shape[0], 28, 28)
+
+    # Number of images to display
+    num_images = len(images_idx)  # Number of images you want to display
+    images_per_grid = 100  # Maximum number of images per grid (10x10)
+    max_num_rows, max_num_columns = 10,10
+
+    # Loop through the images and display them in grids
+    for grid_idx in range(0, num_images, images_per_grid):
+        # Determine the range of images to display in this grid
+        grid_end_idx = min(grid_idx + images_per_grid, num_images)
+        grid_images = x_test_2d[images_idx[grid_idx:grid_end_idx]]
+        grid_labels = y_test[images_idx[grid_idx:grid_end_idx]]
+        grid_confs = confs[grid_idx:grid_end_idx]
+
+        # Determine the grid size (rows and columns)
+        num_images_in_grid = len(grid_images)
+        grid_rows = (num_images_in_grid // max_num_rows) + (num_images_in_grid % max_num_rows != 0)
+        grid_cols = min(max_num_columns, num_images_in_grid)
+
+        # Create a figure with a grid of subplots
+        fig, axes = plt.subplots(grid_rows, grid_cols, figsize=(grid_cols+5, grid_rows+5))
+
+        # Ensure axes is always 2D array even for single row or column
+        if grid_rows == 1:
+            axes = np.expand_dims(axes, axis=0)
+        if grid_cols == 1:
+            axes = np.expand_dims(axes, axis=1)
+
+        # Loop through the grid and display images with legends
+        for i, ax in enumerate(axes.flat):
+            if i < num_images_in_grid:
+                # Plot the image
+                im_idx = grid_idx + i
+                ax.imshow(grid_images[i], cmap='gray_r')
+                
+                # Set the legend/title for each image
+                ax.set_title(f"{grid_labels[i]},{images_idx[im_idx]},{grid_confs[i] * 100:.1f}", fontsize=8)
+                
+                # Hide the axis
+                ax.axis('off')
+            else:
+                ax.axis('off')  # Hide any unused subplots
+
+        # plt.tight_layout()
+        plt.subplots_adjust(hspace=0.5, wspace=0.3)
+        plt.show()
+
 
 
 def extract_w_b(model_path):
@@ -145,10 +222,22 @@ def get_images(dataset_file):
 
 
 if __name__ == '__main__':
+    is_test_dataset = False
     dataset_file = "/home/u1411251/Documents/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv"
+    is_cnn = False
     net_dirs = '/home/u1411251/Documents/tools/networks/conf_final/eran_mod' 
     nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx', 'mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx']
     nets += ['mnist_relu_9_200.onnx', 'mnist_relu_4_1024.onnx', 'ffnnRELU__Point_6_500.onnx', 'ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx']
+
+    #cnn
+    is_cnn = True
+    net_dirs = '/home/u1411251/Documents/tools/networks/erans_nets'
+    nets = []
+    nets += ['convSmallRELU__Point.onnx', 'convSmallRELU__PGDK.onnx', 'convSmallRELU__DiffAI.onnx']
+    nets += ['convMedGRELU__Point.onnx']
+    nets += ['mnist_conv_maxpool.onnx']
+    nets += ['convBigRELU__DiffAI.onnx']
+
     images = get_images(dataset_file)
     if len(sys.argv) > 1:
         model_path = str(sys.argv[1])
@@ -163,5 +252,6 @@ if __name__ == '__main__':
     # print_images(None, None)
     for net in nets:
         model_path = os.path.join(net_dirs, net)
-        acc, num_low_conf_images, low_conf_images_idx = run_network_mnist_test(model_path)
+        acc, num_low_conf_images, low_conf_images_idx, confs = run_network_mnist_test(model_path, is_cnn=is_cnn, is_test_dataset=is_test_dataset)
         print(f"{net},{acc},{num_low_conf_images}")
+        print_images_1(low_conf_images_idx, confs, is_test_dataset=is_test_dataset)
