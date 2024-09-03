@@ -22,10 +22,13 @@ def gen_props_specific(spec_dir):
     net_dirs = '/home/afzal/tools/networks/conf_final/eran_mod' 
     nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx', 'mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
     nets += ['mnist_relu_4_1024.onnx', 'ffnnRELU__Point_6_500.onnx', 'ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx']
+
+    nets = ['mnist_relu_5_100.onnx']
     
     counter = 0
     for net in nets:
-        selected_images, selected_labels, selected_idxs = read_images_from_dataset(os.path.join(net_dirs, net))
+        # selected_images, selected_labels, selected_idxs = read_images_from_dataset(os.path.join(net_dirs, net))
+        selected_images, selected_labels, selected_idxs = get_selected_images()
         for i in range(len(selected_images)):
             image = selected_images[i]
             image = image.reshape(784)
@@ -323,7 +326,7 @@ if __name__ == '__main__':
         print("Please provide the network,dataset path and spec dir")
         sys.exit(0)
 
-    gen_props_standard(spec_dir)
+    gen_props_specific(spec_dir)
     exit(0)
     
     labels, images = read_images_from_file(dataset_path)

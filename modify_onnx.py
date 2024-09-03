@@ -5,6 +5,7 @@ import math
 import os
 import sys
 from simulate_network import read_images_from_dataset
+from simulate_network import get_selected_images
 
 def layers_index_reduce(model):
     graph = model.graph
@@ -747,12 +748,14 @@ def get_delta(conf):
 
 # Example usage
 
-output_dir = '/home/afzal/tools/networks/conf_final/orig_dataset/nets'
+output_dir = '/home/afzal/tools/networks/mod_props/nets'
 input_dir = '/home/afzal/tools/networks/conf_final/eran_mod'
 
 nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
 nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
 # nets += ['mnist_relu_4_1024.onnx', 'ffnnRELU__Point_6_500.onnx', 'ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx']
+
+nets = ['mnist_relu_5_100.onnx']
 
 input_model_paths = []
 for net in nets:
@@ -796,7 +799,8 @@ num_images= 100
 
 
 for input_model in input_model_paths:
-    images, labels, idxs = read_images_from_dataset(input_model)
+    # images, labels, idxs = read_images_from_dataset(input_model)
+    images, labels, idxs = get_selected_images()
     for i in range(len(images)):
         image = images[i]
         label = labels[i]
