@@ -43,11 +43,25 @@ def gen_props_specific(spec_dir):
 
     print(f"Total number of props: {counter}")
 
+def gen_props(spec_dir, selected_images, selected_labels, selected_idxs, eps):
+    counter = 0
+    for i in range(len(selected_images)):
+        image = selected_images[i]
+        image = image.reshape(784)
+        label = selected_labels[i]
+        idx = selected_idxs[i]
+        for ep in eps:
+            lb,ub = create_input_bounds_tf(image, ep)
+            spec_path = f"prop_{idx}_{ep}.vnnlib"
+            spec_path = os.path.join(spec_dir, spec_path)
+            save_vnnlib_tf_1(lb, ub, label, spec_path)
+            counter += 1
+
+    print(f"Total number of props: {counter}")
+
 
     
-def gen_props_standard(spec_dir):
-    eps = [0.04, 0.06]
-
+def gen_props_standard(spec_dir, selected_images, selected_labels, selected_idxs, eps):
     counter = 0
     selected_images, selected_labels, selected_idxs = get_selected_images()
     for i in range(len(selected_images)):
@@ -227,7 +241,7 @@ def save_vnnlib_tf(lb, ub, label: int, spec_path: str, dataset, total_output_cla
         f.write("))")
 
 
-def save_vnnlib_tf_1(lb, ub, label: int, spec_path: str, dataset, total_output_class: int = 9):
+def save_vnnlib_tf_1(lb, ub, label: int, spec_path: str, dataset = 'MNIST', total_output_class: int = 9):
      tolerance_param = -1e-3
      with open(spec_path, "w") as f:
         if dataset == 'MNIST':

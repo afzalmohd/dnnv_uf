@@ -5,15 +5,17 @@ import onnxruntime as ort
 import numpy as np
 import matplotlib.pyplot as plt
 from simulate_network import get_mnist_test_data
+from simulate_network import get_mnist_train_data
 
 
-IS_CONF_ANALYSIS = False
+IS_CONF_ANALYSIS = True
 dataset_file = '/home/u1411251/Documents/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
 net_dir = '/home/u1411251/Documents/tools/networks/conf_final/eran_mod'
 if IS_CONF_ANALYSIS:
-    out_dir = '/home/u1411251/Documents/tools/my_scripts/ce_confs'
+    out_dir = '/home/u1411251/Documents/tools/result_dir/with_venky/ce_confs'
+    out_dir = '/home/u1411251/Documents/tools/result_dir/with_venky/ce_confs_65'
 else:
-    out_dir = '/home/u1411251/Documents/tools/my_scripts/ce_normal'
+    out_dir = '/home/u1411251/Documents/tools/result_dir/with_venky/ce_normal'
 IMAGES = []
 LABELS = []
 
@@ -65,7 +67,7 @@ def top_k_pred(softmax_output, k):
 
 
 
-def run_network(net_path, image, is_normalized=False):
+def run_network(net_path, image, is_normalized=True):
     session = ort.InferenceSession(net_path)
     input_name = session.get_inputs()[0].name
     # print(image.shape)
@@ -103,15 +105,19 @@ def extract_dir_conf(dir_name):
             im_idx = conf_imidx[-1]
             conf = conf_imidx[-2]
             netname = "_".join(conf_imidx[:-2])+".onnx"
-            _, orig_conf = run_network(os.path.join(net_dir, netname), IMAGES[int(im_idx)], is_normalized=True)
+            top_indecies, orig_conf = run_network(os.path.join(net_dir, netname), IMAGES[int(im_idx)], is_normalized=True)
             filename_split_2 = filename_split[1]
             ep = filename_split_2.split('_')[-1]
             ce_conf = [1,0,0]
-            if res == 'sat':
+            if res == 'sat' and LABELS[int(im_idx)] == top_indecies[0]:
                 ce = extract_ce(file_path)
                 print_ce(file_path, out_dir, is_conf_logs=True)
                 _, ce_conf = run_network(os.path.join(net_dir, netname), ce, is_normalized=True)
-            print(f"{netname},{im_idx},{ep},{conf},{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
+                print(f"{netname},{im_idx},{ep},{conf},{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
+            elif res == 'unsat':
+                print(f"{netname},{im_idx},{ep},{conf},{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
+            
+            # print(f"{netname},{im_idx},{ep},{conf},{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
 
 def extract_dir_normal(dir_name):
     for filename in os.listdir(dir_name):
@@ -124,13 +130,16 @@ def extract_dir_normal(dir_name):
             filename_split_2 = filename_split[1]
             ep = filename_split_2.split('_')[-1]
             im_idx = filename_split_2.split('_')[-2]
-            _, orig_conf = run_network(os.path.join(net_dir, netname), IMAGES[int(im_idx)], is_normalized=True)
+            top_indecies, orig_conf = run_network(os.path.join(net_dir, netname), IMAGES[int(im_idx)], is_normalized=True)
             ce_conf = [1,0,0]
-            if res == 'sat':
+            if res == 'sat' and LABELS[int(im_idx)] == top_indecies[0]:
                 ce = extract_ce(file_path)
                 _, ce_conf = run_network(os.path.join(net_dir, netname), ce, is_normalized=True)
                 print_ce(file_path, out_dir, is_conf_logs=False)
-            print(f"{netname},{im_idx},{ep},0,{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
+                print(f"{netname},{im_idx},{ep},0,{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
+            elif res == 'unsat':
+                print(f"{netname},{im_idx},{ep},0,{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
+
 
 def get_images_list(dataset_file):
     labels = []
@@ -190,8 +199,8 @@ def print_ce(log_file, output_dir, is_conf_logs=True):
     axes[2].axis('off')
 
     plt.tight_layout()
-    plt.show()
-    return
+    # plt.show()
+    # return
     output_file = os.path.join(output_dir, f"{filename}.png")
     plt.savefig(output_file)
 
@@ -206,12 +215,13 @@ def print_ce(log_file, output_dir, is_conf_logs=True):
 if __name__ == '__main__':
     dir_name = '/home/u1411251/Documents/tools/result_dir/aaai25/abcrown/conf/logs'
     if IS_CONF_ANALYSIS:
-        dir_name = '/home/u1411251/Documents/tools/result_dir/aaai25/abcrown/logs_orig_dataset_conf'
+        dir_name = '/home/u1411251/Documents/tools/result_dir/with_venky/logs_softmax_conf_65'
     else:
-        dir_name = '/home/u1411251/Documents/tools/result_dir/aaai25/abcrown/logs_orig_dataset_normal'
+        dir_name = '/home/u1411251/Documents/tools/result_dir/with_venky/logs_simple_selected_idx'
     
     # IMAGES, LABELS =  get_images_list(dataset_file)
-    IMAGES, LABELS = get_mnist_test_data()
+    # IMAGES, LABELS = get_mnist_test_data()
+    IMAGES, LABELS = get_mnist_train_data()
 
     # log_file = '/home/u1411251/Documents/tools/result_dir/aaai25/abcrown/conf/logs/mnist_relu_3_50_60_12+prop_12_0.06'
     # extract_ce(log_file)

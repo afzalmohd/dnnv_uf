@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, TensorDataset
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
 
-num_epochs = 150
+num_epochs = 15
 saved_model_name = 'pytorch_model.onnx'
 
 
@@ -43,7 +43,8 @@ class MyModel(nn.Module):
         x = F.relu(self.conv2(x))
         x = self.flatten(x)
         x = F.relu(self.fc1(x))
-        x = F.softmax(self.fc2(x), dim=1)
+        # x = F.softmax(self.fc2(x), dim=1)
+        x = self.fc2(x)
         return x
 
 
@@ -100,6 +101,8 @@ def training_with_augmentation(train_x, train_y, val_x, val_y, model, num_epochs
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters())
 
+    early_stopping_accuracy = 99.15
+
     # Define the data augmentation
     transform = transforms.Compose([
         transforms.ToPILImage(),
@@ -155,7 +158,12 @@ def training_with_augmentation(train_x, train_y, val_x, val_y, model, num_epochs
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
-        print(f'Validation Accuracy: {100 * correct / total:.2f}%')
+            validation_accuracy = 100 * correct / total
+        print(f'Validation Accuracy: {validation_accuracy:.2f}%')
+
+        if validation_accuracy >= early_stopping_accuracy:
+            print(f"Early stopping triggered. Validation accuracy has reached {validation_accuracy:.2f}%")
+            break
 
     return model
 

@@ -55,7 +55,8 @@ def read_images_from_dataset(model_path):
     x_test, y_test = x_test[images_idx], y_test[images_idx]
     return x_test, y_test, images_idx
 
-def run_network_mnist_test(model_path, is_test_dataset = False, is_cnn = False):
+def run_network_mnist_test(model_path, is_test_dataset = False, is_cnn = False, is_softmax_output = False, conf_th = 70):
+    conf_th = conf_th / 100.0
     if is_test_dataset:
         x_test, y_test = get_mnist_test_data()
     else:
@@ -69,7 +70,9 @@ def run_network_mnist_test(model_path, is_test_dataset = False, is_cnn = False):
     correct_predictions = 0
     num_low_conf_im = 0
     low_conf_images_idx = []
-    confs = []
+    low_confs = []
+    high_conf_image_idx = []
+    high_confs = []
     # Loop through the test dataset
     for i in range(len(x_test)):
         # Prepare the test input
@@ -82,22 +85,31 @@ def run_network_mnist_test(model_path, is_test_dataset = False, is_cnn = False):
         
         # Get the predicted class
         predicted_class = np.argmax(output[0][0])
-        softmax_output= softmax(output[0][0])
+        if is_softmax_output:
+            softmax_output = output[0][0]
+        else:
+            softmax_output= softmax(output[0][0])
         
         # Compare with the true label
         if predicted_class == y_test[i]:
             correct_predictions += 1
-            if softmax_output[predicted_class] < 0.5:
+            # print(softmax_output[predicted_class])
+            if softmax_output[predicted_class] <= conf_th:
                 num_low_conf_im += 1
                 low_conf_images_idx.append(i)
-                confs.append(softmax_output[predicted_class])
+                low_confs.append(softmax_output[predicted_class])
+            else:
+                high_conf_image_idx.append(i)
+                high_confs.append(softmax_output[predicted_class])
+                
         
     # print(low_conf_images_idx)
     # print_images(None, None, low_conf_images_idx, confs)
     accuracy = correct_predictions / len(x_test)
     # print(f"Accuracy on MNIST test dataset: {accuracy * 100:.2f}%")
     # print(f"Number of low confidence images: {num_low_conf_im}")
-    return accuracy, num_low_conf_im, low_conf_images_idx, confs
+    # print(accuracy, num_low_conf_im)
+    return accuracy, num_low_conf_im, low_conf_images_idx, low_confs, high_conf_image_idx, high_confs
 
 def print_images(x_test, y_test, images_idx, confs):
     x_test, y_test = get_mnist_test_data()
@@ -240,7 +252,7 @@ def get_images(dataset_file):
 
 
 if __name__ == '__main__':
-    is_test_dataset = False
+    is_test_dataset = True
     dataset_file = "/home/u1411251/Documents/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv"
     is_cnn = False
     net_dirs = '/home/u1411251/Documents/tools/networks/conf_final/eran_mod' 
@@ -256,6 +268,10 @@ if __name__ == '__main__':
     nets += ['mnist_conv_maxpool.onnx']
     nets += ['convBigRELU__DiffAI.onnx']
 
+    is_softmax_out_layer = False
+    net_dirs = '/home/u1411251/Documents/tools/my_scripts'
+    nets = ['pytorch_model.onnx']
+
     images = get_images(dataset_file)
     if len(sys.argv) > 1:
         model_path = str(sys.argv[1])
@@ -270,6 +286,6 @@ if __name__ == '__main__':
     # print_images(None, None)
     for net in nets:
         model_path = os.path.join(net_dirs, net)
-        acc, num_low_conf_images, low_conf_images_idx, confs = run_network_mnist_test(model_path, is_cnn=is_cnn, is_test_dataset=is_test_dataset)
+        acc, num_low_conf_images, low_conf_images_idx, confs = run_network_mnist_test(model_path, is_cnn=is_cnn, is_test_dataset=is_test_dataset, is_softmax_output=is_softmax_out_layer)
         print(f"{net},{acc},{num_low_conf_images}")
         print_images_1(low_conf_images_idx, confs, is_test_dataset=is_test_dataset)
