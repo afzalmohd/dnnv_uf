@@ -1,7 +1,7 @@
 import os
 import shutil
 from modify_onnx import append_layers
-from my_generate_properties_conf import gen_props
+from generate_properties import gen_props
 from generate_instance_file import gen_instances_file
 from simulate_network import get_mnist_test_data
 from simulate_network import get_mnist_train_data
