@@ -282,7 +282,7 @@ def append_fc_relu_softmax(model_path, output_model_path, label = 0, delta=1.98,
         if layer_idx > out_layer_idx:
             out_layer_idx = layer_idx
 
-    print(out_layer_idx)
+    # print(out_layer_idx)
     
     # Initialize the new fully connected layer's weights and biases
     new_w = get_fc_layer_weights(label)
@@ -376,7 +376,7 @@ def update_fc_relu_softmax(model_path, output_model_path, label = 0, delta=1.98,
             if layer_idx > out_layer_idx:
                 out_layer_idx = layer_idx
 
-    print(out_layer_idx)
+    # print(out_layer_idx)
     for initializer in graph.initializer:
         # print(initializer.name)
         if f"{out_layer_idx}.weight" in  initializer.name:
@@ -459,7 +459,7 @@ def append_fc_relu_simple(model_path, output_model_path, label = 0, conf=40, fc_
         if layer_idx > out_layer_idx:
             out_layer_idx = layer_idx
 
-    print(out_layer_idx)
+    # print(out_layer_idx)
     
     # Initialize the new fully connected layer's weights and biases
     new_w = get_fc_layer_weights_simple(label, conf=conf)
@@ -559,7 +559,7 @@ def update_fc_relu_simple(model_path, output_model_path, label = 0, conf=40, fc_
             if layer_idx > out_layer_idx:
                 out_layer_idx = layer_idx
 
-    print(out_layer_idx)
+    # print(out_layer_idx)
     for initializer in graph.initializer:
         # print(initializer.name)
         if f"{out_layer_idx}.weight" in  initializer.name:
@@ -655,7 +655,7 @@ def append_fc_only_layer_simple(model_path, output_model_path, label = 7, conf =
         if layer_idx > out_layer_idx:
             out_layer_idx = layer_idx
 
-    print(out_layer_idx)
+    # print(out_layer_idx)
     new_w = []
     for i in range(output_layer_output_dim):
         if i != label:
