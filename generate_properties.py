@@ -43,7 +43,7 @@ def gen_props_specific(spec_dir):
 
     print(f"Total number of props: {counter}")
 
-def gen_props(spec_dir, selected_images, selected_labels, selected_idxs, eps, is_standard_prop=False):
+def gen_props(spec_dir, selected_images, selected_labels, selected_idxs, eps, is_standard_prop:bool = False, net_out_dims:int = 9):
     counter = 0
     for i in range(len(selected_images)):
         image = selected_images[i]
@@ -57,7 +57,7 @@ def gen_props(spec_dir, selected_images, selected_labels, selected_idxs, eps, is
             if is_standard_prop:
                 save_vnnlib_tf_standard(lb, ub, label, spec_path, 'MNIST')
             else:
-                save_vnnlib_tf_1(lb, ub, label, spec_path)
+                save_vnnlib_tf_1(lb, ub, label, spec_path, total_output_class=net_out_dims)
             counter += 1
 
     print(f"Total number of props: {counter}")

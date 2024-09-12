@@ -7,15 +7,6 @@ import matplotlib.pyplot as plt
 from simulate_network import get_mnist_test_data
 from simulate_network import get_mnist_train_data
 
-
-IS_CONF_ANALYSIS = True
-dataset_file = '/home/u1411251/Documents/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
-net_dir = '/home/u1411251/Documents/tools/networks/conf_final/eran_mod'
-if IS_CONF_ANALYSIS:
-    out_dir = '/home/u1411251/Documents/tools/result_dir/with_venky/ce_confs'
-    out_dir = '/home/u1411251/Documents/tools/result_dir/with_venky/ce_confs_65'
-else:
-    out_dir = '/home/u1411251/Documents/tools/result_dir/with_venky/ce_normal'
 IMAGES = []
 LABELS = []
 
@@ -93,35 +84,32 @@ def get_result(file_path):
                 line_list = line.split(':')
                 return line_list[1].replace(' ', '')
             
-def extract_dir_conf(dir_name):
-    for filename in os.listdir(dir_name):
-        file_path = os.path.join(dir_name, filename)
+def extract_dir_conf(log_dir, cex_dir, net_dir, is_print_ce = False):
+    for filename in os.listdir(log_dir):
+        file_path = os.path.join(log_dir, filename)
         if os.path.isfile(file_path) and (not 'res' in filename) and (not 'script' in filename):
             res = get_result(file_path)
-            # print(res)
-            filename_split = filename.split('+')
-            filename_split_1 = filename_split[0]
-            conf_imidx = filename_split_1.split('_')
-            im_idx = conf_imidx[-1]
-            conf = conf_imidx[-2]
-            netname = "_".join(conf_imidx[:-2])+".onnx"
+            netname, im_idx, conf_th, ep = get_net_im_conf_ep(file_path)
             top_indecies, orig_conf = run_network(os.path.join(net_dir, netname), IMAGES[int(im_idx)], is_normalized=True)
-            filename_split_2 = filename_split[1]
-            ep = filename_split_2.split('_')[-1]
             ce_conf = [1,0,0]
+            if conf_th == 0.0:
+                print(res, LABELS[int(im_idx)], top_indecies[0])
             if res == 'sat' and LABELS[int(im_idx)] == top_indecies[0]:
                 ce = extract_ce(file_path)
-                print_ce(file_path, out_dir, is_conf_logs=True)
+                if is_print_ce:
+                    print_ce(file_path, cex_dir, is_conf_logs=True)
                 _, ce_conf = run_network(os.path.join(net_dir, netname), ce, is_normalized=True)
-                print(f"{netname},{im_idx},{ep},{conf},{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
+                print(conf_th)
+                print(f"{netname},{im_idx},{ep},{conf_th},{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
             elif res == 'unsat':
-                print(f"{netname},{im_idx},{ep},{conf},{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
+                print(conf_th)
+                print(f"{netname},{im_idx},{ep},{conf_th},{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
             
             # print(f"{netname},{im_idx},{ep},{conf},{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
 
-def extract_dir_normal(dir_name):
-    for filename in os.listdir(dir_name):
-        file_path = os.path.join(dir_name, filename)
+def extract_dir_normal(log_dir, cex_dir, net_dir):
+    for filename in os.listdir(log_dir):
+        file_path = os.path.join(log_dir, filename)
         if os.path.isfile(file_path) and (not 'res' in filename) and (not 'script' in filename):
             res = get_result(file_path)
             filename_split = filename.split('+')
@@ -135,7 +123,7 @@ def extract_dir_normal(dir_name):
             if res == 'sat' and LABELS[int(im_idx)] == top_indecies[0]:
                 ce = extract_ce(file_path)
                 _, ce_conf = run_network(os.path.join(net_dir, netname), ce, is_normalized=True)
-                print_ce(file_path, out_dir, is_conf_logs=False)
+                print_ce(file_path, cex_dir, is_conf_logs=False)
                 print(f"{netname},{im_idx},{ep},0,{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
             elif res == 'unsat':
                 print(f"{netname},{im_idx},{ep},0,{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
@@ -152,17 +140,42 @@ def get_images_list(dataset_file):
     
     return images, labels
 
+def get_net_im_conf_ep(file_path):
+    filename = os.path.basename(file_path)
+    filename_l = filename.split('+')
+    prop_l = filename_l[1].split('_')
+    im = int(prop_l[1])
+    ep = float(prop_l[2])
+    netname_l = filename_l[0].split('_')
+    if len(netname_l) >= 6:
+        conf = float(netname_l[-2])
+        netname = "_".join(netname_l[:-2])+".onnx"
+    else:
+        print(filename)
+        conf = 0.0
+        netname = "_".join(netname_l)+".onnx"
+
+    return netname, im, conf, ep
+
+
+
+
+def create_dir(out_dir, file_path):
+    net, im, conf, ep = get_net_im_conf_ep(file_path)
+    dir_path = os.path.join(out_dir, net[:-5], str(conf)+"+"+str(ep))
+    if not os.path.isdir(dir_path):
+        os.makedirs(dir_path)
+    
+    return dir_path
+
+
+
 def print_ce(log_file, output_dir, is_conf_logs=True):
     ce = extract_ce(log_file)
     filename = os.path.basename(log_file)
     image_idx = None
     if is_conf_logs:
-        filename_split = filename.split('+')
-        filename_split_1 = filename_split[0]
-        conf_imidx = filename_split_1.split('_')
-        im_idx = conf_imidx[-1]
-        netname = "_".join(conf_imidx[:-2])+".onnx"
-        image_idx = int(im_idx)
+        netname, image_idx, conf, ep = get_net_im_conf_ep(log_file)
     else:
         filename_split = filename.split('+')
         filename_split_1 = filename_split[0]
@@ -201,7 +214,8 @@ def print_ce(log_file, output_dir, is_conf_logs=True):
     plt.tight_layout()
     # plt.show()
     # return
-    output_file = os.path.join(output_dir, f"{filename}.png")
+    new_dir = create_dir(output_dir, log_file)
+    output_file = os.path.join(new_dir, f"{filename}.png")
     plt.savefig(output_file)
 
 
@@ -213,23 +227,21 @@ def print_ce(log_file, output_dir, is_conf_logs=True):
 
 
 if __name__ == '__main__':
-    dir_name = '/home/u1411251/Documents/tools/result_dir/aaai25/abcrown/conf/logs'
+    IS_CONF_ANALYSIS = True
     if IS_CONF_ANALYSIS:
-        dir_name = '/home/u1411251/Documents/tools/result_dir/with_venky/logs_softmax_conf_65'
+        log_dir = '/home/u1411251/Documents/tools/result_dir/mod_prop/logs_5_100_6_200'
     else:
-        dir_name = '/home/u1411251/Documents/tools/result_dir/with_venky/logs_simple_selected_idx'
-    
-    # IMAGES, LABELS =  get_images_list(dataset_file)
-    # IMAGES, LABELS = get_mnist_test_data()
-    IMAGES, LABELS = get_mnist_train_data()
+        log_dir = '/home/u1411251/Documents/tools/result_dir/with_venky/logs_simple_selected_idx'
 
-    # log_file = '/home/u1411251/Documents/tools/result_dir/aaai25/abcrown/conf/logs/mnist_relu_3_50_60_12+prop_12_0.06'
-    # extract_ce(log_file)
-    # print(images[0]/255)  
+    dataset_file = '/home/u1411251/Documents/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
+    net_dir = '/home/u1411251/Documents/tools/networks/conf_final/eran_mod'
+    cex_dir = os.path.join(log_dir, 'cexs')
+    
+    IMAGES, LABELS = get_mnist_train_data() 
     if IS_CONF_ANALYSIS:
-        extract_dir_conf(dir_name)
+        extract_dir_conf(log_dir, cex_dir, net_dir, is_print_ce=False)
     else:
-        extract_dir_normal(dir_name)
+        extract_dir_normal(log_dir, cex_dir, net_dir)
 
     # log_file = '/home/u1411251/Documents/tools/result_dir/aaai25/abcrown/logs_orig_dataset_normal/mnist_relu_3_50+prop_9954_0.06'
     # if len(sys.argv) > 1:

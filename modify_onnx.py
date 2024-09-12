@@ -268,7 +268,6 @@ def get_output_layer_weight_simple():
     # print(np.array([weights]).reshape(9,18))
     return weights
 
-
 def append_fc_relu_softmax(model_path, output_model_path, label = 0, delta=1.98, fc_output_dim=81, existing_model_out_dims = 10):
     # Load the existing ONNX model
     model = onnx.load(model_path)

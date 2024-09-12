@@ -49,11 +49,59 @@ def get_selected_images():
     y_train = y_train[image_idxs]
     return x_train, y_train, image_idxs
 
+def top_k_pred(softmax_output, k):
+    top_indices = np.argsort(softmax_output)[-k:][::-1]
+
+    # Get the top three confidence scores
+    top_confidences = softmax_output[top_indices]
+
+    return top_indices, top_confidences
+
 def read_images_from_dataset(model_path):
     _ , _ , images_idx = run_network_mnist_test(model_path)
     x_test, y_test = get_mnist_test_data()
     x_test, y_test = x_test[images_idx], y_test[images_idx]
     return x_test, y_test, images_idx
+
+def select_images_top_k(model_path, is_test_dataset = False, is_cnn = False, conf_th = 30, is_softmax_output = False, num_top_k = 2):
+    conf_th = conf_th / 100.0
+    if is_test_dataset:
+        x_test, y_test = get_mnist_test_data()
+    else:
+        x_test, y_test = get_mnist_train_data()
+    if is_cnn:
+        x_test = x_test.reshape(x_test.shape[0], 1, 28,28)
+    session = ort.InferenceSession(model_path)
+    # Get the model's input name
+    input_name = session.get_inputs()[0].name
+
+    selected_images_idxs = []
+    selected_labels_top_k = []
+    for i in range(len(x_test)):
+        # Prepare the test input
+        test_input = x_test[i].astype(np.float32)
+        if is_cnn:
+            test_input = test_input.reshape(1,1,28,28)
+        
+        # Run the model on the test input
+        output = session.run(None, {input_name: test_input})
+        
+        # Get the predicted class
+        predicted_class = np.argmax(output[0][0])
+        if is_softmax_output:
+            softmax_output = output[0][0]
+        else:
+            softmax_output= softmax(output[0][0])
+        
+        # Compare with the true label
+        if predicted_class == y_test[i]:
+            top_indices, top_confs = top_k_pred(softmax_output, num_top_k)
+            if top_confs[0] >= conf_th and top_confs[1] >= conf_th:
+                selected_images_idxs.append(i)
+                selected_labels_top_k.append(list(top_indices)[:num_top_k])
+
+    return selected_images_idxs, selected_labels_top_k
+            
 
 def run_network_mnist_test(model_path, is_test_dataset = False, is_cnn = False, is_softmax_output = False, conf_th = 70):
     conf_th = conf_th / 100.0

@@ -3,9 +3,12 @@ import shutil
 from modify_onnx import append_layers
 from generate_properties import gen_props
 from generate_instance_file import gen_instances_file
+from generate_instance_file import gen_instances_file_top_k
 from simulate_network import get_mnist_test_data
 from simulate_network import get_mnist_train_data
 from simulate_network import run_network_mnist_test
+from simulate_network import select_images_top_k
+from modify_onnx_top_k import append_layers_top_k
 
 
 
@@ -99,10 +102,52 @@ def setup_modified_props():
 
 
 
+def set_up_top_k():
+    num_top_k = 2
+    orig_net_dir = '/home/afzal/tools/networks/conf_final/eran_mod'
+    nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
+    nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
+    # nets = ['mnist_relu_3_50.onnx']
+    epsilons = [0.04]
+    max_images = 50
+    conf_th = 40
+    setup_dir = '/home/afzal/tools/networks/mod_props'
+    clean_directory(setup_dir)
+    net_dir = os.path.join(setup_dir, 'nets')
+    prop_dir = os.path.join(setup_dir, 'props')
+    instances_file = os.path.join(setup_dir, 'instances.csv')
+    if os.path.isfile(instances_file):
+        os.remove(instances_file)
+    create_empty_dirs(net_dir, prop_dir)
+
+    for net in nets:
+        net_path = os.path.join(orig_net_dir, net)
+        selected_idexs, selected_top_k = select_images_top_k(model_path=net_path, num_top_k=num_top_k, conf_th=conf_th)
+        selected_idexs = selected_idexs[:max_images]
+        selected_top_k = selected_top_k[:max_images]
+        print(f"{net} , {len(selected_top_k)}")
+        selected_images = IMAGES[selected_idexs]
+        append_layers_top_k([net], orig_net_dir, net_dir, selected_images, selected_top_k, selected_idexs)
+        append_layers_top_k([net], orig_net_dir, net_dir, selected_images, selected_top_k, selected_idexs, is_standard_prop=True)
+
+        prop_selected_labels = [l[0] for l in selected_top_k]
+        final_out_dims = 10 - num_top_k
+        gen_props(prop_dir, selected_images, prop_selected_labels, selected_idexs, epsilons, net_out_dims=final_out_dims)
+        gen_instances_file_top_k(net_dir, [net], prop_dir, selected_idexs, epsilons, instances_file)
+
+        prop_dir_normal = os.path.join(prop_dir, 'standard')
+        if not os.path.isdir(prop_dir_normal):
+            os.makedirs(prop_dir_normal)
+        gen_props(prop_dir_normal, selected_images, prop_selected_labels, selected_idexs, epsilons, net_out_dims=final_out_dims, is_standard_prop=True)
+        gen_instances_file_top_k(net_dir, [net], prop_dir_normal, selected_idexs, epsilons, instances_file, is_standard_prop=True)
+                
+
+
 
 if __name__ == '__main__':
-    setup_modified_props()
-    # print(LABELS[:100])
+    # setup_modified_props()
+    set_up_top_k()
+
         
 
 

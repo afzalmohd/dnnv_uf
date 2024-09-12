@@ -29,6 +29,24 @@ def gen_instances_file(net_dir, nets, prop_dir, images_idxs, confs, eps, file_pa
                         write_to_file(net_path, prop_path, timeout, file_path)
 
 
+def gen_instances_file_top_k(net_dir, nets, prop_dir, images_idxs, eps, file_path, timeout=2000, is_standard_prop=False):
+    for net in nets:
+        for idx in images_idxs:
+            for ep in eps:
+                if is_standard_prop:
+                    net_path = os.path.join(net_dir, net)
+                    prop_name = f"prop_{idx}_{ep}.vnnlib"
+                    prop_path = os.path.join(prop_dir, prop_name)
+                    write_to_file(net_path, prop_path, timeout, file_path)
+
+                else:
+                    net_name = f"{net[:-5]}_{idx}.onnx"
+                    net_path = os.path.join(net_dir, net_name)
+                    prop_name = f"prop_{idx}_{ep}.vnnlib"
+                    prop_path = os.path.join(prop_dir, prop_name)
+                    write_to_file(net_path, prop_path, timeout, file_path)
+
+
 if __name__ == '__main__':
     net_dir = '/home/afzal/tools/networks/mod_props/conf/nets'
     nets = ['mnist_relu_3_50.onnx']
