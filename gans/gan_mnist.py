@@ -182,4 +182,4 @@ gan_model = define_gan(g_model, d_model)
 # load image data
 dataset = load_real_samples()
 # train model
-train(g_model, d_model, gan_model, dataset, latent_dim)
+train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=100)
