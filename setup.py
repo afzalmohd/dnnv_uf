@@ -46,7 +46,7 @@ def clean_directory(directory_path):
                 print(f'Failed to delete {file_path}. Reason: {e}')
 
 
-def setup_modified_props():
+def setup_modified_props_old():
     orig_net_dir = '/home/afzal/tools/networks/conf_final/eran_mod'
     nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
     nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
@@ -98,9 +98,60 @@ def setup_modified_props():
                     os.makedirs(prop_dir_normal)
                 gen_props(prop_dir_normal, selected_images, selected_labels, low_confs_idx, epsilons, is_standard_prop=True) 
                 gen_instances_file(net_dir, [net], prop_dir_normal, low_confs_idx, [conf], epsilons, instances_file)
-                
 
 
+def setup_modified_props():
+    orig_net_dir = '/home/afzal/tools/networks/conf_final/eran_mod'
+    nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
+    nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
+    nets = ['mnist_relu_5_100.onnx']
+    confs = [60, 70, 80, 90, 95]
+    epsilons = [0.06]
+    max_low_conf_images = 1000
+    max_high_conf_images = 20
+    setup_dir = '/home/afzal/tools/networks/mod_props'
+    clean_directory(setup_dir)
+    net_dir = os.path.join(setup_dir, 'nets')
+    prop_dir = os.path.join(setup_dir, 'props')
+    instances_file = os.path.join(setup_dir, 'instances.csv')
+    if os.path.isfile(instances_file):
+        os.remove(instances_file)
+    create_empty_dirs(net_dir, prop_dir)
+
+    for net in nets:
+        low_plus_high_conf_images_idxs = []
+        for conf in confs:
+            _, _, low_confs_idx, _, high_conf_idx, _  = run_network_mnist_test(os.path.join(orig_net_dir, net), conf_th=conf)
+            low_confs_idx = low_confs_idx[:max_low_conf_images]
+            low_plus_high_conf_images_idxs += low_confs_idx
+            print(f"net: {net},conf:{conf},low conf images: {len(low_confs_idx)}")
+            # print(low_confs_idx)
+            selected_images = IMAGES[low_confs_idx]
+            selected_labels = LABELS[low_confs_idx]
+            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, low_confs_idx, is_softmax=True, confs=[conf], is_high_conf=False)
+            gen_props(prop_dir, selected_images, selected_labels, low_confs_idx, epsilons) 
+            gen_instances_file(net_dir, [net], prop_dir, low_confs_idx, [conf], epsilons, instances_file)
+
+            high_conf_idx = high_conf_idx[:max_high_conf_images]
+            print(f"net: {net},conf:{conf},high conf images: {len(high_conf_idx)}")
+            low_plus_high_conf_images_idxs += high_conf_idx
+            # print(high_conf_idx)
+            selected_images = IMAGES[high_conf_idx]
+            selected_labels = LABELS[high_conf_idx]
+            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, high_conf_idx, is_softmax=True, confs=[conf], is_high_conf=True)
+            gen_props(prop_dir, selected_images, selected_labels, high_conf_idx, epsilons)
+            gen_instances_file(net_dir, [net], prop_dir, high_conf_idx, [conf], epsilons, instances_file)            
+
+        low_plus_high_conf_images_idxs = list(set(low_plus_high_conf_images_idxs))
+        print(f"Number of images for standard prop: {len(low_plus_high_conf_images_idxs)}")
+        selected_images = IMAGES[low_plus_high_conf_images_idxs]
+        selected_labels = LABELS[low_plus_high_conf_images_idxs]
+        append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, low_plus_high_conf_images_idxs, is_softmax=True, confs=[0], is_high_conf=False)
+        prop_dir_normal = os.path.join(prop_dir, 'standard')
+        if not os.path.isdir(prop_dir_normal):
+            os.makedirs(prop_dir_normal)
+        gen_props(prop_dir_normal, selected_images, selected_labels, low_plus_high_conf_images_idxs, epsilons, is_standard_prop=True) 
+        gen_instances_file(net_dir, [net], prop_dir_normal, low_plus_high_conf_images_idxs, [0], epsilons, instances_file)
 
 def set_up_top_k():
     num_top_k = 2
@@ -145,8 +196,8 @@ def set_up_top_k():
 
 
 if __name__ == '__main__':
-    # setup_modified_props()
-    set_up_top_k()
+    setup_modified_props()
+    # set_up_top_k()
 
         
 
