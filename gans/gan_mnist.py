@@ -171,15 +171,17 @@ def train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=100, n_batc
 		if (i+1) % 10 == 0:
 			summarize_performance(i, g_model, d_model, dataset, latent_dim)
 
-# size of the latent space
-latent_dim = 100
-# create the discriminator
-d_model = define_discriminator()
-# create the generator
-g_model = define_generator(latent_dim)
-# create the gan
-gan_model = define_gan(g_model, d_model)
-# load image data
-dataset = load_real_samples()
-# train model
-train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=100)
+
+if __name__ == '__main__':
+	# size of the latent space
+	latent_dim = 100
+	# create the discriminator
+	d_model = define_discriminator()
+	# create the generator
+	g_model = define_generator(latent_dim)
+	# create the gan
+	gan_model = define_gan(g_model, d_model)
+	# load image data
+	dataset = load_real_samples()
+	# train model
+	train(g_model, d_model, gan_model, dataset, latent_dim, n_epochs=100)

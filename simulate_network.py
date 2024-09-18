@@ -241,6 +241,33 @@ def print_images_1(images_idx, confs, is_test_dataset=False):
         plt.show()
 
 
+def get_selected_images_gans(net_path, images, idxes, conf_th, is_normalized = True):
+    conf_th = conf_th / 100
+    session = ort.InferenceSession(net_path)
+    input_name = session.get_inputs()[0].name
+    low_conf_indexes = []
+    high_conf_indexes = []
+    for i in range(len(images)):
+        image = images[i]
+        test_input = image.reshape(1,784,1)
+        # print(test_input.shape)
+        if not is_normalized:
+            test_input /= 255
+        # test_input = test_input.astype(np.float32)
+        output = session.run(None, {input_name: test_input})
+        softmax_output= softmax(output[0][0])
+        # print(softmax_output)
+        top_indecis, top_confidences = top_k_pred(softmax_output, 3)
+        # print(i, top_indecis[0], top_confidences[0])
+        # print(top_confidences)
+        if top_confidences[0] >= conf_th:
+            high_conf_indexes.append(idxes[i])
+        else:
+            low_conf_indexes.append(idxes[i])
+
+    return high_conf_indexes, low_conf_indexes
+
+
 
 def extract_w_b(model_path):
     model = onnx.load(model_path)

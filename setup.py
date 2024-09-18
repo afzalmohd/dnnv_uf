@@ -1,5 +1,8 @@
 import os
 import shutil
+from PIL import Image
+import csv
+import numpy as np
 from modify_onnx import append_layers
 from generate_properties import gen_props
 from generate_instance_file import gen_instances_file
@@ -8,6 +11,7 @@ from simulate_network import get_mnist_test_data
 from simulate_network import get_mnist_train_data
 from simulate_network import run_network_mnist_test
 from simulate_network import select_images_top_k
+from simulate_network import get_selected_images_gans
 from modify_onnx_top_k import append_layers_top_k
 
 
@@ -17,6 +21,8 @@ is_test_data = False
 IMAGES, LABELS = get_mnist_train_data()
 if is_test_data:
     IMAGES, LABELS = get_mnist_test_data()
+
+print(IMAGES.shape)
 
 def get_images_labels_idxs(model_path, conf):
     conf = conf / 100.0
@@ -44,6 +50,88 @@ def clean_directory(directory_path):
                     shutil.rmtree(file_path)
             except Exception as e:
                 print(f'Failed to delete {file_path}. Reason: {e}')
+
+def get_images_csv_gans():
+    image_csv_path = '/home/afzal/tools/my_scripts/gans/images_gan.csv'
+    with open(image_csv_path, 'r') as f:
+        selected_images, selected_labels, selected_indexes = [], [], []
+        csv_readers = csv.reader(f, delimiter=',')
+        idx = 0
+        for row in csv_readers:
+            label = int(row[0])
+            image = np.array(row[1:])
+            image = image.reshape(1,784,1)
+            image = image.astype(np.float32)
+            selected_images.append(image)
+            selected_labels.append(label)
+            selected_indexes.append(idx)
+            idx += 1
+
+    return selected_images, selected_labels, selected_indexes
+
+def get_images():
+    images_dir = '/home/afzal/tools/my_scripts/gans/images'
+    selected_images, selected_labels, selected_indexes = [], [], []
+    for im_filename in os.listdir(images_dir):
+        image_path = os.path.join(images_dir, im_filename)
+        file_name_list = im_filename[:-4].split('_')
+        im_idx = int(file_name_list[1])
+        im_label = int(file_name_list[2])
+        img = Image.open(image_path).convert('L')
+        img_arr = np.array(img, dtype=np.float32)
+        img_arr = img_arr.reshape(1,784,1)
+        selected_images.append(img_arr)
+        selected_labels.append(im_label)
+        selected_indexes.append(im_idx)
+
+    return selected_images, selected_labels, selected_indexes
+
+
+def setup_modified_props_gans():
+    orig_net_dir = '/home/afzal/tools/networks/conf_final/eran_mod'
+    nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
+    nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
+    nets = ['mnist_relu_5_100.onnx']
+    confs = [60, 70, 80, 90, 95]
+    epsilons = [0.04]
+    setup_dir = '/home/afzal/tools/networks/mod_props'
+    clean_directory(setup_dir)
+    net_dir = os.path.join(setup_dir, 'nets')
+    prop_dir = os.path.join(setup_dir, 'props')
+    instances_file = os.path.join(setup_dir, 'instances.csv')
+    if os.path.isfile(instances_file):
+        os.remove(instances_file)
+    create_empty_dirs(net_dir, prop_dir)
+
+    g_images, g_labels, g_indexes = get_images_csv_gans()
+    g_images = np.array(g_images)
+    g_labels = np.array(g_labels)
+    for net in nets:
+        for conf in confs:
+            high_confs_idx, low_confs_idx = get_selected_images_gans(os.path.join(orig_net_dir, net), g_images, g_indexes, conf)
+            print(f"net: {net},conf:{conf},low conf images: {len(low_confs_idx)}")
+            selected_images = g_images[low_confs_idx]
+            selected_labels = g_labels[low_confs_idx]
+            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, low_confs_idx, is_softmax=True, confs=[conf], is_high_conf=False)
+            gen_props(prop_dir, selected_images, selected_labels, low_confs_idx, epsilons) 
+            gen_instances_file(net_dir, [net], prop_dir, low_confs_idx, [conf], epsilons, instances_file)
+
+            print(f"net: {net},conf:{conf},high conf images: {len(high_confs_idx)}")
+            # print(high_conf_idx)
+            selected_images = g_images[high_confs_idx]
+            selected_labels = g_labels[high_confs_idx]
+            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, high_confs_idx, is_softmax=True, confs=[conf], is_high_conf=True)
+            gen_props(prop_dir, selected_images, selected_labels, high_confs_idx, epsilons)
+            gen_instances_file(net_dir, [net], prop_dir, high_confs_idx, [conf], epsilons, instances_file)            
+
+        print(f"Number of images for standard prop: {len(g_indexes)}")
+        append_layers([net], orig_net_dir, net_dir, g_images, g_labels, g_indexes, is_softmax=True, confs=[0], is_high_conf=False)
+        prop_dir_normal = os.path.join(prop_dir, 'standard')
+        if not os.path.isdir(prop_dir_normal):
+            os.makedirs(prop_dir_normal)
+        gen_props(prop_dir_normal, g_images, g_labels, g_indexes, epsilons, is_standard_prop=True) 
+        gen_instances_file(net_dir, [net], prop_dir_normal, g_indexes, [0], epsilons, instances_file)
+        
 
 
 def setup_modified_props_old():
@@ -191,13 +279,52 @@ def set_up_top_k():
             os.makedirs(prop_dir_normal)
         gen_props(prop_dir_normal, selected_images, prop_selected_labels, selected_idexs, epsilons, net_out_dims=final_out_dims, is_standard_prop=True)
         gen_instances_file_top_k(net_dir, [net], prop_dir_normal, selected_idexs, epsilons, instances_file, is_standard_prop=True)
-                
+
+def get_aaai_images():
+    dataset_file = '/home/afzal/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
+    images, labels, idxs = [], [], []
+    i = 0
+    with open(dataset_file, 'r') as f:
+        csv_reader = csv.reader(f)
+        for row in csv_reader:
+            labels.append(int(row[0]))
+            im = np.array(row[1:], dtype=np.float32) / 255
+            images.append(im)
+            idxs.append(i)
+            i += 1
+
+    return images[:21], labels[:21], idxs[:21]
+
+
+
+def setup_aaai():
+    orig_net_dir = '/home/afzal/tools/networks/conf_final/eran_mod'
+    nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
+    nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
+    # nets = ['mnist_relu_5_100.onnx']
+    confs = [60, 80, 90, 95]
+    epsilons = [0.06]
+    setup_dir = '/home/afzal/tools/networks/mod_props'
+    clean_directory(setup_dir)
+    net_dir = os.path.join(setup_dir, 'nets')
+    prop_dir = os.path.join(setup_dir, 'props')
+    instances_file = os.path.join(setup_dir, 'instances.csv')
+    if os.path.isfile(instances_file):
+        os.remove(instances_file)
+    create_empty_dirs(net_dir, prop_dir)
+    selected_images, selected_labels, selected_idxs = get_aaai_images()
+    for net in nets:
+        for conf in confs:
+            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=True, confs=[conf], is_high_conf=False)
+            gen_props(prop_dir, selected_images, selected_labels, selected_idxs, epsilons) 
+            gen_instances_file(net_dir, [net], prop_dir, selected_idxs, [conf], epsilons, instances_file)         
 
 
 
 if __name__ == '__main__':
-    setup_modified_props()
+    # setup_modified_props_gans()
     # set_up_top_k()
+    setup_aaai()
 
         
 
