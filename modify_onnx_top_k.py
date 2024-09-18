@@ -23,7 +23,20 @@ def get_weights_top_k_1(top_labels, existing_out_dims = 10):
     # print(w)
     # print(w.shape)
 
-    
+def get_weights_top_k_robust_paper_1(top_labels, existing_out_dims = 10):
+    weights = []
+    for j in top_labels:
+        for i in range(existing_out_dims):
+            l = [0.0]*existing_out_dims
+            if i not in top_labels:
+                l[i] = 1.0
+                l[j] = -1.0
+                weights.append(l)
+
+    w = np.array(weights, dtype=np.float32)
+    # print(w)
+    # print(w.shape)
+    return w
 
 def get_weights_top_k_2(top_labels, orig_net_out_dims=10):
     weights = []
@@ -40,7 +53,7 @@ def get_weights_top_k_2(top_labels, orig_net_out_dims=10):
     return w
 
 
-def append_fc_relu_top_k(model_path, output_model_path, top_k_labels, existing_model_out_dims = 10):
+def append_fc_relu_top_k(model_path, output_model_path, top_k_labels, existing_model_out_dims = 10, is_top_k_robust_paper=True):
      # Load the existing ONNX model
     model = onnx.load(model_path)
     graph = model.graph
@@ -56,8 +69,12 @@ def append_fc_relu_top_k(model_path, output_model_path, top_k_labels, existing_m
     # print(out_layer_idx)
     
     # Initialize the new fully connected layer's weights and biases
-    fc_output_dim = len(top_k_labels)*(existing_model_out_dims - len(top_k_labels))
-    new_fc_weight1= get_weights_top_k_1(top_k_labels, existing_out_dims=existing_model_out_dims)
+    # fc_output_dim = len(top_k_labels)*(existing_model_out_dims - len(top_k_labels))
+    if is_top_k_robust_paper:
+        new_fc_weight1= get_weights_top_k_robust_paper_1(top_k_labels, existing_out_dims=existing_model_out_dims)
+    else:
+        new_fc_weight1= get_weights_top_k_1(top_k_labels, existing_out_dims=existing_model_out_dims)
+    fc_output_dim = new_fc_weight1.shape[0]
     new_fc_bias1 = np.array([0.0]*fc_output_dim, dtype=np.float32)
     
     prev_output_name = int(graph.output[0].name)
@@ -95,7 +112,12 @@ def append_fc_relu_top_k(model_path, output_model_path, top_k_labels, existing_m
                                 name=str(output_fc_layer_name)
                                 )
 
-    new_fc_weight2 = get_weights_top_k_2(top_k_labels, orig_net_out_dims=existing_model_out_dims)
+    if is_top_k_robust_paper:
+        l = [1.0]*fc_output_dim
+        w = np.array(l, dtype=np.float32)
+        new_fc_weight2 = w.reshape(1,fc_output_dim)
+    else:
+        new_fc_weight2 = get_weights_top_k_2(top_k_labels, orig_net_out_dims=existing_model_out_dims)
     final_out_dim = new_fc_weight2.shape[0]
     fc_weight2 = helper.make_tensor(name=weight_name2, data_type=TensorProto.FLOAT, dims=[final_out_dim, new_fc_weight2.shape[1]], 
                                     vals=new_fc_weight2
@@ -124,7 +146,7 @@ def append_fc_relu_top_k(model_path, output_model_path, top_k_labels, existing_m
 
     onnx.save(model, output_model_path)
 
-def update_fc_relu_top_k(model_path, output_model_path, top_k_labels, existing_model_out_dims = 10):
+def update_fc_relu_top_k(model_path, output_model_path, top_k_labels, existing_model_out_dims = 10, is_top_k_robust_paper=True):
       # Load the existing ONNX model
     model = onnx.load(model_path)
     graph = model.graph
@@ -158,8 +180,12 @@ def update_fc_relu_top_k(model_path, output_model_path, top_k_labels, existing_m
             output_layer_bias = np.frombuffer(initializer.raw_data, dtype=np.float32)
     
     # Initialize the new fully connected layer's weights and biases
-    fc_output_dim = len(top_k_labels)*(existing_model_out_dims - len(top_k_labels))
-    new_fc_weight= get_weights_top_k_1(top_k_labels, existing_out_dims=existing_model_out_dims)
+    # fc_output_dim = len(top_k_labels)*(existing_model_out_dims - len(top_k_labels))
+    if is_top_k_robust_paper:
+        new_fc_weight= get_weights_top_k_robust_paper_1(top_k_labels, existing_out_dims=existing_model_out_dims)
+    else:
+        new_fc_weight= get_weights_top_k_1(top_k_labels, existing_out_dims=existing_model_out_dims)
+    fc_output_dim = new_fc_weight.shape[0]
     new_fc_bias = np.array([0.0]*fc_output_dim, dtype=np.float32)
     # Combine the weights and biases
     combined_weight = np.dot(new_fc_weight, output_layer_weight)
@@ -196,6 +222,13 @@ def update_fc_relu_top_k(model_path, output_model_path, top_k_labels, existing_m
 
     weight = get_weights_top_k_2(top_k_labels, orig_net_out_dims=existing_model_out_dims)
     final_out_dim = weight.shape[0]
+    if is_top_k_robust_paper:
+        l = [1.0]*fc_output_dim
+        w = np.array(l, dtype=np.float32)
+        weight = w.reshape(1,fc_output_dim)
+    else:
+        weight = get_weights_top_k_2(top_k_labels, orig_net_out_dims=existing_model_out_dims)
+    final_out_dim = weight.shape[0]
     fc_bias = np.array([0.0]*final_out_dim, dtype=np.float32)
     fc_weight = helper.make_tensor(name=weight_name, data_type=TensorProto.FLOAT, dims=[final_out_dim, fc_output_dim],vals=weight)
 
@@ -217,7 +250,7 @@ def update_fc_relu_top_k(model_path, output_model_path, top_k_labels, existing_m
     onnx.save(model, output_model_path)
 
 
-def append_layers_top_k(nets, input_dir, output_dir, selected_images, selected_labels_top_k, selected_idx, is_standard_prop=False):
+def append_layers_top_k(nets, input_dir, output_dir, selected_images, selected_labels_top_k, selected_idx, is_standard_prop=False, is_top_k_robust_paper=True):
     input_model_paths = []
     for net in nets:
         input_model_paths.append(os.path.join(input_dir, net))
@@ -233,6 +266,11 @@ def append_layers_top_k(nets, input_dir, output_dir, selected_images, selected_l
                 net_name = f"{net_name[:-5]}_{idx}.onnx"
                 out_path = os.path.join(output_dir, net_name)
                 if is_output_layer_activation_fn(model_path=input_model):
-                    append_fc_relu_top_k(input_model, out_path, top_k_labels)
+                    append_fc_relu_top_k(input_model, out_path, top_k_labels, is_top_k_robust_paper=is_top_k_robust_paper)
                 else:
-                    update_fc_relu_top_k(input_model, out_path, top_k_labels)
+                    update_fc_relu_top_k(input_model, out_path, top_k_labels, is_top_k_robust_paper=is_top_k_robust_paper)
+
+
+if __name__ == '__main__':
+    # get_weights_top_k_robust_paper_1([0,1,2])
+    pass

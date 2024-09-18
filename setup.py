@@ -266,8 +266,8 @@ def set_up_top_k():
         selected_top_k = selected_top_k[:max_images]
         print(f"{net} , {len(selected_top_k)}")
         selected_images = IMAGES[selected_idexs]
-        append_layers_top_k([net], orig_net_dir, net_dir, selected_images, selected_top_k, selected_idexs)
-        append_layers_top_k([net], orig_net_dir, net_dir, selected_images, selected_top_k, selected_idexs, is_standard_prop=True)
+        append_layers_top_k([net], orig_net_dir, net_dir, selected_images, selected_top_k, selected_idexs, is_top_k_robust_paper=False)
+        append_layers_top_k([net], orig_net_dir, net_dir, selected_images, selected_top_k, selected_idexs, is_standard_prop=True, is_top_k_robust_paper=False)
 
         prop_selected_labels = [l[0] for l in selected_top_k]
         final_out_dims = 10 - num_top_k
@@ -279,6 +279,47 @@ def set_up_top_k():
             os.makedirs(prop_dir_normal)
         gen_props(prop_dir_normal, selected_images, prop_selected_labels, selected_idexs, epsilons, net_out_dims=final_out_dims, is_standard_prop=True)
         gen_instances_file_top_k(net_dir, [net], prop_dir_normal, selected_idexs, epsilons, instances_file, is_standard_prop=True)
+
+def set_up_top_k_robust_paper():
+    num_top_k = 2
+    orig_net_dir = '/home/afzal/tools/networks/conf_final/eran_mod'
+    nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
+    nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
+    # nets = ['mnist_relu_3_50.onnx']
+    epsilons = [0.04]
+    max_images = 50
+    setup_dir = '/home/afzal/tools/networks/mod_props'
+    clean_directory(setup_dir)
+    net_dir = os.path.join(setup_dir, 'nets')
+    prop_dir = os.path.join(setup_dir, 'props')
+    instances_file = os.path.join(setup_dir, 'instances.csv')
+    if os.path.isfile(instances_file):
+        os.remove(instances_file)
+    create_empty_dirs(net_dir, prop_dir)
+
+    for net in nets:
+        net_path = os.path.join(orig_net_dir, net)
+        selected_idexs, selected_top_k = select_images_top_k(model_path=net_path, num_top_k=num_top_k, conf_th=0)
+        selected_idexs = selected_idexs[:max_images]
+        selected_top_k = selected_top_k[:max_images]
+        print(f"{net} , {len(selected_top_k)}")
+        selected_images = IMAGES[selected_idexs]
+        append_layers_top_k([net], orig_net_dir, net_dir, selected_images, selected_top_k, selected_idexs)
+        append_layers_top_k([net], orig_net_dir, net_dir, selected_images, selected_top_k, selected_idexs, is_standard_prop=True)
+
+        prop_selected_labels = [l[0] for l in selected_top_k]
+        final_out_dims = 1
+        gen_props(prop_dir, selected_images, prop_selected_labels, selected_idexs, epsilons, net_out_dims=final_out_dims, tolerance_param=1e-4)
+        gen_instances_file_top_k(net_dir, [net], prop_dir, selected_idexs, epsilons, instances_file)
+
+        prop_dir_normal = os.path.join(prop_dir, 'standard')
+        if not os.path.isdir(prop_dir_normal):
+            os.makedirs(prop_dir_normal)
+        gen_props(prop_dir_normal, selected_images, prop_selected_labels, selected_idexs, epsilons, net_out_dims=final_out_dims, is_standard_prop=True)
+        gen_instances_file_top_k(net_dir, [net], prop_dir_normal, selected_idexs, epsilons, instances_file, is_standard_prop=True)
+
+
+
 
 def get_aaai_images():
     dataset_file = '/home/afzal/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
@@ -324,7 +365,8 @@ def setup_aaai():
 if __name__ == '__main__':
     # setup_modified_props_gans()
     # set_up_top_k()
-    setup_aaai()
+    # setup_aaai()
+    set_up_top_k_robust_paper()
 
         
 

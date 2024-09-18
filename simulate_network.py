@@ -63,6 +63,7 @@ def read_images_from_dataset(model_path):
     x_test, y_test = x_test[images_idx], y_test[images_idx]
     return x_test, y_test, images_idx
 
+
 def select_images_top_k(model_path, is_test_dataset = False, is_cnn = False, conf_th = 30, is_softmax_output = False, num_top_k = 2):
     conf_th = conf_th / 100.0
     if is_test_dataset:

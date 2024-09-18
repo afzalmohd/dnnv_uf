@@ -43,7 +43,7 @@ def gen_props_specific(spec_dir):
 
     print(f"Total number of props: {counter}")
 
-def gen_props(spec_dir, selected_images, selected_labels, selected_idxs, eps, is_standard_prop:bool = False, net_out_dims:int = 9):
+def gen_props(spec_dir, selected_images, selected_labels, selected_idxs, eps, is_standard_prop:bool = False, net_out_dims:int = 9, tolerance_param = -1e-3):
     counter = 0
     for i in range(len(selected_images)):
         image = selected_images[i]
@@ -57,7 +57,7 @@ def gen_props(spec_dir, selected_images, selected_labels, selected_idxs, eps, is
             if is_standard_prop:
                 save_vnnlib_tf_standard(lb, ub, label, spec_path, 'MNIST')
             else:
-                save_vnnlib_tf_1(lb, ub, label, spec_path, total_output_class=net_out_dims)
+                save_vnnlib_tf_1(lb, ub, label, spec_path, total_output_class=net_out_dims, tolerance_param = tolerance_param)
             counter += 1
 
     print(f"Total number of props: {counter}")
@@ -244,8 +244,7 @@ def save_vnnlib_tf(lb, ub, label: int, spec_path: str, dataset, total_output_cla
         f.write("))")
 
 
-def save_vnnlib_tf_1(lb, ub, label: int, spec_path: str, dataset = 'MNIST', total_output_class: int = 9):
-     tolerance_param = -1e-3
+def save_vnnlib_tf_1(lb, ub, label: int, spec_path: str, dataset = 'MNIST', total_output_class: int = 9, tolerance_param = -1e-3):
      with open(spec_path, "w") as f:
         if dataset == 'MNIST':
             f.write(f"; Mnist property with label: {label}.\n")

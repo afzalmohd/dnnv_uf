@@ -78,31 +78,141 @@ def run_network(net_path, image, is_normalized=True):
 def get_result(file_path):
     with open(file_path, 'r') as f:
         Lines =  f.readlines()
+        res = 'timeout'
         for line in Lines:
             line = line.strip()
             if 'Result:' in line:
                 line_list = line.split(':')
-                return line_list[1].replace(' ', '')
+                res = line_list[1].replace(' ', '')
+
+    return res
             
-def extract_dir_conf(log_dir, cex_dir, net_dir, is_print_ce = False):
+def extract_dir_top_k(log_dir, cex_dir, net_dir, is_print_ce = False):
     for filename in os.listdir(log_dir):
+        file_path = os.path.join(log_dir, filename)
+        if os.path.isfile(file_path) and (not 'res' in filename) and (not 'script' in filename):
+            top_k = 0
+            file_name = os.path.basename(file_path)
+            file_name = file_name.split('+')
+            file_name = file_name[0].split('_')
+            if len(file_name) >= 5:
+                top_k = 1
+
+            res = get_result(file_path)
+            netname, im_idx, _, ep = get_net_im_conf_ep(file_path, is_top_k=True)
+            top_indecies, orig_conf = run_network(os.path.join(net_dir, netname), IMAGES[int(im_idx)], is_normalized=True)
+            ce_conf = [1,0,0]
+            if res == 'sat' and LABELS[int(im_idx)] == top_indecies[0]:
+                ce = extract_ce(file_path)
+                if is_print_ce:
+                    print_ce(file_path, cex_dir, is_conf_logs=True, is_top_k=True)
+                ce_indeces, ce_conf = run_network(os.path.join(net_dir, netname), ce, is_normalized=True)
+                print(f"{netname},{top_k},{im_idx},{ep},{orig_conf[0] * 100:.2f},{orig_conf[1] * 100:.2f},{top_indecies[0]},{top_indecies[1]},{ce_indeces[0]},{ce_conf[0] * 100:.2f},{res}")
+            elif res == 'unsat':
+                print(f"{netname},{top_k},{im_idx},{ep},{orig_conf[0] * 100:.2f},{orig_conf[1] * 100:.2f},{top_indecies[0]},{top_indecies[1]},-1,{ce_conf[0] * 100:.2f},{res}")
+
+
+def extract_dir_confwise(log_dir, cex_dir, net_dir, is_print_ce = False):
+    file_list = os.listdir(log_dir)
+    count_dic = {}
+    for filename in file_list:
+        file_path = os.path.join(log_dir, filename)
+        if os.path.isfile(file_path) and (not 'res' in filename) and (not 'script' in filename):
+            res = get_result(file_path)
+            netname, im_idx, conf_th, ep = get_net_im_conf_ep(file_path)
+            if conf_th != 0.0:
+                count = count_dic.get(conf_th, 0)
+                top_indecies, orig_conf = run_network(os.path.join(net_dir, netname), IMAGES[int(im_idx)], is_normalized=True)
+                ce_conf = [1,0,0]
+                if res == 'sat' and LABELS[int(im_idx)] == top_indecies[0]:
+                    count += 1
+                    ce = extract_ce(file_path)
+                    cex_dir1 = os.path.join(cex_dir, str(conf_th), '1')
+                    if not os.path.isdir(cex_dir1):
+                        os.makedirs(cex_dir1)
+                    if is_print_ce:
+                        print_ce(file_path, cex_dir1, is_conf_logs=True)
+                    _, ce_conf = run_network(os.path.join(net_dir, netname), ce, is_normalized=True)
+                    print(f"{netname},{im_idx},{ep},{conf_th},{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
+                elif res == 'unsat':
+                    count += 1
+                    print(f"{netname},{im_idx},{ep},{conf_th},{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
+
+                # for 0 confidence
+                filename_standard = f"{netname[:-5]}+prop_{im_idx}_{ep}"
+                file_path_standard = os.path.join(log_dir, filename_standard)
+                res = get_result(file_path_standard)
+                ce_conf = [1,0,0]
+                if res == 'sat' and LABELS[int(im_idx)] == top_indecies[0]:
+                    count += 1
+                    ce = extract_ce(file_path_standard)
+                    cex_dir1 = os.path.join(cex_dir, str(conf_th), '0')
+                    if not os.path.isdir(cex_dir1):
+                        os.makedirs(cex_dir1)
+                    if is_print_ce:
+                        print_ce(file_path_standard, cex_dir1, is_conf_logs=True)
+                    _, ce_conf = run_network(os.path.join(net_dir, netname), ce, is_normalized=True)
+                    print(f"{netname},{im_idx},{ep},0,{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
+                elif res == 'unsat':
+                    count += 1
+                    print(f"{netname},{im_idx},{ep},0,{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
+
+                count_dic[conf_th] = count
+    
+    print(count_dic)
+
+def get_image_label_gans(im_idx):
+    im_file_path =  '/home/u1411251/Documents/tools/my_scripts/gans/images_gan.csv'
+    with open(im_file_path, 'r') as f:
+        csv_readers = csv.reader(f, delimiter=',')
+        count = 0
+        for row in csv_readers:
+            if count == im_idx:
+                label = int(row[0])
+                im = np.array(row[1:], dtype=np.float32)
+                return im, label
+
+            
+            count += 1
+
+
+def extract_dir_conf_gans(log_dir, cex_dir, net_dir, is_print_ce = False):
+    file_list = os.listdir(log_dir)
+    for filename in file_list:
+        file_path = os.path.join(log_dir, filename)
+        if os.path.isfile(file_path) and (not 'res' in filename) and (not 'script' in filename):
+            res = get_result(file_path)
+            netname, im_idx, conf_th, ep = get_net_im_conf_ep(file_path)
+            orig_im, orig_label = get_image_label_gans(im_idx)
+            top_indecies, orig_conf = run_network(os.path.join(net_dir, netname), orig_im, is_normalized=True)
+            ce_conf = [1,0,0]
+            if res == 'sat' and orig_label == top_indecies[0]:
+                ce = extract_ce(file_path)
+                if is_print_ce:
+                    mod_cex_dir = os.path.join(cex_dir, str(conf_th))
+                    os.makedirs(mod_cex_dir, exist_ok=True)
+                    print_ce(file_path, mod_cex_dir, is_conf_logs=True, is_gans=True)
+                _, ce_conf = run_network(os.path.join(net_dir, netname), ce, is_normalized=True)
+                print(f"{netname},{im_idx},{ep},{conf_th},{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
+            elif res == 'unsat':
+                print(f"{netname},{im_idx},{ep},{conf_th},{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
+          
+def extract_dir_conf(log_dir, cex_dir, net_dir, is_print_ce = False):
+    file_list = os.listdir(log_dir)
+    for filename in file_list:
         file_path = os.path.join(log_dir, filename)
         if os.path.isfile(file_path) and (not 'res' in filename) and (not 'script' in filename):
             res = get_result(file_path)
             netname, im_idx, conf_th, ep = get_net_im_conf_ep(file_path)
             top_indecies, orig_conf = run_network(os.path.join(net_dir, netname), IMAGES[int(im_idx)], is_normalized=True)
             ce_conf = [1,0,0]
-            if conf_th == 0.0:
-                print(res, LABELS[int(im_idx)], top_indecies[0])
-            if res == 'sat' and LABELS[int(im_idx)] == top_indecies[0]:
+            if res == 'sat':
                 ce = extract_ce(file_path)
                 if is_print_ce:
                     print_ce(file_path, cex_dir, is_conf_logs=True)
                 _, ce_conf = run_network(os.path.join(net_dir, netname), ce, is_normalized=True)
-                print(conf_th)
                 print(f"{netname},{im_idx},{ep},{conf_th},{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
             elif res == 'unsat':
-                print(conf_th)
                 print(f"{netname},{im_idx},{ep},{conf_th},{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
             
             # print(f"{netname},{im_idx},{ep},{conf},{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
@@ -140,41 +250,60 @@ def get_images_list(dataset_file):
     
     return images, labels
 
-def get_net_im_conf_ep(file_path):
+def get_net_im_conf_ep(file_path, is_top_k = False):
     filename = os.path.basename(file_path)
     filename_l = filename.split('+')
     prop_l = filename_l[1].split('_')
     im = int(prop_l[1])
     ep = float(prop_l[2])
     netname_l = filename_l[0].split('_')
-    if len(netname_l) >= 6:
-        conf = float(netname_l[-2])
-        netname = "_".join(netname_l[:-2])+".onnx"
+    if is_top_k:
+        conf = 0
+        if len(netname_l) >= 5:
+            netname = "_".join(netname_l[:-1])+".onnx"
+        else:
+            netname = filename_l[0]+".onnx"
     else:
-        print(filename)
-        conf = 0.0
-        netname = "_".join(netname_l)+".onnx"
+        if len(netname_l) >= 6:
+            conf = float(netname_l[-2])
+            netname = "_".join(netname_l[:-2])+".onnx"
+        else:
+            conf = 0.0
+            netname = "_".join(netname_l)+".onnx"
 
     return netname, im, conf, ep
 
 
 
 
-def create_dir(out_dir, file_path):
-    net, im, conf, ep = get_net_im_conf_ep(file_path)
-    dir_path = os.path.join(out_dir, net[:-5], str(conf)+"+"+str(ep))
-    if not os.path.isdir(dir_path):
-        os.makedirs(dir_path)
-    
+def create_dir(out_dir, file_path, is_top_k=False):
+    net, im, conf, ep = get_net_im_conf_ep(file_path, is_top_k=is_top_k)
+    if is_top_k:
+        top_k = 0
+        file_name = os.path.basename(file_path)
+        file_name = file_name.split('+')
+        file_name = file_name[0].split('_')
+        if len(file_name) >= 5:
+            top_k = 1
+        dir_path = os.path.join(out_dir, str(top_k), net[:-5], str(ep))
+        if not os.path.isdir(dir_path):
+            os.makedirs(dir_path)
+    else:
+        dir_path = os.path.join(out_dir, net[:-5], str(conf)+"+"+str(ep))
+        if not os.path.isdir(dir_path):
+            os.makedirs(dir_path)
+
     return dir_path
 
 
 
-def print_ce(log_file, output_dir, is_conf_logs=True):
+def print_ce(log_file, output_dir, is_conf_logs=True, is_top_k=False, is_gans = False):
     ce = extract_ce(log_file)
     filename = os.path.basename(log_file)
     image_idx = None
-    if is_conf_logs:
+    if is_top_k:
+        netname, image_idx, conf, ep = get_net_im_conf_ep(log_file, is_top_k=is_top_k)
+    elif is_conf_logs:
         netname, image_idx, conf, ep = get_net_im_conf_ep(log_file)
     else:
         filename_split = filename.split('+')
@@ -184,7 +313,10 @@ def print_ce(log_file, output_dir, is_conf_logs=True):
         im_idx = filename_split_2.split('_')[-2]
         image_idx = int(im_idx)
     # print(image_idx)
+    
     orig_image = IMAGES[image_idx]
+    if is_gans:
+        orig_image, _ = get_image_label_gans(image_idx)
     ce = ce.reshape(28,28)
     orig_image = orig_image.reshape(28,28)
     top_classes, top_confidences = run_network(os.path.join(net_dir, netname), orig_image, is_normalized=True)
@@ -214,8 +346,12 @@ def print_ce(log_file, output_dir, is_conf_logs=True):
     plt.tight_layout()
     # plt.show()
     # return
-    new_dir = create_dir(output_dir, log_file)
-    output_file = os.path.join(new_dir, f"{filename}.png")
+    if is_top_k:
+        new_dir = create_dir(output_dir, log_file, is_top_k=is_top_k)
+        output_file = os.path.join(new_dir, f"{filename}.png")
+    else:
+        output_file = os.path.join(output_dir, f"{filename}.png")
+
     plt.savefig(output_file)
 
 
@@ -227,19 +363,25 @@ def print_ce(log_file, output_dir, is_conf_logs=True):
 
 
 if __name__ == '__main__':
+    IMAGES, LABELS = get_mnist_train_data()
     IS_CONF_ANALYSIS = True
     if IS_CONF_ANALYSIS:
-        log_dir = '/home/u1411251/Documents/tools/result_dir/mod_prop/logs_5_100_6_200'
+        log_dir = '/home/u1411251/Documents/tools/result_dir/aaai25/abcrown/conf/logs'
     else:
         log_dir = '/home/u1411251/Documents/tools/result_dir/with_venky/logs_simple_selected_idx'
 
+    # log_dir = '/home/u1411251/Documents/tools/result_dir/top_k/logs'
     dataset_file = '/home/u1411251/Documents/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
+    IMAGES, LABELS = get_images_list(dataset_file)
     net_dir = '/home/u1411251/Documents/tools/networks/conf_final/eran_mod'
     cex_dir = os.path.join(log_dir, 'cexs')
-    
-    IMAGES, LABELS = get_mnist_train_data() 
+    # extract_dir_top_k(log_dir, cex_dir, net_dir, is_print_ce=True)
+    # exit(0)
+     
     if IS_CONF_ANALYSIS:
         extract_dir_conf(log_dir, cex_dir, net_dir, is_print_ce=False)
+        # extract_dir_confwise(log_dir, cex_dir, net_dir, is_print_ce=False)
+        # extract_dir_conf_gans(log_dir, cex_dir, net_dir, is_print_ce=True)
     else:
         extract_dir_normal(log_dir, cex_dir, net_dir)
 
