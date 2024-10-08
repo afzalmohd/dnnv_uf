@@ -86,6 +86,21 @@ def get_images():
 
     return selected_images, selected_labels, selected_indexes
 
+def get_eran_images(eran_images_file):
+    images, labels = [], []
+    with open(eran_images_file, 'r') as f:
+        csv_reader = csv.reader(f)
+        for row in csv_reader:
+            labels.append(int(row[0]))
+            im = np.array(row[1:], dtype=np.float32)/255.0
+            images.append(im)
+
+    images = np.array(images)
+    images = images.reshape(images.shape[0], 1, 784, 1)
+    labels = np.array([labels])
+    labels = labels.reshape(images.shape[0],)
+    return images, labels
+
 
 def setup_modified_props_gans():
     orig_net_dir = '/home/afzal/tools/networks/conf_final/eran_mod'
@@ -190,11 +205,20 @@ def setup_modified_props_old():
 
 def setup_modified_props():
     orig_net_dir = '/home/afzal/tools/networks/conf_final/eran_mod'
+    eran_images_file = '/home/afzal/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
     nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
     nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
-    nets = ['mnist_relu_5_100.onnx']
-    confs = [60, 70, 80, 90, 95]
+    nets = ['ffnnRELU__Point_6_500.onnx', 'ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx', 'mnist_relu_4_1024.onnx']
+    is_softmax = False
+    is_eran_images = True
+    if is_softmax:
+        confs = [60, 70, 80, 90, 95]
+    else:
+        confs = [40, 60, 80]
     epsilons = [0.06]
+    if is_eran_images:
+        eran_images, eran_labels = get_eran_images(eran_images_file)
+        eran_selected_idxs = [i for i in range(21) if i != 8]
     max_low_conf_images = 1000
     max_high_conf_images = 20
     setup_dir = '/home/afzal/tools/networks/mod_props'
@@ -209,37 +233,57 @@ def setup_modified_props():
     for net in nets:
         low_plus_high_conf_images_idxs = []
         for conf in confs:
-            _, _, low_confs_idx, _, high_conf_idx, _  = run_network_mnist_test(os.path.join(orig_net_dir, net), conf_th=conf)
-            low_confs_idx = low_confs_idx[:max_low_conf_images]
-            low_plus_high_conf_images_idxs += low_confs_idx
-            print(f"net: {net},conf:{conf},low conf images: {len(low_confs_idx)}")
+            if is_eran_images:
+                selected_idxs = eran_selected_idxs
+                selected_images = eran_images[selected_idxs]
+                selected_labels = eran_labels[selected_idxs]
+            else:
+                _, _, low_confs_idx, _, high_conf_idx, _  = run_network_mnist_test(os.path.join(orig_net_dir, net), conf_th=conf)
+                low_confs_idx = low_confs_idx[:max_low_conf_images]
+                selected_idxs = low_confs_idx
+                low_plus_high_conf_images_idxs += selected_idxs
+                selected_images = IMAGES[selected_idxs]
+                selected_labels = LABELS[selected_idxs]
+            print(f"net: {net},conf:{conf},low conf images: {len(selected_idxs)}")
             # print(low_confs_idx)
-            selected_images = IMAGES[low_confs_idx]
-            selected_labels = LABELS[low_confs_idx]
-            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, low_confs_idx, is_softmax=True, confs=[conf], is_high_conf=False)
-            gen_props(prop_dir, selected_images, selected_labels, low_confs_idx, epsilons) 
-            gen_instances_file(net_dir, [net], prop_dir, low_confs_idx, [conf], epsilons, instances_file)
+            
+            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[conf], is_high_conf=False)
+            gen_props(prop_dir, selected_images, selected_labels, selected_idxs, epsilons) 
+            gen_instances_file(net_dir, [net], prop_dir, selected_idxs, [conf], epsilons, instances_file)
+            if not is_eran_images:
+                high_conf_idx = high_conf_idx[:max_high_conf_images]
+                print(f"net: {net},conf:{conf},high conf images: {len(high_conf_idx)}")
+                low_plus_high_conf_images_idxs += high_conf_idx
+                # print(high_conf_idx)
+                selected_images = IMAGES[high_conf_idx]
+                selected_labels = LABELS[high_conf_idx]
+                append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, high_conf_idx, is_softmax=is_softmax, confs=[conf], is_high_conf=True)
+                gen_props(prop_dir, selected_images, selected_labels, high_conf_idx, epsilons)
+                gen_instances_file(net_dir, [net], prop_dir, high_conf_idx, [conf], epsilons, instances_file) 
 
-            high_conf_idx = high_conf_idx[:max_high_conf_images]
-            print(f"net: {net},conf:{conf},high conf images: {len(high_conf_idx)}")
-            low_plus_high_conf_images_idxs += high_conf_idx
-            # print(high_conf_idx)
-            selected_images = IMAGES[high_conf_idx]
-            selected_labels = LABELS[high_conf_idx]
-            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, high_conf_idx, is_softmax=True, confs=[conf], is_high_conf=True)
-            gen_props(prop_dir, selected_images, selected_labels, high_conf_idx, epsilons)
-            gen_instances_file(net_dir, [net], prop_dir, high_conf_idx, [conf], epsilons, instances_file)            
 
-        low_plus_high_conf_images_idxs = list(set(low_plus_high_conf_images_idxs))
-        print(f"Number of images for standard prop: {len(low_plus_high_conf_images_idxs)}")
-        selected_images = IMAGES[low_plus_high_conf_images_idxs]
-        selected_labels = LABELS[low_plus_high_conf_images_idxs]
-        append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, low_plus_high_conf_images_idxs, is_softmax=True, confs=[0], is_high_conf=False)
-        prop_dir_normal = os.path.join(prop_dir, 'standard')
-        if not os.path.isdir(prop_dir_normal):
-            os.makedirs(prop_dir_normal)
-        gen_props(prop_dir_normal, selected_images, selected_labels, low_plus_high_conf_images_idxs, epsilons, is_standard_prop=True) 
-        gen_instances_file(net_dir, [net], prop_dir_normal, low_plus_high_conf_images_idxs, [0], epsilons, instances_file)
+        if is_eran_images:
+            selected_idxs = eran_selected_idxs
+            selected_images = eran_images[selected_idxs]
+            selected_labels = eran_labels[selected_idxs]
+            print(f"Number of images for standard prop: {len(selected_images)}")
+            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[0], is_high_conf=False)
+            prop_dir_normal = os.path.join(prop_dir, 'standard')
+            if not os.path.isdir(prop_dir_normal):
+                os.makedirs(prop_dir_normal)
+            gen_props(prop_dir_normal, selected_images, selected_labels, selected_idxs, epsilons, is_standard_prop=True) 
+            gen_instances_file(net_dir, [net], prop_dir_normal, selected_idxs, [0], epsilons, instances_file)
+        else:
+            low_plus_high_conf_images_idxs = list(set(low_plus_high_conf_images_idxs))
+            print(f"Number of images for standard prop: {len(low_plus_high_conf_images_idxs)}")
+            selected_images = IMAGES[low_plus_high_conf_images_idxs]
+            selected_labels = LABELS[low_plus_high_conf_images_idxs]
+            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, low_plus_high_conf_images_idxs, is_softmax=is_softmax, confs=[0], is_high_conf=False)
+            prop_dir_normal = os.path.join(prop_dir, 'standard')
+            if not os.path.isdir(prop_dir_normal):
+                os.makedirs(prop_dir_normal)
+            gen_props(prop_dir_normal, selected_images, selected_labels, low_plus_high_conf_images_idxs, epsilons, is_standard_prop=True) 
+            gen_instances_file(net_dir, [net], prop_dir_normal, low_plus_high_conf_images_idxs, [0], epsilons, instances_file)
 
 def set_up_top_k():
     num_top_k = 2
@@ -321,7 +365,7 @@ def set_up_top_k_robust_paper():
 
 
 
-def get_aaai_images():
+def get_aaai_images(num_images = 21):
     dataset_file = '/home/afzal/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
     images, labels, idxs = [], [], []
     i = 0
@@ -334,17 +378,18 @@ def get_aaai_images():
             idxs.append(i)
             i += 1
 
-    return images[:21], labels[:21], idxs[:21]
+    return images[:num_images], labels[:num_images], idxs[:num_images]
 
 
 
-def setup_aaai():
+def setup_on_deeppoly_images():
     orig_net_dir = '/home/afzal/tools/networks/conf_final/eran_mod'
     nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
     nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
-    # nets = ['mnist_relu_5_100.onnx']
-    confs = [60, 80, 90, 95]
-    epsilons = [0.06]
+    nets = ['ffnnRELU__Point_6_500.onnx', 'ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx', 'mnist_relu_4_1024.onnx']
+    confs = [0, 60, 80, 90, 95]
+    # confs = [0]
+    epsilons = [0.04, 0.06]
     setup_dir = '/home/afzal/tools/networks/mod_props'
     clean_directory(setup_dir)
     net_dir = os.path.join(setup_dir, 'nets')
@@ -353,20 +398,29 @@ def setup_aaai():
     if os.path.isfile(instances_file):
         os.remove(instances_file)
     create_empty_dirs(net_dir, prop_dir)
-    selected_images, selected_labels, selected_idxs = get_aaai_images()
+    selected_images, selected_labels, selected_idxs = get_aaai_images(num_images=100)
+    
+    gen_props(prop_dir, selected_images, selected_labels, selected_idxs, epsilons, tolerance_param=-1e-5) 
+    prop_dir_normal = os.path.join(prop_dir, 'standard')
+    if not os.path.isdir(prop_dir_normal):
+        os.makedirs(prop_dir_normal)
+    gen_props(prop_dir_normal, selected_images, selected_labels, selected_idxs, epsilons, is_standard_prop=True)
+
     for net in nets:
         for conf in confs:
             append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=True, confs=[conf], is_high_conf=False)
-            gen_props(prop_dir, selected_images, selected_labels, selected_idxs, epsilons) 
-            gen_instances_file(net_dir, [net], prop_dir, selected_idxs, [conf], epsilons, instances_file)         
-
+            if conf != 0:
+                gen_instances_file(net_dir, [net], prop_dir, selected_idxs, [conf], epsilons, instances_file)    
+            else:
+                gen_instances_file(net_dir, [net], prop_dir_normal, selected_idxs, [conf], epsilons, instances_file)   
 
 
 if __name__ == '__main__':
     # setup_modified_props_gans()
     # set_up_top_k()
-    # setup_aaai()
-    set_up_top_k_robust_paper()
+    setup_on_deeppoly_images()
+    # set_up_top_k_robust_paper()
+    # setup_modified_props()
 
         
 
