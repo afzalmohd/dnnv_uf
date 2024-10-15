@@ -387,8 +387,11 @@ def setup_on_deeppoly_images():
     nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
     nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
     nets = ['ffnnRELU__Point_6_500.onnx', 'ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx', 'mnist_relu_4_1024.onnx']
-    confs = [0, 60, 80, 90, 95]
-    # confs = [0]
+    is_softmax = False
+    if is_softmax:
+        confs = [0, 60, 80, 90, 95]
+    else:
+        confs = [40, 60, 80]
     epsilons = [0.04, 0.06]
     setup_dir = '/home/afzal/tools/networks/mod_props'
     clean_directory(setup_dir)
@@ -408,7 +411,7 @@ def setup_on_deeppoly_images():
 
     for net in nets:
         for conf in confs:
-            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=True, confs=[conf], is_high_conf=False)
+            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[conf], is_high_conf=False)
             if conf != 0:
                 gen_instances_file(net_dir, [net], prop_dir, selected_idxs, [conf], epsilons, instances_file)    
             else:
