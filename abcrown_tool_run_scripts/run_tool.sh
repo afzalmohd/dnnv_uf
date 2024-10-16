@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-num_cpu=4
+num_cpu=5
 root_dir=`pwd`
 log_dir=$root_dir/logs
 rm -rf $log_dir
@@ -9,7 +9,7 @@ rm -rf $log_dir
 python script.py $num_cpu $log_dir
 chmod -R u+x $log_dir/
 
-# for((i=0; i<$num_cpu; i++))
-# do
-#     $log_dir"/script_$i.sh" &
-# done
+for((i=0; i<$num_cpu; i++))
+do
+    $log_dir"/script_$i.sh" &
+done

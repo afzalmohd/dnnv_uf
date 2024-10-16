@@ -446,7 +446,7 @@ def setup_on_orig_dataset_images(dataset=mnist_dataset):
     net_root_dir = '/home/afzal/tools/networks/conf_final'
     is_softmax = True
     max_num_images = 50
-    timeout = 2000
+    timeout = 3000
     if is_softmax:
         confs = [0, 60, 80, 90, 95]
     else:

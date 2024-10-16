@@ -13,10 +13,10 @@ import sys
 import subprocess
 import shlex
 NUM_CPU = 7
-TIMEOUT = 2000
+TIMEOUT = 3000
 DATASET = "MNIST"
 NUM_IMAGES = 100
-num_cores = 8
+num_cores = 4
 
 
 root_dir = os.getcwd()
