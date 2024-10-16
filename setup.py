@@ -443,7 +443,7 @@ def select_images_with_labels(dataset, dataset_idxs_file, max_num_indexs=50):
 
 
 def setup_on_orig_dataset_images(dataset=mnist_dataset):
-    net_root_dir = '/home/u1411251/Documents/tools/networks/conf_final'
+    net_root_dir = '/home/afzal/tool/networks/conf_final'
     is_softmax = True
     max_num_images = 50
     if is_softmax:
