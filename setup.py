@@ -463,7 +463,8 @@ def setup_on_orig_dataset_images(dataset=mnist_dataset):
     else:
         dataset_idxs_file = os.path.join(net_root_dir, 'cifar10', 'selected_idxs_cifar10.txt')
         orig_net_dir = os.path.join(net_root_dir, 'cifar10', 'vnncomp')
-        # nets = ['cifar10_2_255_simplified.onnx']
+        nets = []
+        # nets += ['cifar10_2_255_simplified.onnx']
         nets += ['cifar10_8_255_simplified.onnx']
         # nets += ['convBigRELU__PGD.onnx']
         mean = cifar10_mean
