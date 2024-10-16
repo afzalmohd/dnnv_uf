@@ -495,7 +495,7 @@ def setup_on_orig_dataset_images(dataset=mnist_dataset):
 
 
 if __name__ == '__main__':
-    dataset_name = mnist_dataset
+    dataset_name = cifar10_dataset
     # setup_modified_props_gans()
     # set_up_top_k()
     # setup_on_deeppoly_images()

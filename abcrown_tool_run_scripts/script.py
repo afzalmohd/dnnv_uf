@@ -140,7 +140,10 @@ def get_tasks_mnistfc_modified():
 
 def print_cmnds_abcrowns(num_cpu, log_dir, dataset='MNIST'):
     tool_main = '/home/afzal/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
-    config_path = 'mnist.yaml'
+    if dataset == 'MNIST':
+        config_path = 'mnist.yaml'
+    else:
+        config_path = 'cifar2020.yaml'
     tasks = get_tasks_vnncomp()
     random.shuffle(tasks)
     # tasks = get_tasks_mnistfc_modified()
