@@ -183,6 +183,7 @@ def print_cmnds_abcrowns(num_cpu, log_dir, dataset='MNIST'):
 
 if __name__ == '__main__':
     dataset = 'MNIST' # 'MNIST'/'CIFAR10'
+    dataset = 'CIFAR10'
     if len(sys.argv) == 3:
         num_cpu = int(sys.argv[1])
         log_dir = sys.argv[2]
