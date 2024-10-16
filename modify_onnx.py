@@ -772,12 +772,12 @@ def append_layers(nets, input_dir, output_dir, selected_images, selected_labels,
 
 
 if __name__ == '__main__':
-    input_dir = '/home/u1411251/Documents/tools/networks/vnncomp2021/benchmarks/mnistfc'
-    output_dir = '/home/u1411251/temp/tmp'
+    input_dir = '/home/u1411251/Documents/tools/networks/vnncomp2022_benchmarks/benchmarks/mnist_fc/onnx'
+    output_dir = '/home/u1411251/temp'
     dataset_path = '/home/u1411251/Documents/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
     nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
     nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
-    nets = ['mnist-net_256x2.onnx']
+    nets = ['mnist-net_256x2.onnx', 'mnist-net_256x4.onnx', 'mnist-net_256x6.onnx']
     confs = [0, 60]
 
     images = []
@@ -795,5 +795,8 @@ if __name__ == '__main__':
             images.append(np.array(im, dtype=np.float32)/255.0)
             i += 1
 
-    append_layers(nets, input_dir, output_dir, images[:2], labels[:2], idexs[:2], is_softmax=True, confs=confs)
+    # append_layers(nets, input_dir, output_dir, images[:2], labels[:2], idexs[:2], is_softmax=True, confs=confs)
+    model = onnx.load_model('convBigRELU__PGD.onnx')
+    change_output_node(model)
+    onnx.save(model, 'convBigRELU__PGD_modified.onnx')
 

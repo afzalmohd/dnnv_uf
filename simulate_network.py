@@ -30,6 +30,30 @@ def get_mnist_train_data():
     x_train = x_train.reshape(x_train.shape[0], 1, 784, 1)
     return x_train, y_train
 
+def get_cifar10_test_data():
+    cifar10 = tf.keras.datasets.cifar10
+    (_, _), (x_test, y_test) = cifar10.load_data()
+
+    # Normalize the test images to the range [0, 1]
+    x_test = x_test.astype("float32") / 255.0
+
+    # Flatten the images to match the input shape (1, 784) of the model
+    # x_test = x_test.reshape(x_test.shape[0], 1, 784, 1)
+    return x_test, y_test
+
+def get_cifar10_train_data():
+    cifar10 = tf.keras.datasets.cifar10
+    (x_train, y_train), (_, _) = cifar10.load_data()
+
+    # Normalize the test images to the range [0, 1]
+    x_train = x_train.astype("float32") / 255.0
+
+    # Flatten the images to match the input shape (1, 784) of the model
+    # x_train = x_train.reshape(x_train.shape[0], 1, 784, 1)
+    return x_train, y_train
+
+
+
 
 def get_selected_images():
     image_idxs = []

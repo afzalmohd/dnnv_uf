@@ -43,21 +43,20 @@ def gen_props_specific(spec_dir):
 
     print(f"Total number of props: {counter}")
 
-def gen_props(spec_dir, selected_images, selected_labels, selected_idxs, eps, is_standard_prop:bool = False, net_out_dims:int = 9, tolerance_param = -1e-3):
+def gen_props(spec_dir, selected_images, selected_labels, selected_idxs, eps, is_standard_prop:bool = False, net_out_dims:int = 9, tolerance_param = -1e-3, dataset='MNIST', mean = np.array([0.0]), std = np.array([1.0])):
     counter = 0
     for i in range(len(selected_images)):
         image = selected_images[i]
-        image = image.reshape(784)
         label = selected_labels[i]
         idx = selected_idxs[i]
         for ep in eps:
-            lb,ub = create_input_bounds_tf(image, ep)
+            lb,ub = create_input_bounds_tf(image, ep, mean, std, dataset=dataset)
             spec_path = f"prop_{idx}_{ep}.vnnlib"
             spec_path = os.path.join(spec_dir, spec_path)
             if is_standard_prop:
-                save_vnnlib_tf_standard(lb, ub, label, spec_path, 'MNIST')
+                save_vnnlib_tf_standard(lb, ub, label, spec_path, dataset=dataset)
             else:
-                save_vnnlib_tf_1(lb, ub, label, spec_path, total_output_class=net_out_dims, tolerance_param = tolerance_param)
+                save_vnnlib_tf_1(lb, ub, label, spec_path, total_output_class=net_out_dims, tolerance_param = tolerance_param, dataset=dataset)
             counter += 1
 
     print(f"Total number of props: {counter}")
@@ -151,14 +150,22 @@ def load_data_tf(net_path: str, images, labels, dataset):
     return selected_images, selected_lables, selected_indexes, wrong_classified
 
 
-def create_input_bounds_tf(img, ep):
+def create_input_bounds_tf(img, ep, mean = np.array([0.0]), std = np.array([1.0]), dataset = 'MNIST'):
     img = np.array(img)
+    mean = mean.reshape(1,-1,1,1)
+    std = std.reshape(1,-1,1,1)
+    if dataset == 'MNIST':
+        img = img.reshape(1,1,28,28)
+    elif dataset == 'CIFAR10':
+        img = img.reshape(1,3,32,32)
     lb = np.clip(img-ep, 0, 1)
+    lb = ((lb-mean)/std).reshape(-1)
     ub = np.clip(img+ep, 0, 1)
+    ub = ((ub-mean)/std).reshape(-1)
     return list(lb), list(ub)
 
 
-def save_vnnlib_tf_standard(lb, ub, label: int, spec_path: str, dataset, total_output_class: int = 10):
+def save_vnnlib_tf_standard(lb, ub, label: int, spec_path: str, dataset='MNIST', total_output_class: int = 10):
      with open(spec_path, "w") as f:
         if dataset == 'MNIST':
             f.write(f"; Mnist property with label: {label}.\n")

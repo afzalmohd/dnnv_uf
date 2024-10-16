@@ -12,17 +12,27 @@ from simulate_network import get_mnist_train_data
 from simulate_network import run_network_mnist_test
 from simulate_network import select_images_top_k
 from simulate_network import get_selected_images_gans
+from simulate_network import get_cifar10_test_data
+from simulate_network import get_cifar10_train_data
 from modify_onnx_top_k import append_layers_top_k
 
 
 
-is_test_data = False
+is_test_data = True
+mnist_dataset = 'MNIST'
+cifar10_dataset = 'CIFAR10'
+cifar10_mean = np.array([0.49140000, 0.48219999, 0.44650000], dtype=np.float32)
+cifar10_std = np.array([0.20229999, 0.19939999, 0.20100000], dtype=np.float32)
 
-IMAGES, LABELS = get_mnist_train_data()
+IMAGES_MNIST, LABELS_MNIST = get_mnist_train_data()
 if is_test_data:
-    IMAGES, LABELS = get_mnist_test_data()
+    IMAGES_MNIST, LABELS_MNIST = get_mnist_test_data()
 
-print(IMAGES.shape)
+IMAGES_CIFAR10, LABELS_CIFAR10 = get_cifar10_train_data()
+if is_test_data:
+    IMAGES_CIFAR10, LABELS_CIFAR10 = get_cifar10_test_data()
+
+print(IMAGES_MNIST.shape)
 
 def get_images_labels_idxs(model_path, conf):
     conf = conf / 100.0
@@ -174,8 +184,8 @@ def setup_modified_props_old():
                 low_confs_idx = low_confs_idx[:max_low_conf_images]
                 print(f"net: {net},conf:{conf},low conf images: {len(low_confs_idx)}")
                 print(low_confs_idx)
-                selected_images = IMAGES[low_confs_idx]
-                selected_labels = LABELS[low_confs_idx]
+                selected_images = IMAGES_MNIST[low_confs_idx]
+                selected_labels = LABELS_MNIST[low_confs_idx]
                 append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, low_confs_idx, is_softmax=True, confs=[conf], is_high_conf=False)
                 gen_props(prop_dir, selected_images, selected_labels, low_confs_idx, epsilons) 
                 gen_instances_file(net_dir, [net], prop_dir, low_confs_idx, [conf], epsilons, instances_file)
@@ -183,8 +193,8 @@ def setup_modified_props_old():
                 high_conf_idx = high_conf_idx[:max_high_conf_images]
                 print(f"net: {net},conf:{conf},high conf images: {len(high_conf_idx)}")
                 print(high_conf_idx)
-                selected_images = IMAGES[high_conf_idx]
-                selected_labels = LABELS[high_conf_idx]
+                selected_images = IMAGES_MNIST[high_conf_idx]
+                selected_labels = LABELS_MNIST[high_conf_idx]
                 append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, high_conf_idx, is_softmax=True, confs=[conf], is_high_conf=True)
                 gen_props(prop_dir, selected_images, selected_labels, high_conf_idx, epsilons)
                 gen_instances_file(net_dir, [net], prop_dir, high_conf_idx, [conf], epsilons, instances_file)
@@ -193,8 +203,8 @@ def setup_modified_props_old():
                 low_confs_idx = low_confs_idx[:max_low_conf_images]
                 print(f"net: {net},conf:{conf},low conf images: {len(low_confs_idx)}")
                 print(low_confs_idx)
-                selected_images = IMAGES[low_confs_idx]
-                selected_labels = LABELS[low_confs_idx]
+                selected_images = IMAGES_MNIST[low_confs_idx]
+                selected_labels = LABELS_MNIST[low_confs_idx]
                 append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, low_confs_idx, is_softmax=True, confs=[conf], is_high_conf=False)
                 prop_dir_normal = os.path.join(prop_dir, 'standard')
                 if not os.path.isdir(prop_dir_normal):
@@ -242,8 +252,8 @@ def setup_modified_props():
                 low_confs_idx = low_confs_idx[:max_low_conf_images]
                 selected_idxs = low_confs_idx
                 low_plus_high_conf_images_idxs += selected_idxs
-                selected_images = IMAGES[selected_idxs]
-                selected_labels = LABELS[selected_idxs]
+                selected_images = IMAGES_MNIST[selected_idxs]
+                selected_labels = LABELS_MNIST[selected_idxs]
             print(f"net: {net},conf:{conf},low conf images: {len(selected_idxs)}")
             # print(low_confs_idx)
             
@@ -255,8 +265,8 @@ def setup_modified_props():
                 print(f"net: {net},conf:{conf},high conf images: {len(high_conf_idx)}")
                 low_plus_high_conf_images_idxs += high_conf_idx
                 # print(high_conf_idx)
-                selected_images = IMAGES[high_conf_idx]
-                selected_labels = LABELS[high_conf_idx]
+                selected_images = IMAGES_MNIST[high_conf_idx]
+                selected_labels = LABELS_MNIST[high_conf_idx]
                 append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, high_conf_idx, is_softmax=is_softmax, confs=[conf], is_high_conf=True)
                 gen_props(prop_dir, selected_images, selected_labels, high_conf_idx, epsilons)
                 gen_instances_file(net_dir, [net], prop_dir, high_conf_idx, [conf], epsilons, instances_file) 
@@ -276,8 +286,8 @@ def setup_modified_props():
         else:
             low_plus_high_conf_images_idxs = list(set(low_plus_high_conf_images_idxs))
             print(f"Number of images for standard prop: {len(low_plus_high_conf_images_idxs)}")
-            selected_images = IMAGES[low_plus_high_conf_images_idxs]
-            selected_labels = LABELS[low_plus_high_conf_images_idxs]
+            selected_images = IMAGES_MNIST[low_plus_high_conf_images_idxs]
+            selected_labels = LABELS_MNIST[low_plus_high_conf_images_idxs]
             append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, low_plus_high_conf_images_idxs, is_softmax=is_softmax, confs=[0], is_high_conf=False)
             prop_dir_normal = os.path.join(prop_dir, 'standard')
             if not os.path.isdir(prop_dir_normal):
@@ -309,7 +319,7 @@ def set_up_top_k():
         selected_idexs = selected_idexs[:max_images]
         selected_top_k = selected_top_k[:max_images]
         print(f"{net} , {len(selected_top_k)}")
-        selected_images = IMAGES[selected_idexs]
+        selected_images = IMAGES_MNIST[selected_idexs]
         append_layers_top_k([net], orig_net_dir, net_dir, selected_images, selected_top_k, selected_idexs, is_top_k_robust_paper=False)
         append_layers_top_k([net], orig_net_dir, net_dir, selected_images, selected_top_k, selected_idexs, is_standard_prop=True, is_top_k_robust_paper=False)
 
@@ -347,7 +357,7 @@ def set_up_top_k_robust_paper():
         selected_idexs = selected_idexs[:max_images]
         selected_top_k = selected_top_k[:max_images]
         print(f"{net} , {len(selected_top_k)}")
-        selected_images = IMAGES[selected_idexs]
+        selected_images = IMAGES_MNIST[selected_idexs]
         append_layers_top_k([net], orig_net_dir, net_dir, selected_images, selected_top_k, selected_idexs)
         append_layers_top_k([net], orig_net_dir, net_dir, selected_images, selected_top_k, selected_idexs, is_standard_prop=True)
 
@@ -417,13 +427,78 @@ def setup_on_deeppoly_images():
             else:
                 gen_instances_file(net_dir, [net], prop_dir_normal, selected_idxs, [conf], epsilons, instances_file)   
 
+def select_images_with_labels(dataset, dataset_idxs_file, max_num_indexs=50):
+    with open(dataset_idxs_file) as f:
+        line = f.readline()
+        indexes = np.fromstring(line, dtype=int, sep=',')
+        indexes = indexes[:max_num_indexs]
+        if dataset == mnist_dataset:
+            images = IMAGES_MNIST[indexes]
+            labels = LABELS_MNIST[indexes] 
+        elif dataset == cifar10_dataset:
+            images = IMAGES_CIFAR10[indexes]
+            labels = LABELS_CIFAR10[indexes]
+    
+    return images, labels, indexes
+
+
+def setup_on_orig_dataset_images(dataset=mnist_dataset):
+    net_root_dir = '/home/u1411251/Documents/tools/networks/conf_final'
+    is_softmax = True
+    max_num_images = 50
+    if is_softmax:
+        confs = [0, 60, 80, 90, 95]
+    else:
+        confs = [40, 60, 80]
+    epsilons = [0.06]
+
+    if dataset == mnist_dataset:
+        dataset_idxs_file = os.path.join(net_root_dir, 'mnist', 'selected_idxs_mnist.txt')
+        orig_net_dir = os.path.join(net_root_dir, 'mnist', 'vnncomp')
+        nets = ['mnist-net_256x2.onnx', 'mnist-net_256x4.onnx', 'mnist-net_256x6.onnx']
+        mean = np.array([0.0], dtype=np.float32)
+        std = np.array([1.0], dtype=np.float32)
+    else:
+        dataset_idxs_file = os.path.join(net_root_dir, 'cifar10', 'selected_idxs_cifar10.txt')
+        orig_net_dir = os.path.join(net_root_dir, 'cifar10', 'vnncomp')
+        nets = ['cifar10_2_255_simplified.onnx', 'cifar10_8_255_simplified.onnx', 'convBigRELU__PGD.onnx']
+        mean = cifar10_mean
+        std = cifar10_std
+
+
+    setup_dir = os.path.join(net_root_dir, 'benchmarks')
+    clean_directory(setup_dir)
+    net_dir = os.path.join(setup_dir, 'nets')
+    prop_dir = os.path.join(setup_dir, 'props')
+    instances_file = os.path.join(setup_dir, 'instances.csv')
+    if os.path.isfile(instances_file):
+        os.remove(instances_file)
+    create_empty_dirs(net_dir, prop_dir)
+    selected_images, selected_labels, selected_idxs = select_images_with_labels(dataset, dataset_idxs_file, max_num_indexs=max_num_images)
+    selected_labels = selected_labels.reshape(-1)
+    gen_props(prop_dir, selected_images, selected_labels, selected_idxs, epsilons, tolerance_param=-1e-5, dataset=dataset, mean=mean, std=std) 
+    prop_dir_normal = os.path.join(prop_dir, 'standard')
+    if not os.path.isdir(prop_dir_normal):
+        os.makedirs(prop_dir_normal)
+    gen_props(prop_dir_normal, selected_images, selected_labels, selected_idxs, epsilons, is_standard_prop=True, mean=mean, std=std, dataset=dataset)
+
+    for net in nets:
+        for conf in confs:
+            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[conf], is_high_conf=False)
+            if conf != 0:
+                gen_instances_file(net_dir, [net], prop_dir, selected_idxs, [conf], epsilons, instances_file)    
+            else:
+                gen_instances_file(net_dir, [net], prop_dir_normal, selected_idxs, [conf], epsilons, instances_file)   
+
 
 if __name__ == '__main__':
+    dataset_name = mnist_dataset
     # setup_modified_props_gans()
     # set_up_top_k()
-    setup_on_deeppoly_images()
+    # setup_on_deeppoly_images()
     # set_up_top_k_robust_paper()
     # setup_modified_props()
+    setup_on_orig_dataset_images(dataset=dataset_name)
 
         
 
