@@ -1,0 +1,230 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Jul 26 09:09:35 2021
+
+@author: u1411251
+"""
+
+from multiprocessing import Pool
+import random
+import os
+import sys
+import subprocess
+import shlex
+NUM_CPU = 7
+TIMEOUT = 2000
+DATASET = "MNIST"
+NUM_IMAGES = 100
+num_cores = 8
+
+
+root_dir = os.getcwd()
+TOOL = os.path.join(root_dir, 'mar_encod.py')
+TOOL = 'mar_encod.py'
+result_dir = os.path.join(root_dir, 'outfiles')
+dataset_file = '/home/afzal/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
+result_file = os.path.join(result_dir, "result.txt")
+
+if not os.path.isdir(result_dir):
+    os.mkdir(result_dir)
+
+
+def write_script_file(file_name, cmds):
+    with open(file_name, 'w') as file:
+        for cm in cmds:
+            file.write(cm+"\n")
+        file.close()
+
+
+
+    
+def get_all_tasks():
+    tasks = []
+    # net_dir = '/home/afzal/Documents/tools/networks/tf/mnist'
+    NETWORK_FILE = []
+    NETWORK_FILE += ["temp.nnet"]
+    # NETWORK_FILE += ["mnist_relu_3_100.tf"]
+    # NETWORK_FILE += ["mnist_relu_5_100.tf"]
+    # NETWORK_FILE += ["mnist_relu_6_100.tf", "mnist_relu_6_200.tf"]
+    # # NETWORK_FILE += ["mnist_relu_4_1024.tf"]
+    # NETWORK_FILE += ["mnist_relu_9_100.tf"]
+    # NETWORK_FILE += ["mnist_relu_9_200.tf"]
+    # NETWORK_FILE += ["ffnnRELU__Point_6_500.tf", "ffnnRELU__PGDK_w_0.1_6_500.tf", "ffnnRELU__PGDK_w_0.3_6_500.tf"]
+    
+    images_list = [i for i in range(NUM_IMAGES)]
+    epsilons = [0.06]
+    confidences =[0, 60]
+
+    for image_index in images_list:
+        for ep in epsilons:
+            for nt in NETWORK_FILE:
+                for conf in confidences:
+                    if conf == 0:
+                        is_conf_robust = 0
+                    else:
+                        is_conf_robust = 1
+
+                    tasks.append([nt, image_index, ep, conf, is_conf_robust])
+    # tasks=get_diff_tasks()
+    # print(tasks)
+    return tasks
+
+
+
+
+def print_cmnds_all(num_cpu, log_dir):
+    tasks = get_all_tasks()
+    # tasks = get_fixed_tasks()
+    # tasks = get_task_from_file_random()
+    net_dir = '/home/afzal/tools/networks/tf/mnist'
+    # random.shuffle(tasks)
+
+    num_tasks = len(tasks)
+    print(f"Total number of task: {num_tasks}")
+
+    if num_cpu >= num_tasks:
+        load_per_cpu = [1]*num_tasks
+    else:
+        load_per_cpu = [0]*num_cpu
+        for i in range(0,num_tasks):
+            j = i % num_cpu
+            load_per_cpu[j] += 1
+
+    print("Load per cpu: {}".format(load_per_cpu))
+
+    prev_load = 0
+    for idx, load in enumerate(load_per_cpu):
+        ld = tasks[prev_load:prev_load+load]
+        prev_load += load
+        cmds = []
+        for l in ld:
+            net_name = l[0]
+            image_index = l[1]
+            ep = l[2]
+            conf = l[3]
+            is_conf_rb = l[4]
+            log_file = net_name+"+"+str(image_index)+"+"+str(ep)+"+"+str(conf)
+            log_file = os.path.join(log_dir, log_file)
+            result_file = os.path.join(result_dir, f"file_{idx}.txt")
+            command = f"taskset --cpu-list {num_cores*idx}-{(num_cores*idx)+(num_cores -1)} timeout -k 2s {TIMEOUT} python {TOOL} {net_name} {image_index} {ep} {conf} {is_conf_rb} {result_file} >> {log_file}"
+            cmds.append(command)
+        file_name = os.path.join(log_dir, f"script_{idx}.sh")
+        write_script_file(file_name, cmds)
+
+
+def get_tasks_vnncomp():
+    instance_file = '/home/afzal/tools/networks/conf_final/benchmarks/instances.csv'
+    tasks = []
+    with open(instance_file, 'r') as f:
+        Lines = f.readlines()
+        for line in Lines:
+            line = line.strip()
+            line = line.split(',')
+            tasks.append([line[0], line[1]])
+
+    return tasks
+
+def get_tasks_mnistfc_modified():
+    instance_file = '/home/afzal/tools/networks/conf_final/instances.csv'
+    tasks = []
+    with open(instance_file, 'r') as f:
+        Lines = f.readlines()
+        for line in Lines:
+            line = line.strip()
+            line = line.split(',')
+            tasks.append([line[0], line[1]])
+
+    return tasks
+
+
+def print_cmnds_abcrowns(num_cpu, log_dir, dataset='MNIST'):
+    tool_main = '/home/afzal/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
+    config_path = 'mnist.yaml'
+    tasks = get_tasks_vnncomp()
+    random.shuffle(tasks)
+    # tasks = get_tasks_mnistfc_modified()
+    # print(tasks)
+    num_tasks = len(tasks)
+    print(f"Total number of task: {num_tasks}")
+
+    if num_cpu >= num_tasks:
+        load_per_cpu = [1]*num_tasks
+    else:
+        load_per_cpu = [0]*num_cpu
+        for i in range(0,num_tasks):
+            j = i % num_cpu
+            load_per_cpu[j] += 1
+
+    print("Load per cpu: {}".format(load_per_cpu))
+
+    prev_load = 0
+    for idx, load in enumerate(load_per_cpu):
+        ld = tasks[prev_load:prev_load+load]
+        prev_load += load
+        cmds = []
+        for l in ld:
+            net_path = l[0]
+            prop_path = l[1]
+            log_file = os.path.basename(net_path)[:-5]+"+"+os.path.basename(prop_path)[:-7]
+            log_file = os.path.join(log_dir, log_file)
+            result_file = "res_"+os.path.basename(net_path)[:-5]+"+"+os.path.basename(prop_path)[:-7]
+            result_file = os.path.join(log_dir, result_file)
+            command = f"taskset --cpu-list {num_cores*idx}-{(num_cores*idx)+(num_cores -1)} timeout -k 2s {TIMEOUT+200} python {tool_main} --config {config_path} --device cpu --show_adv_example --onnx_path {net_path} --vnnlib_path {prop_path} --results_file {result_file} --timeout {TIMEOUT} >> {log_file}"
+            cmds.append(command)
+        file_name = os.path.join(log_dir, f"script_{idx}.sh")
+        write_script_file(file_name, cmds)
+
+
+
+
+if __name__ == '__main__':
+    dataset = 'MNIST' # 'MNIST'/'CIFAR10'
+    if len(sys.argv) == 3:
+        num_cpu = int(sys.argv[1])
+        log_dir = sys.argv[2]
+    else:
+        print("Error: ")
+        sys.exit(1)
+
+    if not os.path.isdir(log_dir):
+        os.mkdir(log_dir)
+
+    # print_cmnds_all(num_cpu, log_dir)
+    print_cmnds_abcrowns(num_cpu, log_dir, dataset=dataset)
+
+    exit(0)
+
+    tasks = get_all_tasks()
+    NUM_TASK = len(tasks)
+    print(f"Total number of task: {NUM_TASK}")
+
+    if NUM_CPU >= NUM_TASK:
+        load_per_cpu = [1]*NUM_TASK
+    else:
+        load_per_cpu = [0]*NUM_CPU
+        for i in range(0,NUM_TASK):
+            j = i % NUM_CPU
+            load_per_cpu[j] += 1
+
+    print("Load per cpu: {}".format(load_per_cpu))
+    task_per_cpu = []
+    prev_load = 0
+    for idx, load in enumerate(load_per_cpu):
+        ld = tasks[prev_load:prev_load+load]
+        for l in ld:
+            l.append(idx)
+        task_per_cpu.append(ld)
+        prev_load += load
+
+
+    with Pool(processes=len(task_per_cpu)) as p:
+        p.map(run_per_cpu, task_per_cpu)
+
+
+
+
+
+
+
+

@@ -443,14 +443,15 @@ def select_images_with_labels(dataset, dataset_idxs_file, max_num_indexs=50):
 
 
 def setup_on_orig_dataset_images(dataset=mnist_dataset):
-    net_root_dir = '/home/afzal/tool/networks/conf_final'
+    net_root_dir = '/home/afzal/tools/networks/conf_final'
     is_softmax = True
     max_num_images = 50
+    timeout = 2000
     if is_softmax:
         confs = [0, 60, 80, 90, 95]
     else:
         confs = [40, 60, 80]
-    epsilons = [0.06]
+    
 
     if dataset == mnist_dataset:
         dataset_idxs_file = os.path.join(net_root_dir, 'mnist', 'selected_idxs_mnist.txt')
@@ -458,12 +459,14 @@ def setup_on_orig_dataset_images(dataset=mnist_dataset):
         nets = ['mnist-net_256x2.onnx', 'mnist-net_256x4.onnx', 'mnist-net_256x6.onnx']
         mean = np.array([0.0], dtype=np.float32)
         std = np.array([1.0], dtype=np.float32)
+        epsilons = [0.06]
     else:
         dataset_idxs_file = os.path.join(net_root_dir, 'cifar10', 'selected_idxs_cifar10.txt')
         orig_net_dir = os.path.join(net_root_dir, 'cifar10', 'vnncomp')
         nets = ['cifar10_2_255_simplified.onnx', 'cifar10_8_255_simplified.onnx', 'convBigRELU__PGD.onnx']
         mean = cifar10_mean
         std = cifar10_std
+        epsilons = [0.04]
 
 
     setup_dir = os.path.join(net_root_dir, 'benchmarks')
@@ -486,9 +489,9 @@ def setup_on_orig_dataset_images(dataset=mnist_dataset):
         for conf in confs:
             append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[conf], is_high_conf=False)
             if conf != 0:
-                gen_instances_file(net_dir, [net], prop_dir, selected_idxs, [conf], epsilons, instances_file)    
+                gen_instances_file(net_dir, [net], prop_dir, selected_idxs, [conf], epsilons, instances_file, timeout=timeout)    
             else:
-                gen_instances_file(net_dir, [net], prop_dir_normal, selected_idxs, [conf], epsilons, instances_file)   
+                gen_instances_file(net_dir, [net], prop_dir_normal, selected_idxs, [conf], epsilons, instances_file, timeout=timeout)   
 
 
 if __name__ == '__main__':
