@@ -468,7 +468,7 @@ def setup_on_orig_dataset_images(dataset=mnist_dataset):
         # nets += ['convBigRELU__PGD.onnx']
         mean = cifar10_mean
         std = cifar10_std
-        epsilons = [0.02]
+        epsilons = [0.01]
 
 
     setup_dir = os.path.join(net_root_dir, 'benchmarks')
