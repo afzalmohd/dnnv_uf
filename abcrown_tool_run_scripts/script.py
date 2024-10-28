@@ -13,7 +13,7 @@ import sys
 import subprocess
 import shlex
 NUM_CPU = 7
-TIMEOUT = 3000
+TIMEOUT = 2000 #Not relevant
 DATASET = "MNIST"
 NUM_IMAGES = 100
 num_cores = 4
@@ -113,7 +113,7 @@ def print_cmnds_all(num_cpu, log_dir):
         write_script_file(file_name, cmds)
 
 
-def get_tasks_vnncomp():
+def get_tasks():
     instance_file = '/home/afzal/tools/networks/conf_final/benchmarks/instances.csv'
     tasks = []
     with open(instance_file, 'r') as f:
@@ -121,7 +121,7 @@ def get_tasks_vnncomp():
         for line in Lines:
             line = line.strip()
             line = line.split(',')
-            tasks.append([line[0], line[1]])
+            tasks.append([line[0], line[1], line[2]])
 
     return tasks
 
@@ -133,18 +133,18 @@ def get_tasks_mnistfc_modified():
         for line in Lines:
             line = line.strip()
             line = line.split(',')
-            tasks.append([line[0], line[1]])
+            tasks.append([line[0], line[1], line[2]])
 
     return tasks
 
 
 def print_cmnds_abcrowns(num_cpu, log_dir, dataset='MNIST'):
-    tool_main = '/home/afzal/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
+    tool_main = '/home/afzal/tools/vnncomp23/alpha-beta-CROWN/complete_verifier/abcrown.py'
     if dataset == 'MNIST':
         config_path = 'mnist.yaml'
     else:
         config_path = 'cifar2020.yaml'
-    tasks = get_tasks_vnncomp()
+    tasks = get_tasks()
     random.shuffle(tasks)
     # tasks = get_tasks_mnistfc_modified()
     # print(tasks)
@@ -169,11 +169,12 @@ def print_cmnds_abcrowns(num_cpu, log_dir, dataset='MNIST'):
         for l in ld:
             net_path = l[0]
             prop_path = l[1]
+            timeout = int(l[2])
             log_file = os.path.basename(net_path)[:-5]+"+"+os.path.basename(prop_path)[:-7]
             log_file = os.path.join(log_dir, log_file)
             result_file = "res_"+os.path.basename(net_path)[:-5]+"+"+os.path.basename(prop_path)[:-7]
             result_file = os.path.join(log_dir, result_file)
-            command = f"taskset --cpu-list {num_cores*idx}-{(num_cores*idx)+(num_cores -1)} timeout -k 2s {TIMEOUT+200} python {tool_main} --config {config_path} --device cpu --show_adv_example --onnx_path {net_path} --vnnlib_path {prop_path} --results_file {result_file} --timeout {TIMEOUT} >> {log_file}"
+            command = f"taskset --cpu-list {num_cores*idx}-{(num_cores*idx)+(num_cores -1)} timeout -k 2s {timeout+200} python {tool_main} --config {config_path} --device cpu --show_adv_example --onnx_path {net_path} --vnnlib_path {prop_path} --results_file {result_file} --timeout {timeout} >> {log_file}"
             cmds.append(command)
         file_name = os.path.join(log_dir, f"script_{idx}.sh")
         write_script_file(file_name, cmds)
@@ -183,7 +184,7 @@ def print_cmnds_abcrowns(num_cpu, log_dir, dataset='MNIST'):
 
 if __name__ == '__main__':
     dataset = 'MNIST' # 'MNIST'/'CIFAR10'
-    dataset = 'CIFAR10'
+    # dataset = 'CIFAR10'
     if len(sys.argv) == 3:
         num_cpu = int(sys.argv[1])
         log_dir = sys.argv[2]

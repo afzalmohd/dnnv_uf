@@ -147,11 +147,15 @@ def run_network_mnist_test(model_path, is_test_dataset = False, is_cnn = False, 
     high_conf_image_idx = []
     high_confs = []
     # Loop through the test dataset
+    counter = 0
     for i in range(len(x_test)):
         # Prepare the test input
+        counter += 1
+        # if counter >= 100:
+        #     break
         test_input = x_test[i].astype(np.float32)
         if is_cnn:
-            test_input = test_input.reshape(1,1,28,28)
+            test_input = test_input.reshape(1,784,1)
         
         # Run the model on the test input
         output = session.run(None, {input_name: test_input})
@@ -179,6 +183,69 @@ def run_network_mnist_test(model_path, is_test_dataset = False, is_cnn = False, 
     # print(low_conf_images_idx)
     # print_images(None, None, low_conf_images_idx, confs)
     accuracy = correct_predictions / len(x_test)
+    print(f"Accuracy: {correct_predictions / counter}")
+    # print(f"Accuracy on MNIST test dataset: {accuracy * 100:.2f}%")
+    # print(f"Number of low confidence images: {num_low_conf_im}")
+    # print(accuracy, num_low_conf_im)
+    return accuracy, num_low_conf_im, low_conf_images_idx, low_confs, high_conf_image_idx, high_confs
+
+
+def run_network_cifar10(model_path, is_test_dataset = False, is_cnn = True, is_softmax_output = False, conf_th = 70):
+    conf_th = conf_th / 100.0
+    if is_test_dataset:
+        x_test, y_test = get_cifar10_test_data()
+    else:
+        x_test, y_test = get_cifar10_train_data()
+    if is_cnn:
+        x_test = x_test.reshape(-1, 3, 32, 32)
+    session = ort.InferenceSession(model_path)
+    # Get the model's input name
+    input_name = session.get_inputs()[0].name
+
+    correct_predictions = 0
+    num_low_conf_im = 0
+    low_conf_images_idx = []
+    low_confs = []
+    high_conf_image_idx = []
+    high_confs = []
+    # Loop through the test dataset
+    counter = 0
+    for i in range(len(x_test)):
+        # Prepare the test input
+        counter += 1
+        if counter >= 100:
+            break
+        test_input = x_test[i].astype(np.float32)
+        if is_cnn:
+            test_input = test_input.reshape(-1,3,32,32)
+        
+        # Run the model on the test input
+        output = session.run(None, {input_name: test_input})
+        
+        # Get the predicted class
+        predicted_class = np.argmax(output[0][0])
+        if is_softmax_output:
+            softmax_output = output[0][0]
+        else:
+            softmax_output= softmax(output[0][0])
+        
+        # Compare with the true label
+        if predicted_class == y_test[i]:
+            correct_predictions += 1
+            print(softmax_output[predicted_class])
+            if softmax_output[predicted_class] <= conf_th:
+                num_low_conf_im += 1
+                low_conf_images_idx.append(i)
+                low_confs.append(softmax_output[predicted_class])
+            else:
+                high_conf_image_idx.append(i)
+                high_confs.append(softmax_output[predicted_class])
+                
+        
+    # print(low_conf_images_idx)
+    # print_images(None, None, low_conf_images_idx, confs)
+    accuracy = correct_predictions / len(x_test)
+    print(f"Cifar-10 accuracy: {correct_predictions/counter}")
     # print(f"Accuracy on MNIST test dataset: {accuracy * 100:.2f}%")
     # print(f"Number of low confidence images: {num_low_conf_im}")
     # print(accuracy, num_low_conf_im)

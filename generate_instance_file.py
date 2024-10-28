@@ -11,7 +11,8 @@ def write_to_file(net_path, prop_path, timeout, file_path):
 
 
 def gen_instances_file(net_dir, nets, prop_dir, images_idxs, confs, eps, file_path, timeout=2000):
-    images_idxs = images_idxs.tolist()
+    if not isinstance(images_idxs, list):
+        images_idxs = images_idxs.tolist()
     for net in nets:
         for idx in images_idxs:
             for conf in confs:

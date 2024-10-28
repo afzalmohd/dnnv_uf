@@ -14,6 +14,7 @@ from simulate_network import select_images_top_k
 from simulate_network import get_selected_images_gans
 from simulate_network import get_cifar10_test_data
 from simulate_network import get_cifar10_train_data
+from simulate_network import run_network_cifar10
 from modify_onnx_top_k import append_layers_top_k
 
 
@@ -213,25 +214,51 @@ def setup_modified_props_old():
                 gen_instances_file(net_dir, [net], prop_dir_normal, low_confs_idx, [conf], epsilons, instances_file)
 
 
-def setup_modified_props():
-    orig_net_dir = '/home/afzal/tools/networks/conf_final/eran_mod'
-    eran_images_file = '/home/afzal/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
-    nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
-    nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
-    nets = ['ffnnRELU__Point_6_500.onnx', 'ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx', 'mnist_relu_4_1024.onnx']
-    is_softmax = False
-    is_eran_images = True
+def setup_modified_props(dataset = mnist_dataset):
+    net_root_dir = '/home/afzal/tools/networks/conf_final'
+    is_softmax = True
+    is_eran_images = False
+    max_num_images = 200
+    max_low_conf_images = int(0.9*max_num_images)
+    max_high_conf_images = max_num_images - max_low_conf_images
+    timeout = 2000
     if is_softmax:
-        confs = [60, 70, 80, 90, 95]
+        confs = [60, 80, 90, 95]
+        # confs = [60]
     else:
         confs = [40, 60, 80]
-    epsilons = [0.06]
-    if is_eran_images:
-        eran_images, eran_labels = get_eran_images(eran_images_file)
-        eran_selected_idxs = [i for i in range(21) if i != 8]
-    max_low_conf_images = 1000
-    max_high_conf_images = 20
-    setup_dir = '/home/afzal/tools/networks/mod_props'
+    
+
+    if dataset == mnist_dataset:
+        dataset_idxs_file = os.path.join(net_root_dir, 'mnist', 'selected_idxs_mnist.txt')
+        orig_net_dir = os.path.join(net_root_dir, 'mnist', 'vnncomp')
+        # orig_net_dir = '/home/afzal/tools/networks/conf_final/mnist/eran_mod'
+        nets = ['mnist-net_256x2.onnx', 'mnist-net_256x4.onnx', 'mnist-net_256x6.onnx']
+        # nets = ['mnist-net_256x6.onnx']
+        mean = np.array([0.0], dtype=np.float32)
+        std = np.array([1.0], dtype=np.float32)
+        epsilons = [0.06]
+        filter_images = run_network_mnist_test
+        is_cnn = False
+        IMAGES = IMAGES_MNIST
+        LABELS = LABELS_MNIST
+    else:
+        dataset_idxs_file = os.path.join(net_root_dir, 'cifar10', 'selected_idxs_cifar10.txt')
+        orig_net_dir = os.path.join(net_root_dir, 'cifar10', 'vnncomp')
+        nets = []
+        nets += ['cifar10_2_255_simplified.onnx']
+        # nets += ['cifar10_8_255_simplified.onnx']
+        # nets += ['convBigRELU__PGD.onnx']
+        mean = cifar10_mean
+        std = cifar10_std
+        epsilons = [0.01]
+        filter_images = run_network_cifar10
+        is_cnn = True
+        IMAGES = IMAGES_CIFAR10
+        LABELS = LABELS_CIFAR10
+
+
+    setup_dir = os.path.join(net_root_dir, 'benchmarks')
     clean_directory(setup_dir)
     net_dir = os.path.join(setup_dir, 'nets')
     prop_dir = os.path.join(setup_dir, 'props')
@@ -243,57 +270,43 @@ def setup_modified_props():
     for net in nets:
         low_plus_high_conf_images_idxs = []
         for conf in confs:
-            if is_eran_images:
-                selected_idxs = eran_selected_idxs
-                selected_images = eran_images[selected_idxs]
-                selected_labels = eran_labels[selected_idxs]
-            else:
-                _, _, low_confs_idx, _, high_conf_idx, _  = run_network_mnist_test(os.path.join(orig_net_dir, net), conf_th=conf)
-                low_confs_idx = low_confs_idx[:max_low_conf_images]
-                selected_idxs = low_confs_idx
-                low_plus_high_conf_images_idxs += selected_idxs
-                selected_images = IMAGES_MNIST[selected_idxs]
-                selected_labels = LABELS_MNIST[selected_idxs]
+            _, _, low_confs_idx, _, high_conf_idx, _  = filter_images(os.path.join(orig_net_dir, net), conf_th=conf, is_cnn=is_cnn)
+            low_confs_idx = low_confs_idx[:max_low_conf_images]
+            selected_idxs = low_confs_idx
+            low_plus_high_conf_images_idxs += selected_idxs
+            selected_images = IMAGES[selected_idxs]
+            selected_labels = LABELS[selected_idxs]
             print(f"net: {net},conf:{conf},low conf images: {len(selected_idxs)}")
             # print(low_confs_idx)
             
             append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[conf], is_high_conf=False)
-            gen_props(prop_dir, selected_images, selected_labels, selected_idxs, epsilons) 
-            gen_instances_file(net_dir, [net], prop_dir, selected_idxs, [conf], epsilons, instances_file)
-            if not is_eran_images:
-                high_conf_idx = high_conf_idx[:max_high_conf_images]
-                print(f"net: {net},conf:{conf},high conf images: {len(high_conf_idx)}")
-                low_plus_high_conf_images_idxs += high_conf_idx
-                # print(high_conf_idx)
-                selected_images = IMAGES_MNIST[high_conf_idx]
-                selected_labels = LABELS_MNIST[high_conf_idx]
-                append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, high_conf_idx, is_softmax=is_softmax, confs=[conf], is_high_conf=True)
-                gen_props(prop_dir, selected_images, selected_labels, high_conf_idx, epsilons)
-                gen_instances_file(net_dir, [net], prop_dir, high_conf_idx, [conf], epsilons, instances_file) 
+            gen_props(prop_dir, selected_images, selected_labels, selected_idxs, epsilons, mean=mean, std=std, dataset=dataset)
+            gen_instances_file(net_dir, [net], prop_dir, selected_idxs, [conf], epsilons, instances_file, timeout=timeout)
+                
+            high_conf_idx = high_conf_idx[:max_high_conf_images]
+            print(f"net: {net},conf:{conf},high conf images: {len(high_conf_idx)}")
+            low_plus_high_conf_images_idxs += high_conf_idx
+            # print(high_conf_idx)
+            selected_idxs = high_conf_idx
+            selected_images = IMAGES[high_conf_idx]
+            selected_labels = LABELS[high_conf_idx]
+            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[conf], is_high_conf=True)
+            gen_props(prop_dir, selected_images, selected_labels, selected_idxs, epsilons, mean=mean, std=std, dataset=dataset)
+            gen_instances_file(net_dir, [net], prop_dir, selected_idxs, [conf], epsilons, instances_file, timeout=timeout)
+
+        low_plus_high_conf_images_idxs = list(set(low_plus_high_conf_images_idxs))
+        print(f"Number of images for standard prop: {len(low_plus_high_conf_images_idxs)}")
+        selected_images = IMAGES[low_plus_high_conf_images_idxs]
+        selected_labels = LABELS[low_plus_high_conf_images_idxs]
+        append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, low_plus_high_conf_images_idxs, is_softmax=is_softmax, confs=[0], is_high_conf=False)
+        prop_dir_normal = os.path.join(prop_dir, 'standard')
+        if not os.path.isdir(prop_dir_normal):
+            os.makedirs(prop_dir_normal)
+        gen_props(prop_dir_normal, selected_images, selected_labels, low_plus_high_conf_images_idxs, epsilons, is_standard_prop=True, mean=mean, std=std, dataset=dataset) 
+        gen_instances_file(net_dir, [net], prop_dir_normal, low_plus_high_conf_images_idxs, [0], epsilons, instances_file, timeout=timeout)
 
 
-        if is_eran_images:
-            selected_idxs = eran_selected_idxs
-            selected_images = eran_images[selected_idxs]
-            selected_labels = eran_labels[selected_idxs]
-            print(f"Number of images for standard prop: {len(selected_images)}")
-            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[0], is_high_conf=False)
-            prop_dir_normal = os.path.join(prop_dir, 'standard')
-            if not os.path.isdir(prop_dir_normal):
-                os.makedirs(prop_dir_normal)
-            gen_props(prop_dir_normal, selected_images, selected_labels, selected_idxs, epsilons, is_standard_prop=True) 
-            gen_instances_file(net_dir, [net], prop_dir_normal, selected_idxs, [0], epsilons, instances_file)
-        else:
-            low_plus_high_conf_images_idxs = list(set(low_plus_high_conf_images_idxs))
-            print(f"Number of images for standard prop: {len(low_plus_high_conf_images_idxs)}")
-            selected_images = IMAGES_MNIST[low_plus_high_conf_images_idxs]
-            selected_labels = LABELS_MNIST[low_plus_high_conf_images_idxs]
-            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, low_plus_high_conf_images_idxs, is_softmax=is_softmax, confs=[0], is_high_conf=False)
-            prop_dir_normal = os.path.join(prop_dir, 'standard')
-            if not os.path.isdir(prop_dir_normal):
-                os.makedirs(prop_dir_normal)
-            gen_props(prop_dir_normal, selected_images, selected_labels, low_plus_high_conf_images_idxs, epsilons, is_standard_prop=True) 
-            gen_instances_file(net_dir, [net], prop_dir_normal, low_plus_high_conf_images_idxs, [0], epsilons, instances_file)
+
 
 def set_up_top_k():
     num_top_k = 2
@@ -498,13 +511,13 @@ def setup_on_orig_dataset_images(dataset=mnist_dataset):
 
 
 if __name__ == '__main__':
-    dataset_name = cifar10_dataset
+    dataset_name = mnist_dataset
     # setup_modified_props_gans()
     # set_up_top_k()
     # setup_on_deeppoly_images()
     # set_up_top_k_robust_paper()
-    # setup_modified_props()
-    setup_on_orig_dataset_images(dataset=dataset_name)
+    setup_modified_props(dataset=dataset_name)
+    # setup_on_orig_dataset_images(dataset=dataset_name)
 
         
 
