@@ -215,16 +215,16 @@ def setup_modified_props_old():
 
 
 def setup_modified_props(dataset = mnist_dataset):
-    net_root_dir = '/home/afzal/tools/networks/conf_final'
+    net_root_dir = '/home/u1411251/Documents/tools/networks/conf_final'
     is_softmax = True
     is_eran_images = False
-    max_num_images = 200
+    max_num_images = 100
     max_low_conf_images = int(0.9*max_num_images)
     max_high_conf_images = max_num_images - max_low_conf_images
     timeout = 2000
     if is_softmax:
         confs = [60, 80, 90, 95]
-        # confs = [60]
+        confs = [60]
     else:
         confs = [40, 60, 80]
     
@@ -270,7 +270,7 @@ def setup_modified_props(dataset = mnist_dataset):
     for net in nets:
         low_plus_high_conf_images_idxs = []
         for conf in confs:
-            _, _, low_confs_idx, _, high_conf_idx, _  = filter_images(os.path.join(orig_net_dir, net), conf_th=conf, is_cnn=is_cnn)
+            _, _, low_confs_idx, _, high_conf_idx, _  = filter_images(os.path.join(orig_net_dir, net), conf_th=conf, is_cnn=is_cnn, mean=mean, std=std)
             low_confs_idx = low_confs_idx[:max_low_conf_images]
             selected_idxs = low_confs_idx
             low_plus_high_conf_images_idxs += selected_idxs
@@ -511,7 +511,7 @@ def setup_on_orig_dataset_images(dataset=mnist_dataset):
 
 
 if __name__ == '__main__':
-    dataset_name = mnist_dataset
+    dataset_name = cifar10_dataset
     # setup_modified_props_gans()
     # set_up_top_k()
     # setup_on_deeppoly_images()

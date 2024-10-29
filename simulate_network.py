@@ -128,7 +128,7 @@ def select_images_top_k(model_path, is_test_dataset = False, is_cnn = False, con
     return selected_images_idxs, selected_labels_top_k
             
 
-def run_network_mnist_test(model_path, is_test_dataset = False, is_cnn = False, is_softmax_output = False, conf_th = 70):
+def run_network_mnist_test(model_path, is_test_dataset = False, is_cnn = False, is_softmax_output = False, conf_th = 70, mean=0.0, std=1.0):
     conf_th = conf_th / 100.0
     if is_test_dataset:
         x_test, y_test = get_mnist_test_data()
@@ -190,7 +190,7 @@ def run_network_mnist_test(model_path, is_test_dataset = False, is_cnn = False, 
     return accuracy, num_low_conf_im, low_conf_images_idx, low_confs, high_conf_image_idx, high_confs
 
 
-def run_network_cifar10(model_path, is_test_dataset = False, is_cnn = True, is_softmax_output = False, conf_th = 70):
+def run_network_cifar10(model_path, is_test_dataset = False, is_cnn = True, is_softmax_output = False, conf_th = 70, mean=0.0, std=1.0):
     conf_th = conf_th / 100.0
     if is_test_dataset:
         x_test, y_test = get_cifar10_test_data()
@@ -200,6 +200,12 @@ def run_network_cifar10(model_path, is_test_dataset = False, is_cnn = True, is_s
         x_test = x_test.reshape(-1, 3, 32, 32)
     session = ort.InferenceSession(model_path)
     # Get the model's input name
+    mean = np.array(mean).reshape((1,-1,1,1)).astype(np.float32)
+    std = np.array(std).reshape((1,-1,1,1)).astype(np.float32)
+    print(mean, std)
+    print(x_test[0,1,:5,:5])
+    x_test = (x_test - mean)/std
+    print(x_test[0,1,:5,:5])
     input_name = session.get_inputs()[0].name
 
     correct_predictions = 0
