@@ -280,8 +280,8 @@ def get_output_affine_layers_weights(model_path):
                 output_layer_weights.extend(node.input)  # Get the input names, which include weights
 
         # Print the found weight names
-        print("\nWeights associated with the output layer:")
-        print(output_layer_weights)
+        # print("\nWeights associated with the output layer:")
+        # print(output_layer_weights)
 
         # Now, retrieve the actual weight tensors
         w_weight_name , b_weight_name = None, None
@@ -291,7 +291,7 @@ def get_output_affine_layers_weights(model_path):
                     w_weight_name = initializer.name
                 elif 'bias' in initializer.name:
                     b_weight_name = initializer.name
-        print(w_weight_name, b_weight_name)
+        # print(w_weight_name, b_weight_name)
         return w_weight_name, b_weight_name
     else:
         print(f"Output layer is not an activation layer")

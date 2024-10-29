@@ -219,8 +219,8 @@ def run_network_cifar10(model_path, is_test_dataset = False, is_cnn = True, is_s
     for i in range(len(x_test)):
         # Prepare the test input
         counter += 1
-        if counter >= 100:
-            break
+        # if counter >= 100:
+        #     break
         test_input = x_test[i].astype(np.float32)
         if is_cnn:
             test_input = test_input.reshape(-1,3,32,32)
@@ -251,7 +251,7 @@ def run_network_cifar10(model_path, is_test_dataset = False, is_cnn = True, is_s
     # print(low_conf_images_idx)
     # print_images(None, None, low_conf_images_idx, confs)
     accuracy = correct_predictions / len(x_test)
-    print(f"Cifar-10 accuracy: {correct_predictions/counter}")
+    # print(f"Cifar-10 accuracy: {correct_predictions/counter}")
     # print(f"Accuracy on MNIST test dataset: {accuracy * 100:.2f}%")
     # print(f"Number of low confidence images: {num_low_conf_im}")
     # print(accuracy, num_low_conf_im)

@@ -215,7 +215,7 @@ def setup_modified_props_old():
 
 
 def setup_modified_props(dataset = mnist_dataset):
-    net_root_dir = '/home/u1411251/Documents/tools/networks/conf_final'
+    net_root_dir = '/home/afzal/Documents/tools/networks/conf_final'
     is_softmax = True
     is_eran_images = False
     max_num_images = 100
@@ -246,9 +246,11 @@ def setup_modified_props(dataset = mnist_dataset):
         dataset_idxs_file = os.path.join(net_root_dir, 'cifar10', 'selected_idxs_cifar10.txt')
         orig_net_dir = os.path.join(net_root_dir, 'cifar10', 'vnncomp')
         nets = []
-        nets += ['cifar10_2_255_simplified.onnx']
+        # nets += ['cifar10_2_255_simplified.onnx']
         # nets += ['cifar10_8_255_simplified.onnx']
         # nets += ['convBigRELU__PGD.onnx']
+        nets += ['resnet_2b.onnx']
+        # nets += ['resnet_4b.onnx']
         mean = cifar10_mean
         std = cifar10_std
         epsilons = [0.01]
@@ -456,7 +458,7 @@ def select_images_with_labels(dataset, dataset_idxs_file, max_num_indexs=50):
 
 
 def setup_on_orig_dataset_images(dataset=mnist_dataset):
-    net_root_dir = '/home/afzal/tools/networks/conf_final'
+    net_root_dir = '/home/afzal/Documents/tools/networks/conf_final'
     is_softmax = True
     max_num_images = 50
     timeout = 3000
@@ -479,7 +481,9 @@ def setup_on_orig_dataset_images(dataset=mnist_dataset):
         nets = []
         # nets += ['cifar10_2_255_simplified.onnx']
         # nets += ['cifar10_8_255_simplified.onnx']
-        nets += ['convBigRELU__PGD.onnx']
+        # nets += ['convBigRELU__PGD.onnx']
+        nets += ['resnet_2b.onnx']
+        # nets += ['resnet_4b.onnx']
         mean = cifar10_mean
         std = cifar10_std
         epsilons = [0.01]
@@ -516,8 +520,8 @@ if __name__ == '__main__':
     # set_up_top_k()
     # setup_on_deeppoly_images()
     # set_up_top_k_robust_paper()
-    setup_modified_props(dataset=dataset_name)
-    # setup_on_orig_dataset_images(dataset=dataset_name)
+    # setup_modified_props(dataset=dataset_name)
+    setup_on_orig_dataset_images(dataset=dataset_name)
 
         
 
