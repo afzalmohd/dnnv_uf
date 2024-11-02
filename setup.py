@@ -485,14 +485,14 @@ def setup_on_orig_dataset_images(dataset=mnist_dataset):
         dataset_idxs_file = os.path.join(net_root_dir, 'cifar10', 'selected_idxs_cifar10.txt')
         orig_net_dir = os.path.join(net_root_dir, 'cifar10', 'vnncomp')
         nets = []
-        # nets += ['cifar10_2_255_simplified.onnx']
-        # nets += ['cifar10_8_255_simplified.onnx']
-        # nets += ['convBigRELU__PGD.onnx']
+        nets += ['cifar10_2_255_simplified.onnx']
+        nets += ['cifar10_8_255_simplified.onnx']
+        nets += ['convBigRELU__PGD.onnx']
         # nets += ['resnet_2b.onnx']
-        nets += ['resnet_4b.onnx']
+        # nets += ['resnet_4b.onnx']
         mean = cifar10_mean
         std = cifar10_std
-        epsilons = [0.01]
+        epsilons = [0.007]
 
 
     setup_dir = os.path.join(net_root_dir, 'benchmarks')
@@ -521,7 +521,8 @@ def setup_on_orig_dataset_images(dataset=mnist_dataset):
 
 
 if __name__ == '__main__':
-    dataset_name = mnist_dataset
+    dataset_name = cifar10_dataset
+    # dataset_name = mnist_dataset
     # setup_modified_props_gans()
     # set_up_top_k()
     # setup_on_deeppoly_images()
