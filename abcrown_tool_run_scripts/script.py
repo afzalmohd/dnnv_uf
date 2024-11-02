@@ -139,7 +139,7 @@ def get_tasks_mnistfc_modified():
 
 
 def print_cmnds_abcrowns(num_cpu, log_dir, dataset='MNIST'):
-    tool_main = '/home/afzal/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
+    tool_main = '/home/afzal/tools/vnncomp23/alpha-beta-CROWN/complete_verifier/abcrown.py'
     if dataset == 'MNIST':
         config_path = 'mnist.yaml'
     else:

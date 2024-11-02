@@ -197,15 +197,15 @@ def run_network_cifar10(model_path, is_test_dataset = False, is_cnn = True, is_s
     else:
         x_test, y_test = get_cifar10_train_data()
     if is_cnn:
-        x_test = x_test.reshape(-1, 3, 32, 32)
+        x_test = np.transpose(x_test, (0, 3, 1, 2))
     session = ort.InferenceSession(model_path)
     # Get the model's input name
     mean = np.array(mean).reshape((1,-1,1,1)).astype(np.float32)
     std = np.array(std).reshape((1,-1,1,1)).astype(np.float32)
-    print(mean, std)
-    print(x_test[0,1,:5,:5])
+    # print(mean, std)
+    # print(x_test[0,1,:5,:5])
     x_test = (x_test - mean)/std
-    print(x_test[0,1,:5,:5])
+    # print(x_test[0,1,:5,:5])
     input_name = session.get_inputs()[0].name
 
     correct_predictions = 0
@@ -238,7 +238,7 @@ def run_network_cifar10(model_path, is_test_dataset = False, is_cnn = True, is_s
         # Compare with the true label
         if predicted_class == y_test[i]:
             correct_predictions += 1
-            print(softmax_output[predicted_class])
+            # print(softmax_output[predicted_class])
             if softmax_output[predicted_class] <= conf_th:
                 num_low_conf_im += 1
                 low_conf_images_idx.append(i)

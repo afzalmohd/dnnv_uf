@@ -33,6 +33,9 @@ IMAGES_CIFAR10, LABELS_CIFAR10 = get_cifar10_train_data()
 if is_test_data:
     IMAGES_CIFAR10, LABELS_CIFAR10 = get_cifar10_test_data()
 
+IMAGES_CIFAR10 = np.transpose(IMAGES_CIFAR10, (0, 3, 1, 2))
+LABELS_CIFAR10 = LABELS_CIFAR10.reshape(-1)
+
 print(IMAGES_MNIST.shape)
 
 def get_images_labels_idxs(model_path, conf):
@@ -215,16 +218,15 @@ def setup_modified_props_old():
 
 
 def setup_modified_props(dataset = mnist_dataset):
-    net_root_dir = '/home/afzal/Documents/tools/networks/conf_final'
+    net_root_dir = '/home/afzal/tools/networks/conf_final'
     is_softmax = True
-    is_eran_images = False
     max_num_images = 100
     max_low_conf_images = int(0.9*max_num_images)
     max_high_conf_images = max_num_images - max_low_conf_images
-    timeout = 2000
+    timeout = 3000
     if is_softmax:
         confs = [60, 80, 90, 95]
-        confs = [60]
+        # confs = [60]
     else:
         confs = [40, 60, 80]
     
@@ -246,14 +248,14 @@ def setup_modified_props(dataset = mnist_dataset):
         dataset_idxs_file = os.path.join(net_root_dir, 'cifar10', 'selected_idxs_cifar10.txt')
         orig_net_dir = os.path.join(net_root_dir, 'cifar10', 'vnncomp')
         nets = []
-        # nets += ['cifar10_2_255_simplified.onnx']
-        # nets += ['cifar10_8_255_simplified.onnx']
-        # nets += ['convBigRELU__PGD.onnx']
+        nets += ['cifar10_2_255_simplified.onnx']
+        nets += ['cifar10_8_255_simplified.onnx']
+        nets += ['convBigRELU__PGD.onnx']
         nets += ['resnet_2b.onnx']
-        # nets += ['resnet_4b.onnx']
+        nets += ['resnet_4b.onnx']
         mean = cifar10_mean
         std = cifar10_std
-        epsilons = [0.01]
+        epsilons = [0.007]
         filter_images = run_network_cifar10
         is_cnn = True
         IMAGES = IMAGES_CIFAR10
@@ -272,14 +274,16 @@ def setup_modified_props(dataset = mnist_dataset):
     for net in nets:
         low_plus_high_conf_images_idxs = []
         for conf in confs:
-            _, _, low_confs_idx, _, high_conf_idx, _  = filter_images(os.path.join(orig_net_dir, net), conf_th=conf, is_cnn=is_cnn, mean=mean, std=std)
+            _, _, low_confs_idx, _, high_conf_idx, _  = filter_images(os.path.join(orig_net_dir, net), conf_th=conf, is_cnn=is_cnn, mean=mean, std=std, is_test_dataset=is_test_data)
             low_confs_idx = low_confs_idx[:max_low_conf_images]
             selected_idxs = low_confs_idx
             low_plus_high_conf_images_idxs += selected_idxs
             selected_images = IMAGES[selected_idxs]
             selected_labels = LABELS[selected_idxs]
+            # print(selected_images.shape)
+            # selected_labels = selected_labels.reshape(-1)
+            # print(selected_labels.shape)
             print(f"net: {net},conf:{conf},low conf images: {len(selected_idxs)}")
-            # print(low_confs_idx)
             
             append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[conf], is_high_conf=False)
             gen_props(prop_dir, selected_images, selected_labels, selected_idxs, epsilons, mean=mean, std=std, dataset=dataset)
@@ -520,8 +524,8 @@ if __name__ == '__main__':
     # set_up_top_k()
     # setup_on_deeppoly_images()
     # set_up_top_k_robust_paper()
-    # setup_modified_props(dataset=dataset_name)
-    setup_on_orig_dataset_images(dataset=dataset_name)
+    setup_modified_props(dataset=dataset_name)
+    # setup_on_orig_dataset_images(dataset=dataset_name)
 
         
 
