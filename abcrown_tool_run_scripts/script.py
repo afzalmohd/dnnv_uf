@@ -186,7 +186,7 @@ def print_cmnds_abcrowns(num_cpu, log_dir, dataset='MNIST', is_nilgiri = True):
 
 if __name__ == '__main__':
     dataset = 'MNIST' # 'MNIST'/'CIFAR10'
-    # dataset = 'CIFAR10'
+    dataset = 'CIFAR10'
     is_nilgiri = True
     if len(sys.argv) == 3:
         num_cpu = int(sys.argv[1])
