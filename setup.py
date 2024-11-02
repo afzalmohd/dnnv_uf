@@ -464,8 +464,10 @@ def select_images_with_labels(dataset, dataset_idxs_file, max_num_indexs=50):
 def setup_on_orig_dataset_images(dataset=mnist_dataset):
     net_root_dir = '/home/afzal/tools/networks/conf_final'
     is_softmax = True
-    max_num_images = 50
-    timeout = 3000
+    max_num_images = 100
+    timeout = 2000
+    if dataset == cifar10_dataset:
+        timeout = 3000
     if is_softmax:
         confs = [0, 60, 80, 90, 95]
     else:
@@ -519,13 +521,13 @@ def setup_on_orig_dataset_images(dataset=mnist_dataset):
 
 
 if __name__ == '__main__':
-    dataset_name = cifar10_dataset
+    dataset_name = mnist_dataset
     # setup_modified_props_gans()
     # set_up_top_k()
     # setup_on_deeppoly_images()
     # set_up_top_k_robust_paper()
-    setup_modified_props(dataset=dataset_name)
-    # setup_on_orig_dataset_images(dataset=dataset_name)
+    # setup_modified_props(dataset=dataset_name)
+    setup_on_orig_dataset_images(dataset=dataset_name)
 
         
 

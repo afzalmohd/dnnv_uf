@@ -138,8 +138,10 @@ def get_tasks_mnistfc_modified():
     return tasks
 
 
-def print_cmnds_abcrowns(num_cpu, log_dir, dataset='MNIST'):
+def print_cmnds_abcrowns(num_cpu, log_dir, dataset='MNIST', is_nilgiri = True):
     tool_main = '/home/afzal/tools/vnncomp23/alpha-beta-CROWN/complete_verifier/abcrown.py'
+    if is_nilgiri:
+        tool_main = '/home/afzal/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
     if dataset == 'MNIST':
         config_path = 'mnist.yaml'
     else:
@@ -184,7 +186,8 @@ def print_cmnds_abcrowns(num_cpu, log_dir, dataset='MNIST'):
 
 if __name__ == '__main__':
     dataset = 'MNIST' # 'MNIST'/'CIFAR10'
-    dataset = 'CIFAR10'
+    # dataset = 'CIFAR10'
+    is_nilgiri = True
     if len(sys.argv) == 3:
         num_cpu = int(sys.argv[1])
         log_dir = sys.argv[2]
@@ -196,7 +199,7 @@ if __name__ == '__main__':
         os.mkdir(log_dir)
 
     # print_cmnds_all(num_cpu, log_dir)
-    print_cmnds_abcrowns(num_cpu, log_dir, dataset=dataset)
+    print_cmnds_abcrowns(num_cpu, log_dir, dataset=dataset, is_nilgiri=is_nilgiri)
 
     exit(0)
 
