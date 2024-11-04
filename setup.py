@@ -297,7 +297,7 @@ def setup_modified_props(dataset = mnist_dataset):
             selected_images = IMAGES[high_conf_idx]
             selected_labels = LABELS[high_conf_idx]
             append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[conf], is_high_conf=True)
-            gen_props(prop_dir, selected_images, selected_labels, selected_idxs, epsilons, mean=mean, std=std, dataset=dataset)
+            gen_props(prop_dir, selected_images, selected_labels, selected_idxs, epsilons, mean=mean, std=std, dataset=dataset, is_standard_prop=True)
             gen_instances_file(net_dir, [net], prop_dir, selected_idxs, [conf], epsilons, instances_file, timeout=timeout)
 
         low_plus_high_conf_images_idxs = list(set(low_plus_high_conf_images_idxs))
@@ -527,8 +527,8 @@ if __name__ == '__main__':
     # set_up_top_k()
     # setup_on_deeppoly_images()
     # set_up_top_k_robust_paper()
-    # setup_modified_props(dataset=dataset_name)
-    setup_on_orig_dataset_images(dataset=dataset_name)
+    setup_modified_props(dataset=dataset_name)
+    # setup_on_orig_dataset_images(dataset=dataset_name)
 
         
 

@@ -453,6 +453,7 @@ def update_fc_relu_softmax_testing(model_path, output_model_path, label = 0, del
         if len(dim_value) == 2:
             dim_value[1].dim_value = 9
 
+    model = shape_inference.infer_shapes(model)
     onnx.save(model, output_model_path)
 
     # # Create new weights and bias tensors (you need to provide actual data)
