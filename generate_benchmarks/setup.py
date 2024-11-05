@@ -488,8 +488,11 @@ def setup_on_orig_dataset_images(dataset=mnist_dataset):
         # nets += ['cifar10_2_255_simplified.onnx']
         # nets += ['cifar10_8_255_simplified.onnx']
         # nets += ['convBigRELU__PGD.onnx']
-        nets += ['resnet_2b.onnx']
-        nets += ['resnet_4b.onnx']
+        # nets += ['resnet_2b.onnx']
+        # nets += ['resnet_4b.onnx']
+        nets += ['cifar_base_kw.onnx']
+        # nets += ['cifar_deep_kw.onnx']
+        # nets += ['cifar_wide_kw.onnx']
         mean = cifar10_mean
         std = cifar10_std
         epsilons = [0.007]
@@ -527,8 +530,8 @@ if __name__ == '__main__':
     # set_up_top_k()
     # setup_on_deeppoly_images()
     # set_up_top_k_robust_paper()
-    setup_modified_props(dataset=dataset_name)
-    # setup_on_orig_dataset_images(dataset=dataset_name)
+    # setup_modified_props(dataset=dataset_name)
+    setup_on_orig_dataset_images(dataset=dataset_name)
 
         
 
