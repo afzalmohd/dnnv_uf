@@ -137,6 +137,9 @@ def extract_dir_confwise(log_dir, cex_dir, net_dir, is_print_ce = False):
                 elif res == 'unsat':
                     count += 1
                     print(f"{netname},{im_idx},{ep},{conf_th},{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
+                else:
+                    count += 1
+                    print(f"{netname},{im_idx},{ep},{conf_th},{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
 
                 # for 0 confidence
                 filename_standard = f"{netname[:-5]}+prop_{im_idx}_{ep}"
@@ -154,6 +157,9 @@ def extract_dir_confwise(log_dir, cex_dir, net_dir, is_print_ce = False):
                     _, ce_conf = run_network(os.path.join(net_dir, netname), ce, is_normalized=True)
                     print(f"{netname},{im_idx},{ep},0,{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
                 elif res == 'unsat':
+                    count += 1
+                    print(f"{netname},{im_idx},{ep},0,{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
+                else:
                     count += 1
                     print(f"{netname},{im_idx},{ep},0,{orig_conf[0] * 100:.2f},{ce_conf[0] * 100:.2f},{res}")
 
@@ -264,7 +270,7 @@ def get_net_im_conf_ep(file_path, is_top_k = False):
         else:
             netname = filename_l[0]+".onnx"
     else:
-        if len(netname_l) >= 6:
+        if len(netname_l) >= 4:
             conf = float(netname_l[-2])
             netname = "_".join(netname_l[:-2])+".onnx"
         else:
@@ -363,24 +369,27 @@ def print_ce(log_file, output_dir, is_conf_logs=True, is_top_k=False, is_gans = 
 
 
 if __name__ == '__main__':
+    is_test_dataset = True
     IMAGES, LABELS = get_mnist_train_data()
+    if is_test_dataset:
+        IMAGES, LABELS = get_mnist_test_data()
     IS_CONF_ANALYSIS = True
     if IS_CONF_ANALYSIS:
-        log_dir = '/home/u1411251/Documents/tools/result_dir/aaai25/abcrown/conf/logs'
+        log_dir = '/home/u1411251/Documents/tools/result_dir/mod_prop/vnncomp/mnist/logs_mnist'
     else:
         log_dir = '/home/u1411251/Documents/tools/result_dir/with_venky/logs_simple_selected_idx'
 
     # log_dir = '/home/u1411251/Documents/tools/result_dir/top_k/logs'
-    dataset_file = '/home/u1411251/Documents/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
-    IMAGES, LABELS = get_images_list(dataset_file)
-    net_dir = '/home/u1411251/Documents/tools/networks/conf_final/eran_mod'
+    # dataset_file = '/home/u1411251/Documents/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
+    # IMAGES, LABELS = get_images_list(dataset_file)
+    net_dir = '/home/u1411251/Documents/tools/networks/vnncomp2022_benchmarks/benchmarks/mnist_fc/onnx'
     cex_dir = os.path.join(log_dir, 'cexs')
     # extract_dir_top_k(log_dir, cex_dir, net_dir, is_print_ce=True)
     # exit(0)
      
     if IS_CONF_ANALYSIS:
-        extract_dir_conf(log_dir, cex_dir, net_dir, is_print_ce=False)
-        # extract_dir_confwise(log_dir, cex_dir, net_dir, is_print_ce=False)
+        # extract_dir_conf(log_dir, cex_dir, net_dir, is_print_ce=False)
+        extract_dir_confwise(log_dir, cex_dir, net_dir, is_print_ce=False)
         # extract_dir_conf_gans(log_dir, cex_dir, net_dir, is_print_ce=True)
     else:
         extract_dir_normal(log_dir, cex_dir, net_dir)
