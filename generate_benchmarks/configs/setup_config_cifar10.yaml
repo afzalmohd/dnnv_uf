@@ -5,7 +5,7 @@ is_test_data: True
 mean: [0.49140000, 0.48219999, 0.44650000]
 std: [0.20229999, 0.19939999, 0.20100000]
 net_root_dir: '/home/afzal/tools/networks/conf_final'
-nets: ['cifar_base_kw.onnx', 'cifar_deep_kw.onnx', 'cifar_wide_kw.onnx']
+nets: ['cifar10_2_255_simplified.onnx', 'cifar10_8_255_simplified.onnx', 'convBigRELU__PGD.onnx', 'resnet_2b.onnx', 'resnet_4b.onnx']
 dataset_idxs_file: 'selected_idxs_cifar10.txt'
 confs: [0, 60, 80, 90, 95]
 timeout: 3000
