@@ -5,7 +5,7 @@ is_test_data: True
 mean: [0.49140000, 0.48219999, 0.44650000]
 std: [0.20229999, 0.19939999, 0.20100000]
 net_root_dir: '/home/afzal/tools/networks/conf_final'
-nets: ['cifar10_2_255_simplified.onnx', 'cifar10_8_255_simplified.onnx', 'convBigRELU__PGD.onnx', 'resnet_2b.onnx', 'resnet_4b.onnx']
+nets: ['resnet_3b2_bn_mixup_adv_4.0_bs128_lr-1.onnx', 'resnet_3b2_bn_mixup_ssadv_4.0_bs128_lr-1_v2.onnx']
 dataset_idxs_file: 'selected_idxs_cifar10.txt'
 confs: [0, 60, 80, 90, 95]
 timeout: 3000
@@ -13,5 +13,5 @@ max_num_images: 100
 is_softmax: True
 epsilons: [0.007]
 is_cnn: True
-is_nilgiri: False
-abcrown_config: cifar2020.yaml
+is_nilgiri: True
+abcrown_config: /home/afzal/tools/alpha-beta-CROWN/complete_verifier/exp_configs/vnncomp22/resnet_A.yaml
