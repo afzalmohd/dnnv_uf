@@ -16,19 +16,25 @@ def gen_instances_file(net_dir, nets, prop_dir, images_idxs, confs, eps, file_pa
     for net in nets:
         for idx in images_idxs:
             for conf in confs:
-                if conf != 0:
-                    for ep in eps:
-                        net_name = f"{net[:-5]}_{conf}_{idx}.onnx"
-                        net_path = os.path.join(net_dir, net_name)
-                        prop_name = f"prop_{idx}_{ep}.vnnlib"
-                        prop_path = os.path.join(prop_dir, prop_name)
-                        write_to_file(net_path, prop_path, timeout, file_path)
-                else:
-                     for ep in eps:
-                        net_path = os.path.join(net_dir, net)
-                        prop_name = f"prop_{idx}_{ep}.vnnlib"
-                        prop_path = os.path.join(prop_dir, prop_name)
-                        write_to_file(net_path, prop_path, timeout, file_path)
+                net_name = f"{net[:-5]}_{conf}_{idx}.onnx"
+                net_path = os.path.join(net_dir, net_name)
+                for ep in eps:
+                    prop_name = f"prop_{idx}_{ep}_{conf}.vnnlib"
+                    prop_path = os.path.join(prop_dir, prop_name)
+                    write_to_file(net_path, prop_path, timeout, file_path)
+                # if conf != 0:
+                #     for ep in eps:
+                #         net_name = f"{net[:-5]}_{conf}_{idx}.onnx"
+                #         net_path = os.path.join(net_dir, net_name)
+                #         prop_name = f"prop_{idx}_{ep}_{conf}.vnnlib"
+                #         prop_path = os.path.join(prop_dir, prop_name)
+                #         write_to_file(net_path, prop_path, timeout, file_path)
+                # else:
+                #      for ep in eps:
+                #         net_path = os.path.join(net_dir, net)
+                #         prop_name = f"prop_{idx}_{ep}.vnnlib"
+                #         prop_path = os.path.join(prop_dir, prop_name)
+                #         write_to_file(net_path, prop_path, timeout, file_path)
 
 
 def gen_instances_file_top_k(net_dir, nets, prop_dir, images_idxs, eps, file_path, timeout=2000, is_standard_prop=False):

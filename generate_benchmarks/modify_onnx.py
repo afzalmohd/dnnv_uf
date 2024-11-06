@@ -857,7 +857,7 @@ def append_layers_simple(model_path, output_model_path, label = 0, conf=40, fc_o
 
 
 
-def append_layers(nets, input_dir, output_dir, selected_images, selected_labels, selected_idx, is_softmax=False, confs = None, is_high_conf = False):
+def append_layers(nets, input_dir, output_dir, selected_images, selected_labels, selected_idx,confs, is_softmax=False, is_high_conf = False):
     input_model_paths = []
     for net in nets:
         input_model_paths.append(os.path.join(input_dir, net))
@@ -875,7 +875,8 @@ def append_layers(nets, input_dir, output_dir, selected_images, selected_labels,
                         append_layers_softmax(input_model, out_path, label=label, conf=conf)
                     else:
                         append_layers_simple(input_model, out_path, label=label, conf=conf)
-            elif conf != 0 and is_high_conf:
+            # elif conf != 0 and is_high_conf:
+            else:
                 for i in range(len(selected_images)):
                     idx = selected_idx[i]
                     label = selected_labels[i]
@@ -883,8 +884,8 @@ def append_layers(nets, input_dir, output_dir, selected_images, selected_labels,
                     net_name = f"{net_name[:-5]}_{conf}_{idx}.onnx"
                     out_path = os.path.join(output_dir, net_name)
                     shutil.copy2(input_model, out_path)
-            else:
-                shutil.copy2(input_model, output_dir)
+            # else:
+            #     shutil.copy2(input_model, output_dir)
 
 
 

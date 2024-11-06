@@ -43,7 +43,9 @@ def gen_props_specific(spec_dir):
 
     print(f"Total number of props: {counter}")
 
-def gen_props(spec_dir, selected_images, selected_labels, selected_idxs, eps, is_standard_prop:bool = False, net_out_dims:int = 9, tolerance_param = -1e-3, dataset='MNIST', mean = np.array([0.0]), std = np.array([1.0])):
+def gen_props(spec_dir, selected_images, selected_labels, selected_idxs, eps,conf, is_standard_prop:bool = False, net_out_dims:int = 9, tolerance_param = -1e-3, dataset='MNIST', mean = np.array([0.0]), std = np.array([1.0])):
+    if conf == 0:
+        is_standard_prop = True
     counter = 0
     for i in range(len(selected_images)):
         image = selected_images[i]
@@ -51,7 +53,7 @@ def gen_props(spec_dir, selected_images, selected_labels, selected_idxs, eps, is
         idx = selected_idxs[i]
         for ep in eps:
             lb,ub = create_input_bounds_tf(image, ep, mean, std, dataset=dataset)
-            spec_path = f"prop_{idx}_{ep}.vnnlib"
+            spec_path = f"prop_{idx}_{ep}_{conf}.vnnlib"
             spec_path = os.path.join(spec_dir, spec_path)
             if is_standard_prop:
                 save_vnnlib_tf_standard(lb, ub, label, spec_path, dataset=dataset)

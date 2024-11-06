@@ -1,0 +1,16 @@
+property: 'low_conf_cex' # mod_prop
+# property: 'mod_prop'
+dataset: 'CIFAR10'
+is_test_data: True
+mean: [0.49140000, 0.48219999, 0.44650000]
+std: [0.20229999, 0.19939999, 0.20100000]
+net_root_dir: '/home/afzal/tools/networks/conf_final'
+nets: ['cifar_base_kw.onnx', 'cifar_deep_kw.onnx', 'cifar_wide_kw.onnx']
+dataset_idxs_file: 'selected_idxs_cifar10.txt'
+confs: [0, 60, 80, 90, 95]
+timeout: 3000
+max_num_images: 100
+is_softmax: True
+epsilons: [0.007]
+is_cnn: True
+is_nilgiri: False

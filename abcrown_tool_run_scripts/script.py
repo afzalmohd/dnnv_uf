@@ -12,11 +12,13 @@ import os
 import sys
 import subprocess
 import shlex
+import yaml
+
+
 NUM_CPU = 7
 TIMEOUT = 2000 #Not relevant
 DATASET = "MNIST"
 NUM_IMAGES = 100
-num_cores = 4
 
 
 root_dir = os.getcwd()
@@ -24,10 +26,10 @@ TOOL = os.path.join(root_dir, 'mar_encod.py')
 TOOL = 'mar_encod.py'
 result_dir = os.path.join(root_dir, 'outfiles')
 dataset_file = '/home/afzal/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
-result_file = os.path.join(result_dir, "result.txt")
+# result_file = os.path.join(result_dir, "result.txt")
 
-if not os.path.isdir(result_dir):
-    os.mkdir(result_dir)
+# if not os.path.isdir(result_dir):
+#     os.mkdir(result_dir)
 
 
 def write_script_file(file_name, cmds):
@@ -138,14 +140,7 @@ def get_tasks_mnistfc_modified():
     return tasks
 
 
-def print_cmnds_abcrowns(num_cpu, log_dir, dataset='MNIST', is_nilgiri = True):
-    tool_main = '/home/afzal/tools/vnncomp23/alpha-beta-CROWN/complete_verifier/abcrown.py'
-    if is_nilgiri:
-        tool_main = '/home/afzal/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
-    if dataset == 'MNIST':
-        config_path = 'mnist.yaml'
-    else:
-        config_path = 'cifar2020.yaml'
+def print_cmnds_abcrowns(num_cpu, log_dir, tool_main, config_path, num_cores):
     tasks = get_tasks()
     random.shuffle(tasks)
     # tasks = get_tasks_mnistfc_modified()
@@ -185,49 +180,34 @@ def print_cmnds_abcrowns(num_cpu, log_dir, dataset='MNIST', is_nilgiri = True):
 
 
 if __name__ == '__main__':
-    dataset = 'MNIST' # 'MNIST'/'CIFAR10'
-    dataset = 'CIFAR10'
-    is_nilgiri = True
-    if len(sys.argv) == 3:
+    if len(sys.argv) == 4:
         num_cpu = int(sys.argv[1])
         log_dir = sys.argv[2]
+        config_file = sys.argv[3]
     else:
         print("Error: ")
         sys.exit(1)
 
-    if not os.path.isdir(log_dir):
-        os.mkdir(log_dir)
-
-    # print_cmnds_all(num_cpu, log_dir)
-    print_cmnds_abcrowns(num_cpu, log_dir, dataset=dataset, is_nilgiri=is_nilgiri)
-
-    exit(0)
-
-    tasks = get_all_tasks()
-    NUM_TASK = len(tasks)
-    print(f"Total number of task: {NUM_TASK}")
-
-    if NUM_CPU >= NUM_TASK:
-        load_per_cpu = [1]*NUM_TASK
+    with open(config_file, 'r') as file:
+        config = yaml.safe_load(file)
+    
+    dataset = config['dataset']
+    is_nilgiri = config['is_nilgiri']
+    if is_nilgiri:
+        tool_main = '/home/afzal/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
+        total_cores = 20
     else:
-        load_per_cpu = [0]*NUM_CPU
-        for i in range(0,NUM_TASK):
-            j = i % NUM_CPU
-            load_per_cpu[j] += 1
+        tool_main = '/home/afzal/tools/vnncomp23/alpha-beta-CROWN/complete_verifier/abcrown.py'
+        total_cores = 60
 
-    print("Load per cpu: {}".format(load_per_cpu))
-    task_per_cpu = []
-    prev_load = 0
-    for idx, load in enumerate(load_per_cpu):
-        ld = tasks[prev_load:prev_load+load]
-        for l in ld:
-            l.append(idx)
-        task_per_cpu.append(ld)
-        prev_load += load
+    num_cores_per_benchmarks = int(total_cores/num_cpu)
 
+    if dataset == 'MNIST':
+        config_path = 'mnist.yaml'
+    else:
+        config_path = 'cifar2020.yaml'
 
-    with Pool(processes=len(task_per_cpu)) as p:
-        p.map(run_per_cpu, task_per_cpu)
+    print_cmnds_abcrowns(num_cpu, log_dir, tool_main=tool_main, config_path=config_path, num_cores=num_cores_per_benchmarks)
 
 
 
