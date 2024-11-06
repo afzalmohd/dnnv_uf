@@ -14,3 +14,4 @@ is_softmax: True
 epsilons: [0.007]
 is_cnn: True
 is_nilgiri: False
+abcrown_config: cifar2020.yaml

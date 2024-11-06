@@ -201,11 +201,7 @@ if __name__ == '__main__':
         total_cores = 60
 
     num_cores_per_benchmarks = int(total_cores/num_cpu)
-
-    if dataset == 'MNIST':
-        config_path = 'mnist.yaml'
-    else:
-        config_path = 'cifar2020.yaml'
+    config_path = config['abcrown_config']
 
     print_cmnds_abcrowns(num_cpu, log_dir, tool_main=tool_main, config_path=config_path, num_cores=num_cores_per_benchmarks)
 
