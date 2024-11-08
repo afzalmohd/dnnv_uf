@@ -1,11 +1,12 @@
-property: 'low_conf_cex' # mod_prop
-# property: 'mod_prop'
+# property: 'low_conf_cex' # mod_prop
+property: 'mod_prop'
 dataset: 'MNIST' 
 is_test_data: True
 mean: [0.0]
 std: [1.0]
 net_root_dir: '/home/afzal/tools/networks/conf_final'
-nets: ['Convnet_avgpool.onnx', 'Convnet_maxpool.onnx']
+# nets: ['Convnet_avgpool.onnx', 'Convnet_maxpool.onnx']
+nets: ['mnist-net_256x2.onnx', 'mnist-net_256x4.onnx', 'mnist-net_256x6.onnx']
 dataset_idxs_file: 'selected_idxs_mnist.txt'
 confs: [0, 60, 80, 90, 95]
 timeout: 2000
@@ -13,5 +14,5 @@ max_num_images: 100
 is_softmax: True
 epsilons: [0.06]
 is_cnn: False
-is_nilgiri: False
-abcrown_config: verivital.yaml
+is_nilgiri: True
+abcrown_config: mnist.yaml

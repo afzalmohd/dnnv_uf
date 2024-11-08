@@ -41,6 +41,9 @@ def set_images_labels(dataset, is_test_data):
         
         IMAGES = np.transpose(IMAGES, (0, 3, 1, 2))
         LABELS = LABELS.reshape(-1)
+    
+    print(IMAGES.shape)
+    print(LABELS.shape)
 
 def get_images_labels_idxs(model_path, conf):
     conf = conf / 100.0
@@ -220,6 +223,50 @@ def setup_modified_props_old():
                 gen_props(prop_dir_normal, selected_images, selected_labels, low_confs_idx, epsilons, is_standard_prop=True) 
                 gen_instances_file(net_dir, [net], prop_dir_normal, low_confs_idx, [conf], epsilons, instances_file)
 
+def setup_modified_props_special(nets, dataset, mean, std, confs, timeout, max_num_images, is_softmax, net_root_dir, orig_net_dir, epsilons, is_cnn):
+    im_dirs = '/home/afzal/temp/fn_images'
+    confs = [60]
+    setup_dir = os.path.join(net_root_dir, 'benchmarks')
+    clean_directory(setup_dir)
+    net_dir = os.path.join(setup_dir, 'nets')
+    prop_dir = os.path.join(setup_dir, 'props')
+    instances_file = os.path.join(setup_dir, 'instances.csv')
+    if os.path.isfile(instances_file):
+        os.remove(instances_file)
+    create_empty_dirs(net_dir, prop_dir)
+    images = []
+    idxs = []
+    labels = []
+    for im in os.listdir(im_dirs):
+        file = os.path.join(im_dirs, im)
+        im = os.path.basename(im[:-4])
+        im_idx = int(im.split('_')[1])
+        loaded_im = np.load(file)
+        loaded_im = loaded_im.reshape(1,-1,1)
+        images.append(loaded_im)
+        idxs.append(im_idx)
+        labels.append(LABELS[im_idx])
+
+    images = np.array(images)
+    idxs = np.array(idxs).reshape(-1)
+    labels = np.array(labels).reshape(-1)
+
+    for net in nets:
+        for conf in confs:
+            selected_idxs = idxs
+            selected_images = images
+            selected_labels = labels
+            print(f"net: {net},conf:{conf},low conf images: {len(selected_idxs)}")
+            
+            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[conf], is_high_conf=False)
+            gen_props(prop_dir, selected_images, selected_labels, selected_idxs, epsilons,conf=conf, mean=mean, std=std, dataset=dataset)
+            gen_instances_file(net_dir, [net], prop_dir, selected_idxs, [conf], epsilons, instances_file, timeout=timeout)
+                
+            print(f"Number of images for standard prop: {len(selected_idxs)}")
+            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[0], is_high_conf=False)
+            gen_props(prop_dir, selected_images, selected_labels, selected_idxs, epsilons, conf=0, is_standard_prop=True, mean=mean, std=std, dataset=dataset) 
+            gen_instances_file(net_dir, [net], prop_dir, selected_idxs, [0], epsilons, instances_file, timeout=timeout)
+           
 
 def setup_modified_props(nets, dataset, mean, std, confs, timeout, max_num_images, is_softmax, net_root_dir, orig_net_dir, epsilons, is_cnn):
     confs_t = [c for c in confs if c != 0]
@@ -474,7 +521,7 @@ if __name__ == '__main__':
                                      epsilons=epsilons
                                     )
     else:
-        setup_modified_props(nets=nets, 
+        setup_modified_props_special(nets=nets, 
                              dataset=dataset, 
                              mean=mean,
                              std=std,
