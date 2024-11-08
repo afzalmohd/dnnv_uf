@@ -262,10 +262,10 @@ def setup_modified_props_special(nets, dataset, mean, std, confs, timeout, max_n
             gen_props(prop_dir, selected_images, selected_labels, selected_idxs, epsilons,conf=conf, mean=mean, std=std, dataset=dataset)
             gen_instances_file(net_dir, [net], prop_dir, selected_idxs, [conf], epsilons, instances_file, timeout=timeout)
                 
-            print(f"Number of images for standard prop: {len(selected_idxs)}")
-            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[0], is_high_conf=False)
-            gen_props(prop_dir, selected_images, selected_labels, selected_idxs, epsilons, conf=0, is_standard_prop=True, mean=mean, std=std, dataset=dataset) 
-            gen_instances_file(net_dir, [net], prop_dir, selected_idxs, [0], epsilons, instances_file, timeout=timeout)
+            # print(f"Number of images for standard prop: {len(selected_idxs)}")
+            # append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[0], is_high_conf=False)
+            # gen_props(prop_dir, selected_images, selected_labels, selected_idxs, epsilons, conf=0, is_standard_prop=True, mean=mean, std=std, dataset=dataset) 
+            # gen_instances_file(net_dir, [net], prop_dir, selected_idxs, [0], epsilons, instances_file, timeout=timeout)
            
 
 def setup_modified_props(nets, dataset, mean, std, confs, timeout, max_num_images, is_softmax, net_root_dir, orig_net_dir, epsilons, is_cnn):
