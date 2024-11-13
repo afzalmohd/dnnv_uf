@@ -279,6 +279,27 @@ def get_net_im_conf_ep(file_path, is_top_k = False):
 
     return netname, im, conf, ep
 
+def get_net_im_conf_ep_1(file_path, is_top_k = False):
+    filename = os.path.basename(file_path)
+    filename_l = filename.split('+')
+    prop_l = filename_l[1].split('_')
+    im = int(prop_l[1])
+    ep = float(prop_l[2])
+    conf = float(prop_l[3])
+    netname_l = filename_l[0].split('_')
+    if is_top_k:
+        conf = 0
+        if len(netname_l) >= 5:
+            netname = "_".join(netname_l[:-1])+".onnx"
+        else:
+            netname = filename_l[0]+".onnx"
+    else:
+        if conf != 0.0:
+            netname = "_".join(netname_l[:-2])+".onnx"
+        else:
+            netname = "_".join(netname_l)+".onnx"
+
+    return netname, im, conf, ep
 
 
 

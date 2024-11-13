@@ -154,9 +154,13 @@ def run_network_mnist_test(model_path, is_test_dataset = False, is_cnn = False, 
         # if counter >= 100:
         #     break
         test_input = x_test[i].astype(np.float32)
-        if is_cnn:
-            test_input = test_input.reshape(1,784,1)
+        test_input = test_input.reshape(-1,1,28,28)
+        # if is_cnn:
+        #     test_input = test_input.reshape(1,784,1)
         
+        # print(model_path)
+        # print(test_input.shape)
+
         # Run the model on the test input
         output = session.run(None, {input_name: test_input})
         
@@ -183,7 +187,7 @@ def run_network_mnist_test(model_path, is_test_dataset = False, is_cnn = False, 
     # print(low_conf_images_idx)
     # print_images(None, None, low_conf_images_idx, confs)
     accuracy = correct_predictions / len(x_test)
-    print(f"Accuracy: {correct_predictions / counter}")
+    # print(f"Accuracy: {correct_predictions / counter}")
     # print(f"Accuracy on MNIST test dataset: {accuracy * 100:.2f}%")
     # print(f"Number of low confidence images: {num_low_conf_im}")
     # print(accuracy, num_low_conf_im)
@@ -427,25 +431,25 @@ def get_images(dataset_file):
 if __name__ == '__main__':
     is_test_dataset = True
     dataset_file = "/home/u1411251/Documents/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv"
-    is_cnn = False
-    net_dirs = '/home/u1411251/Documents/tools/networks/conf_final/eran_mod' 
+    is_cnn = True
+    net_dirs = '/home/afzal/tools/networks_old/networks/onnx/mnist' 
     nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx', 'mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx']
     nets += ['mnist_relu_9_200.onnx', 'mnist_relu_4_1024.onnx', 'ffnnRELU__Point_6_500.onnx', 'ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx']
 
     #cnn
-    is_cnn = True
-    net_dirs = '/home/u1411251/Documents/tools/networks/erans_nets'
-    nets = []
+    # is_cnn = True
+    # # net_dirs = '/home/afzal/tools/networks_old/networks/eran_mnist'
+    # nets = []
     nets += ['convSmallRELU__Point.onnx', 'convSmallRELU__PGDK.onnx', 'convSmallRELU__DiffAI.onnx']
     nets += ['convMedGRELU__Point.onnx']
     nets += ['mnist_conv_maxpool.onnx']
     nets += ['convBigRELU__DiffAI.onnx']
 
     is_softmax_out_layer = False
-    net_dirs = '/home/u1411251/Documents/tools/my_scripts'
-    nets = ['pytorch_model.onnx']
+    # net_dirs = '/home/u1411251/Documents/tools/my_scripts'
+    # nets = ['pytorch_model.onnx']
 
-    images = get_images(dataset_file)
+    # images = get_images(dataset_file)
     if len(sys.argv) > 1:
         model_path = str(sys.argv[1])
 
@@ -459,6 +463,6 @@ if __name__ == '__main__':
     # print_images(None, None)
     for net in nets:
         model_path = os.path.join(net_dirs, net)
-        acc, num_low_conf_images, low_conf_images_idx, confs = run_network_mnist_test(model_path, is_cnn=is_cnn, is_test_dataset=is_test_dataset, is_softmax_output=is_softmax_out_layer)
-        print(f"{net},{acc},{num_low_conf_images}")
-        print_images_1(low_conf_images_idx, confs, is_test_dataset=is_test_dataset)
+        acc, num_low_conf_images, low_conf_images_idx, confs, _, _ = run_network_mnist_test(model_path, is_cnn=is_cnn, is_test_dataset=is_test_dataset, is_softmax_output=is_softmax_out_layer)
+        print(f"{net},{acc}")
+        # print_images_1(low_conf_images_idx, confs, is_test_dataset=is_test_dataset)
