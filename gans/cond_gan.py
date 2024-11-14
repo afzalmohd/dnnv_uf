@@ -19,10 +19,13 @@ n_classes = 10
 criterion = nn.BCEWithLogitsLoss()
 n_epochs = 100
 z_dim = 64
-display_step = 5
+display_step = 1
 batch_size = 128
 lr = 0.0002
 device = 'cpu'
+num_workers = 16
+
+torch.set_num_threads(num_workers)
 
 transform = transforms.Compose([
     transforms.ToTensor(),
@@ -32,7 +35,10 @@ transform = transforms.Compose([
 dataloader = DataLoader(
     MNIST('.', download=True, transform=transform),
     batch_size=batch_size,
-    shuffle=True)
+    shuffle=True,
+    num_workers=num_workers,
+    pin_memory=True
+    )
 
 
 
@@ -46,13 +52,15 @@ def combine_vectors(x, y):
     combined = torch.cat((x.float(),y.float()),dim=1)
     return combined
 
-def show_tensor_images(image_tensor, num_images=25, size=(1, 28, 28), nrow=5, show=True):
+def show_tensor_images(image_tensor, num_images=100, size=(1, 28, 28), nrow=10, show=False, save_path=None):
     image_tensor = (image_tensor + 1) / 2
     image_unflat = image_tensor.detach().cpu()
     image_grid = make_grid(image_unflat[:num_images], nrow=nrow)
     plt.imshow(image_grid.permute(1, 2, 0).squeeze())
     if show:
         plt.show()
+    if save_path:
+        plt.savefig(save_path, bbox_inches='tight')  # Save the image grid to a file
 
 def get_input_dimensions(z_dim, mnist_shape, n_classes):    
     generator_input_dim = z_dim+n_classes
@@ -145,11 +153,15 @@ for epoch in range(n_epochs):
         
 
     if epoch % display_step == 0 and epoch > 0:
+        model_path = f"gans/results/generator_{epoch}.pth"
+        torch.save(gen.state_dict(), model_path)
         gen_mean = sum(generator_losses[-display_step:]) / display_step
         disc_mean = sum(discriminator_losses[-display_step:]) / display_step
         print(f"Epoch {epoch}, step {cur_step}: Generator loss: {gen_mean}, discriminator loss: {disc_mean}")
-        show_tensor_images(fake)
-        show_tensor_images(real)
+        save_path_fake = f"gans/results/fake_{epoch}.png"
+        save_path_real = f"gans/results/real_{epoch}.png"
+        show_tensor_images(fake, save_path=save_path_fake)
+        show_tensor_images(real, save_path=save_path_real)
         step_bins = 20
         x_axis = sorted([i * step_bins for i in range(len(generator_losses) // step_bins)] * step_bins)
         num_examples = (len(generator_losses) // step_bins) * step_bins
@@ -164,5 +176,7 @@ for epoch in range(n_epochs):
             label="Discriminator Loss"
         )
         plt.legend()
-        plt.show()
+        # plt.show()
+        loss_plot_path = f"gans/results/loss_plot_{epoch}.png"
+        plt.savefig(loss_plot_path, bbox_inches='tight')
     
