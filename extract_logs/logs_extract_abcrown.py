@@ -4,8 +4,7 @@ import sys
 import onnxruntime as ort
 import numpy as np
 import matplotlib.pyplot as plt
-from simulate_network import get_mnist_test_data
-from simulate_network import get_mnist_train_data
+from generate_benchmarks.simulate_network import get_mnist_test_data, get_mnist_train_data
 
 IMAGES = []
 LABELS = []
@@ -41,7 +40,7 @@ def extract_ce(log_file):
                 line = line.replace('],', '')
                 ce.append(float(line))
                 # print(line)
-    return np.array(ce)
+    return np.array(ce, dtype=np.float32)
 
 
 def softmax(x):
@@ -281,6 +280,7 @@ def get_net_im_conf_ep(file_path, is_top_k = False):
 
 def get_net_im_conf_ep_1(file_path, is_top_k = False):
     filename = os.path.basename(file_path)
+    print(filename)
     filename_l = filename.split('+')
     prop_l = filename_l[1].split('_')
     im = int(prop_l[1])

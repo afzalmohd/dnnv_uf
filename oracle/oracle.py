@@ -4,8 +4,11 @@ import numpy as np
 import onnxruntime as ort
 import yaml
 from collections import Counter
+cwd = os.getcwd()
+sys.path.append(f"{cwd}")
+
 from extract_logs.logs_extract_abcrown import extract_ce, get_result, get_net_im_conf_ep_1
-from generate_benchmarks.simulate_network import get_mnist_test_data, get_mnist_train_data, get_cifar10_test_data, get_cifar10_train_data
+from generate_benchmarks.simulate_network import get_mnist_test_data, get_mnist_train_data, get_cifar10_test_data, get_cifar10_train_data, softmax
 
 mnist_dataset = 'MNIST'
 cifar10_dataset = 'CIFAR10'
@@ -40,6 +43,8 @@ def set_images_labels(dataset, is_test_data):
 def get_oracle_output(im:np.ndarray):
     im = im.reshape(-1,1,28,28)
     pred_labels = []
+    confs = []
+    label_dictionary = {}
     for net in orcale_nets:
         net_path = os.path.join(oracle_net_dir, net)
         session = ort.InferenceSession(net_path)
@@ -47,7 +52,15 @@ def get_oracle_output(im:np.ndarray):
         output = session.run(None, {input_name: im})
         pred = np.argmax(output[0][0])
         pred_labels.append(pred)
-
+        softmax_output= softmax(output[0][0])
+        confs.append(softmax_output[pred])
+    
+    for val in pred_labels:
+        count = label_dictionary.get(val, 0)
+        count += 1
+        label_dictionary[val] = count
+    print(f"Oracle's output: {label_dictionary}")
+    print(f"Oracle's confs: {confs}")
     counter = Counter(pred_labels)
     majority_class = counter.most_common(1)[0][0]
     return [majority_class]
@@ -77,73 +90,19 @@ def is_tn():
     pass
 
 
-def analyse_log_file_useless(log_file):
-    netname, im, conf, ep = get_net_im_conf_ep_1(log_file)
-    res = get_result(log_file)
-    res_table = {}
-    if conf != 0.0:
-        res_table_1 = res_table.get(conf, {})
-        if res == 'sat':
-            net_path = os.path.join(orig_net_dir, netname)
-            cex = extract_ce(log_file)
-            cex_label = get_cex_label(cex, net_path)
-            is_fp = is_fp(cex_label, net_path)
-            res_4_table = res_table_1.get(conf, {})
-            if is_fp:  
-                fp_count = res_4_table.get('fp', 0)
-                res_4_table['fp'] = fp_count + 1
-            else:
-                tp_count = res_4_table.get('tp', 0)
-                res_4_table['tp'] = tp_count + 1
-            res_table_1[conf] = res_4_table
-            
-            log_file_0_conf = f"{netname[:-5]}+_0_{im}+prop_{im}_{ep}_0"
-            log_file_0_conf = os.path.join(log_dir, log_file_0_conf)
-            res1 = get_result(log_file_0_conf)
-            if res1 == 'sat':
-                cex1 = extract_ce(log_file_0_conf)
-                cex_label1 = get_cex_label(cex1, net_path)
-                is_fp1 = is_fp(cex_label1, net_path)
-                res_4_table = res_table_1.get(0.0, {})
-                if is_fp1:
-                    fp_count = res_4_table.get('fp', 0)
-                    res_4_table['fp'] = fp_count + 1
-                else:
-                    tp_count = res_4_table.get('tp', 0)
-                    res_4_table['tp'] = tp_count + 1
 
-                res_table_1[0.0] = res_4_table
-
-        elif res == 'unsat':
-            log_file_0_conf = f"{netname[:-5]}+_0_{im}+prop_{im}_{ep}_0"
-            log_file_0_conf = os.path.join(log_dir, log_file_0_conf)
-            res1 = get_result(log_file_0_conf)
-            if res1 == 'sat':
-                net_path = os.path.join(orig_net_dir, netname)
-                cex = extract_ce(log_file_0_conf)
-                cex_label = get_cex_label(cex, net_path)
-                is_fp = is_fp(cex_label, net_path)
-                if is_fp:
-                    fn_file_name = f"{netname}+{conf}+{im}+{ep}.npy"
-                    fn_log_dir = os.path.join(log_dir, str(conf), 'fn')
-                    if not os.path.isdir(fn_log_dir):
-                        os.makedirs(fn_log_dir)
-                    
-                    np.save(os.path.join(fn_log_dir, fn_file_name), cex)
-            else:
-                pass
-               
 def get_zero_conf_log_file(netname, ep, im):
-    log_file_0_conf = f"{netname[:-5]}+_0_{im}+prop_{im}_{ep}_0"
+    log_file_0_conf = f"{netname[:-5]}_0_{im}+prop_{im}_{ep}_0"
     log_file_0_conf = os.path.join(log_dir, log_file_0_conf)
     return log_file_0_conf
 
-def is_fp_log(logfile, netname):
+def is_fp_log(im, logfile, netname):
     net_path = os.path.join(orig_net_dir, netname)
     cex = extract_ce(logfile)
     cex_label = get_cex_label(cex, net_path)
-    is_fp = is_fp(cex_label, net_path)
-    return is_fp
+    print(f"cex label: {cex_label}, orig label: {LABELS[im]}")
+    is_fp_1 = is_fp(cex_label, cex)
+    return is_fp_1
 
 def update_res_table(conf, is_zero, res):
     res_tabel_1 = RES_TABLE.get(conf, {})
@@ -166,7 +125,7 @@ def analyse_log_file_count(log_file):
     res = get_result(log_file)
     if conf != 0.0:
         if res == 'sat':
-            is_fp = is_fp_log(log_file, netname)
+            is_fp = is_fp_log(im, log_file, netname)
             if is_fp:  
                 update_res_table(conf, False, 'fp')
             else:
@@ -175,7 +134,7 @@ def analyse_log_file_count(log_file):
             log_file_0_conf = get_zero_conf_log_file(netname, ep, im)
             res1 = get_result(log_file_0_conf)
             if res1 == 'sat':
-                is_fp1 = is_fp_log(log_file_0_conf, netname)
+                is_fp1 = is_fp_log(im, log_file_0_conf, netname)
                 if is_fp1:
                     update_res_table(conf, True, 'fp')
                 else:
@@ -187,7 +146,7 @@ def analyse_log_file_count(log_file):
             log_file_0_conf = get_zero_conf_log_file(netname, ep, im)
             res1 = get_result(log_file_0_conf)
             if res1 == 'sat':
-                is_fp = is_fp_log(log_file_0_conf, netname)
+                is_fp = is_fp_log(im, log_file_0_conf, netname)
                 cex = extract_ce(log_file_0_conf)
                 if is_fp:
                     update_res_table(conf, False, 'tn')
@@ -196,7 +155,7 @@ def analyse_log_file_count(log_file):
                     update_res_table(conf, False, 'fn')
                     update_res_table(conf, True, 'tp')
                     fn_file_name = f"{netname}+{conf}+{im}+{ep}.npy"
-                    fn_log_dir = os.path.join(log_dir, str(conf), 'fn')
+                    fn_log_dir = os.path.join(dump_fn_dir, str(conf), 'fn')
                     if not os.path.isdir(fn_log_dir):
                         os.makedirs(fn_log_dir)
                     
@@ -214,13 +173,14 @@ def analyse_dir():
     file_list = os.listdir(log_dir)
     for filename in file_list:
         log_file =  os.path.join(log_dir, filename)
-        analyse_log_file_count(log_file)
+        if os.path.isfile(log_file):
+            analyse_log_file_count(log_file)
 
 
 
                                 
 if __name__ == '__main__':
-    global orig_net_dir, oracle_net_dir, orcale_nets, log_dir
+    global orig_net_dir, oracle_net_dir, orcale_nets, log_dir, dump_fn_dir
     potential_datasets = [mnist_dataset, cifar10_dataset]
     if len(sys.argv) > 1:
         config_file = sys.argv[1]
@@ -244,6 +204,7 @@ if __name__ == '__main__':
     oracle_net_dir = config['orcale_net_dir']
     orcale_nets = config['orcale_nets']
     log_dir = config['log_dir']
+    dump_fn_dir = config['dump_fn_dir']
 
     analyse_dir()
 
