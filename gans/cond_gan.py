@@ -19,7 +19,7 @@ n_classes = 10
 criterion = nn.BCEWithLogitsLoss()
 n_epochs = 100
 z_dim = 64
-display_step = 1
+display_step = 10
 batch_size = 128
 lr = 0.0002
 device = 'cpu'
@@ -61,6 +61,7 @@ def show_tensor_images(image_tensor, num_images=100, size=(1, 28, 28), nrow=10, 
         plt.show()
     if save_path:
         plt.savefig(save_path, bbox_inches='tight')  # Save the image grid to a file
+    plt.clf()
 
 def get_input_dimensions(z_dim, mnist_shape, n_classes):    
     generator_input_dim = z_dim+n_classes
@@ -179,4 +180,5 @@ for epoch in range(n_epochs):
         # plt.show()
         loss_plot_path = f"gans/results/loss_plot_{epoch}.png"
         plt.savefig(loss_plot_path, bbox_inches='tight')
+        plt.clf()
     
