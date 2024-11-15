@@ -3,7 +3,9 @@ import os
 import numpy as np
 from PIL import Image
 import onnxruntime as ort
+import torch
 from gan_mnist import generate_fake_samples
+from cond_gan import get_one_hot_labels, combine_vectors, get_noise,Generator, show_tensor_images
 
 def softmax(x):
     e_x = np.exp(x - np.max(x))  # Subtract max for numerical stability
@@ -62,15 +64,46 @@ def visualize_images(mnist_images, dir_path):
 
     print("Images saved successfully!")
 
+def gen_images_tf_gans():
+    model_path = os.path.join(os.getcwd(), 'results', 'generator_model_070.h5')
+    images_path = os.path.join(os.getcwd(), 'images')
+    net_path= '/home/afzal/tools/networks/conf_final/eran_mod/mnist_relu_5_100.onnx'
+    model = tf.keras.models.load_model(model_path)
+    latent_dims = 100
+    n_samples = 100
 
-model_path = os.path.join(os.getcwd(), 'results', 'generator_model_070.h5')
-images_path = os.path.join(os.getcwd(), 'images')
-net_path= '/home/afzal/tools/networks/conf_final/eran_mod/mnist_relu_5_100.onnx'
-model = tf.keras.models.load_model(model_path)
-latent_dims = 100
-n_samples = 100
+    X, _ =  generate_fake_samples(model, latent_dims, n_samples)
+    visualize_images(X, images_path)
+    print(X.shape)
 
-X, _ =  generate_fake_samples(model, latent_dims, n_samples)
-visualize_images(X, images_path)
-print(X.shape)
+def gen_images_pytorch_gans():
+    device = 'cpu'
+    n_classes = 10
+    num_images = 200
+    z_dim = 64
+    generator_input_dim = z_dim + n_classes
+    labels1 = torch.randint(0, 2, (60,)) * 6 + 1
+    labels2 = torch.randint(0, 2, (60,)) * 5 + 4
+    labels3 = torch.randint(0, 2, (40,)) * 5 + 3
+    labels4 = torch.randint(0, 2, (20,)) * 2
+    labels5 = torch.randint(0, 2, (20,)) * 1 + 5
+    labels = torch.cat((labels1, labels2, labels3, labels4, labels5), dim=0)
+    model_path = os.path.join(os.getcwd(), 'gans', 'results', 'generator_80.pth')
+    images_path = images_path = os.path.join(os.getcwd(), 'gans', 'images')
+
+    gen = Generator(input_dim=generator_input_dim).to(device)
+    gen.load_state_dict(torch.load(model_path, weights_only=True))
+    gen.eval()
+    one_hot_labels = get_one_hot_labels(labels.to(device), n_classes)
+    fake_noise = get_noise(num_images, z_dim, device=device)
+    noise_and_labels = combine_vectors(fake_noise, one_hot_labels)
+
+    fake = gen(noise_and_labels)
+    print(fake.shape)
+    show_tensor_images(fake, num_images=num_images,nrow=14, save_path="temp.png", csv_path="csv_temp.csv", labels=labels)
+
+gen_images_pytorch_gans()
+    
+
+
 
