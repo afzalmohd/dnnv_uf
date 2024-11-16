@@ -115,8 +115,7 @@ def print_cmnds_all(num_cpu, log_dir):
         write_script_file(file_name, cmds)
 
 
-def get_tasks():
-    instance_file = '/home/afzal/tools/networks/conf_final/benchmarks/instances.csv'
+def get_tasks(instance_file):
     tasks = []
     with open(instance_file, 'r') as f:
         Lines = f.readlines()
@@ -140,8 +139,8 @@ def get_tasks_mnistfc_modified():
     return tasks
 
 
-def print_cmnds_abcrowns(num_cpu, log_dir, tool_main, config_path, num_cores):
-    tasks = get_tasks()
+def print_cmnds_abcrowns(num_cpu, log_dir, tool_main, config_path, num_cores, instance_file):
+    tasks = get_tasks(instance_file=instance_file)
     random.shuffle(tasks)
     # tasks = get_tasks_mnistfc_modified()
     # print(tasks)
@@ -202,8 +201,10 @@ if __name__ == '__main__':
 
     num_cores_per_benchmarks = int(total_cores/num_cpu)
     config_path = config['abcrown_config']
+    preprocessing_dir = config['preprocessing_dir']
+    instance_file = os.path.join(preprocessing_dir, 'benchmarks', 'instances.csv')
 
-    print_cmnds_abcrowns(num_cpu, log_dir, tool_main=tool_main, config_path=config_path, num_cores=num_cores_per_benchmarks)
+    print_cmnds_abcrowns(num_cpu, log_dir, tool_main=tool_main, config_path=config_path, num_cores=num_cores_per_benchmarks, instance_file=instance_file)
 
 
 

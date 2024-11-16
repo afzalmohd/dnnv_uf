@@ -40,13 +40,13 @@ def set_images_labels(dataset, is_test_data):
 
 
 
-def get_oracle_output(im:np.ndarray):
+def get_oracle_output(im:np.ndarray, net_dir, nets):
     im = im.reshape(-1,1,28,28)
     pred_labels = []
     confs = []
     label_dictionary = {}
-    for net in orcale_nets:
-        net_path = os.path.join(oracle_net_dir, net)
+    for net in nets:
+        net_path = os.path.join(net_dir, net)
         session = ort.InferenceSession(net_path)
         input_name = session.get_inputs()[0].name
         output = session.run(None, {input_name: im})
@@ -59,11 +59,13 @@ def get_oracle_output(im:np.ndarray):
         count = label_dictionary.get(val, 0)
         count += 1
         label_dictionary[val] = count
-    print(f"Oracle's output: {label_dictionary}")
-    print(f"Oracle's confs: {confs}")
-    counter = Counter(pred_labels)
-    majority_class = counter.most_common(1)[0][0]
-    return [majority_class]
+    
+    sorted_labeled_dictionary = dict(sorted(label_dictionary.items(), key=lambda item: item[1], reverse=True))
+    multi_preds = [item[0] for item in sorted_labeled_dictionary.items() if item[1] >= 3]
+    if len(multi_preds) == 0:
+        multi_preds.append([sorted_labeled_dictionary[0]])
+    print(f"Final output: {multi_preds}")
+    return multi_preds
 
 def get_cex_label(cex, net_path):
     cex = cex.reshape(1,784,1)
@@ -74,7 +76,7 @@ def get_cex_label(cex, net_path):
     return pred
 
 def is_fp(cex_label, cex: np.ndarray):
-    oracle_output = get_oracle_output(cex)
+    oracle_output = get_oracle_output(cex, oracle_net_dir, orcale_nets)
     if cex_label in oracle_output:
         return True
     else:

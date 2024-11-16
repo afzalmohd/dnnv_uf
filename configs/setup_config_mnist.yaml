@@ -4,17 +4,20 @@ dataset: 'MNIST'
 is_test_data: True
 mean: [0.0]
 std: [1.0]
-net_root_dir: '/home/afzal/tools/networks/conf_final'
+preprocessing_dir: '/home/afzal/tools/my_scripts'
+net_dir: '/home/afzal/tools/networks/conf_final/mnist/vnncomp'
 nets: ['mnist-net_256x2.onnx', 'mnist-net_256x4.onnx', 'mnist-net_256x6.onnx']
-dataset_idxs_file: 'selected_idxs_mnist.txt'
-confs: [0, 60, 80, 90, 95]
+dataset_idxs_file: '/home/afzal/tools/networks/conf_final/mnist/selected_idxs_mnist.txt'
+images_csv_file: '/home/afzal/tools/my_scripts/gans/results/images_csv.csv'
+confs: [0, 60, 70, 80]
 timeout: 2000
-max_num_images: 100
+max_num_images: 200
 is_softmax: True
 epsilons: [0.06]
 is_cnn: False
-is_nilgiri: True
-abcrown_config: mnist.yaml
+is_nilgiri: False
+abcrown_config: 'mnist.yaml'
+image_shape: [1,784,1]
 
 orcale_net_dir: '/home/afzal/tools/networks_old/networks/onnx/mnist'
 orcale_nets: ['mnist_relu_5_100.onnx', 'ffnnRELU__Point_6_500.onnx', 'ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx', 'convSmallRELU__Point.onnx', 'convSmallRELU__PGDK.onnx', 'convSmallRELU__DiffAI.onnx', 'convMedGRELU__Point.onnx', 'convBigRELU__DiffAI.onnx']

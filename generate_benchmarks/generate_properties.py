@@ -53,8 +53,8 @@ def gen_props(spec_dir, selected_images, selected_labels, selected_idxs, eps,con
         idx = selected_idxs[i]
         for ep in eps:
             lb,ub = create_input_bounds_tf(image, ep, mean, std, dataset=dataset)
-            spec_path = f"prop_{idx}_{ep}_{conf}.vnnlib"
-            spec_path = os.path.join(spec_dir, spec_path)
+            spec_file = f"prop_{idx}_{ep}_{conf}.vnnlib"
+            spec_path = os.path.join(spec_dir, spec_file)
             if is_standard_prop:
                 save_vnnlib_tf_standard(lb, ub, label, spec_path, dataset=dataset)
             else:

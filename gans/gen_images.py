@@ -1,11 +1,41 @@
-import tensorflow as tf
+import sys
 import os
+project_path = os.path.join(os.getcwd())
+sys.path.append(project_path)
+import tensorflow as tf
 import numpy as np
 from PIL import Image
 import onnxruntime as ort
 import torch
+import yaml
 from gan_mnist import generate_fake_samples
 from cond_gan import get_one_hot_labels, combine_vectors, get_noise,Generator, show_tensor_images
+from oracle.oracle import get_oracle_output
+
+
+if len(sys.argv) > 1:
+    config_file = sys.argv[1]
+
+with open(config_file, 'r') as file:
+    config = yaml.safe_load(file)
+
+oracle_net_dir = config['orcale_net_dir']
+orcale_nets = config['orcale_nets']  
+
+
+def get_label_by_oracle(image_tensor):
+    image_unflat = image_tensor.detach().cpu()
+    image_numpy = image_unflat.numpy()  # Shape: (200, 1, 28, 28)
+    labels = []
+    for idx, image in enumerate(image_numpy):
+        image = image.astype(np.float32)
+        print(f"index: {idx}", end=' , ')
+        l = get_oracle_output(image, oracle_net_dir, orcale_nets)[0]
+        labels.append(l)
+    # print(labels)
+    return labels
+
+
 
 def softmax(x):
     e_x = np.exp(x - np.max(x))  # Subtract max for numerical stability
@@ -44,7 +74,7 @@ def get_labels(net_path, images, is_normalized = True):
 
 def visualize_images(mnist_images, dir_path):
     os.makedirs(dir_path, exist_ok=True)
-
+    net_path= '/home/afzal/tools/networks/conf_final/eran_mod/mnist_relu_5_100.onnx'
     labels, confs = get_labels(net_path, mnist_images)
     # exit(0)
     # Convert and save each image
@@ -67,7 +97,6 @@ def visualize_images(mnist_images, dir_path):
 def gen_images_tf_gans():
     model_path = os.path.join(os.getcwd(), 'results', 'generator_model_070.h5')
     images_path = os.path.join(os.getcwd(), 'images')
-    net_path= '/home/afzal/tools/networks/conf_final/eran_mod/mnist_relu_5_100.onnx'
     model = tf.keras.models.load_model(model_path)
     latent_dims = 100
     n_samples = 100
@@ -88,8 +117,8 @@ def gen_images_pytorch_gans():
     labels4 = torch.randint(0, 2, (20,)) * 2
     labels5 = torch.randint(0, 2, (20,)) * 1 + 5
     labels = torch.cat((labels1, labels2, labels3, labels4, labels5), dim=0)
-    model_path = os.path.join(os.getcwd(), 'gans', 'results', 'generator_80.pth')
-    images_path = images_path = os.path.join(os.getcwd(), 'gans', 'images')
+    result_path = os.path.join(os.getcwd(), 'gans', 'results')
+    model_path = os.path.join(result_path, 'generator_80.pth')
 
     gen = Generator(input_dim=generator_input_dim).to(device)
     gen.load_state_dict(torch.load(model_path, weights_only=True))
@@ -99,8 +128,10 @@ def gen_images_pytorch_gans():
     noise_and_labels = combine_vectors(fake_noise, one_hot_labels)
 
     fake = gen(noise_and_labels)
-    print(fake.shape)
-    show_tensor_images(fake, num_images=num_images,nrow=14, save_path="temp.png", csv_path="csv_temp.csv", labels=labels)
+    labels = get_label_by_oracle(fake)
+    labels = torch.tensor(labels)
+    show_tensor_images(fake, num_images=num_images,nrow=14, save_path=os.path.join(result_path, 'images.png'), csv_path= os.path.join(result_path, 'images_csv.csv'), labels=labels)
+    
 
 gen_images_pytorch_gans()
     

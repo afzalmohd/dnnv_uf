@@ -128,7 +128,7 @@ def select_images_top_k(model_path, is_test_dataset = False, is_cnn = False, con
     return selected_images_idxs, selected_labels_top_k
             
 
-def run_network_mnist_test(model_path, is_test_dataset = False, is_cnn = False, is_softmax_output = False, conf_th = 70, mean=0.0, std=1.0):
+def run_network_mnist_test(model_path, is_test_dataset = False, is_cnn = False, is_softmax_output = False, conf_th = 70, mean=0.0, std=1.0, image_shape = (1,784,1)):
     conf_th = conf_th / 100.0
     if is_test_dataset:
         x_test, y_test = get_mnist_test_data()
@@ -154,7 +154,8 @@ def run_network_mnist_test(model_path, is_test_dataset = False, is_cnn = False, 
         # if counter >= 100:
         #     break
         test_input = x_test[i].astype(np.float32)
-        test_input = test_input.reshape(-1,1,28,28)
+        # image_shape = (-1,) + image_shape
+        test_input = test_input.reshape(image_shape)
         # if is_cnn:
         #     test_input = test_input.reshape(1,784,1)
         
@@ -343,7 +344,7 @@ def print_images_1(images_idx, confs, is_test_dataset=False):
         plt.show()
 
 
-def get_selected_images_gans(net_path, images, idxes, conf_th, is_normalized = True):
+def get_selected_images_gans(net_path, images, idxes, conf_th, is_normalized = True, image_shape=(1,784,1)):
     conf_th = conf_th / 100
     session = ort.InferenceSession(net_path)
     input_name = session.get_inputs()[0].name
@@ -351,7 +352,7 @@ def get_selected_images_gans(net_path, images, idxes, conf_th, is_normalized = T
     high_conf_indexes = []
     for i in range(len(images)):
         image = images[i]
-        test_input = image.reshape(1,784,1)
+        test_input = image.reshape(image_shape)
         # print(test_input.shape)
         if not is_normalized:
             test_input /= 255

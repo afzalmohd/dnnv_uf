@@ -1,0 +1,23 @@
+# property: 'low_conf_cex' # mod_prop
+property: 'mod_prop'
+dataset: 'CIFAR10'
+is_test_data: True
+mean: [0.49140000, 0.48219999, 0.44650000]
+std: [0.20229999, 0.19939999, 0.20100000]
+preprocessing_dir: '/home/afzal/tools/my_scripts'
+net_dir: '/home/afzal/tools/networks/conf_final/mnist/vnncomp'
+nets: ['mnist-net_256x2.onnx', 'mnist-net_256x4.onnx', 'mnist-net_256x6.onnx']
+dataset_idxs_file: '/home/afzal/tools/networks/conf_final/mnist/selected_idxs_mnist.txt'
+confs: [0, 60, 80, 90, 95]
+timeout: 3000
+max_num_images: 100
+is_softmax: True
+epsilons: [0.007]
+is_cnn: True
+is_nilgiri: True
+abcrown_config: /home/afzal/tools/alpha-beta-CROWN/complete_verifier/exp_configs/vnncomp22/resnet_A.yaml
+
+orcale_net_dir: '/home/afzal/tools/networks_old/networks/onnx/mnist'
+orcale_nets: ['mnist_relu_5_100.onnx', 'ffnnRELU__Point_6_500.onnx', 'ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx', 'convSmallRELU__Point.onnx', 'convSmallRELU__PGDK.onnx', 'convSmallRELU__DiffAI.onnx', 'convMedGRELU__Point.onnx', 'convBigRELU__DiffAI.onnx']
+log_dir: '/home/afzal/temp/logs_automation_mnist'
+dump_fn_dir: 'dump_fn_dir'
