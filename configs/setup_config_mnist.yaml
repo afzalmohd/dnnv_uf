@@ -19,7 +19,7 @@ is_nilgiri: False
 abcrown_config: 'mnist.yaml'
 image_shape: [1,784,1]
 
-orcale_net_dir: '/home/afzal/tools/networks_old/networks/onnx/mnist'
+orcale_net_dir: '/home/afzal/tools/networks/oracle_nets'
 orcale_nets: ['mnist_relu_5_100.onnx', 'ffnnRELU__Point_6_500.onnx', 'ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx', 'convSmallRELU__Point.onnx', 'convSmallRELU__PGDK.onnx', 'convSmallRELU__DiffAI.onnx', 'convMedGRELU__Point.onnx', 'convBigRELU__DiffAI.onnx']
-log_dir: '/home/afzal/temp/logs_automation_mnist'
-dump_fn_dir: 'dump_fn_dir'
+log_dir: '/home/afzal/tools/my_scripts/abcrown_tool_run_scripts/logs_mnist_mod_prop_gan'
+is_gans_input: True

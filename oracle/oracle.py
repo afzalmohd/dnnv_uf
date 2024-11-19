@@ -3,11 +3,13 @@ import os
 import numpy as np
 import onnxruntime as ort
 import yaml
+import matplotlib.pyplot as plt
 from collections import Counter
+import csv
 cwd = os.getcwd()
 sys.path.append(f"{cwd}")
 
-from extract_logs.logs_extract_abcrown import extract_ce, get_result, get_net_im_conf_ep_1
+from extract_logs.logs_extract_abcrown import extract_ce, get_result, get_net_im_conf_ep_1, run_network
 from generate_benchmarks.simulate_network import get_mnist_test_data, get_mnist_train_data, get_cifar10_test_data, get_cifar10_train_data, softmax
 
 mnist_dataset = 'MNIST'
@@ -37,7 +39,23 @@ def set_images_labels(dataset, is_test_data):
     print(IMAGES.shape)
     print(LABELS.shape)
 
+def set_images_labels_gan_with_oracle(image_csv, image_shape):
+    global IMAGES, LABELS
+    with open(image_csv, 'r') as f:
+        selected_images, selected_labels = [], []
+        csv_readers = csv.reader(f, delimiter=',')
+        for row in csv_readers:
+            label = int(row[0])
+            image = np.array(row[1:])
+            image = image.reshape(image_shape)
+            image = image.astype(np.float32)
+            selected_images.append(image)
+            selected_labels.append(label)
 
+    IMAGES = np.array(selected_images)
+    LABELS = np.array(selected_labels)
+    print(IMAGES.shape)
+    print(LABELS.shape)
 
 
 def get_oracle_output(im:np.ndarray, net_dir, nets):
@@ -92,6 +110,45 @@ def is_tn():
     pass
 
 
+def print_ce_oracle(log_file, output_file, net_dir):
+    ce = extract_ce(log_file)
+    netname, image_idx, conf, ep = get_net_im_conf_ep_1(log_file)
+    orig_image = IMAGES[image_idx]
+    # if is_gans:
+    #     orig_image, _ = get_image_label_gans(image_idx)
+    ce = ce.reshape(28,28)
+    orig_image = orig_image.reshape(28,28)
+    top_classes, top_confidences = run_network(os.path.join(net_dir, netname), orig_image, is_normalized=True)
+    ce_top_classes, ce_top_confs = run_network(os.path.join(net_dir, netname), ce, is_normalized=True)
+    # print(f"Original class: {LABELS[image_idx]}")
+    fig, axes = plt.subplots(1, 3, figsize=(6, 6))
+    top_k = 1
+    titled_str = ""
+    for i in range(top_k):
+        titled_str += f"{top_classes[i]},{top_confidences[i] * 100:.2f}\n"
+    axes[0].imshow(orig_image, cmap='gray_r')
+    axes[0].set_title(titled_str)
+    axes[0].axis('off')
+
+    diff_image = np.absolute(orig_image - ce)
+    diff_image[0][0] = 1.0
+    axes[1].imshow(diff_image, cmap='gray_r')
+    # axes[1].set_title(f"{ce_pred_class},{ce_conf * 100:.2f}")
+    axes[1].axis('off')
+
+    titled_str = ""
+    for i in range(top_k):
+        titled_str += f"{ce_top_classes[i]},{ce_top_confs[i] * 100:.2f}\n"
+    axes[2].imshow(ce, cmap='gray_r')
+    axes[2].set_title(titled_str)
+    axes[2].axis('off')
+
+    plt.tight_layout()
+    # plt.show()
+    # return
+    plt.savefig(output_file)
+    plt.clf()
+
 
 def get_zero_conf_log_file(netname, ep, im):
     log_file_0_conf = f"{netname[:-5]}_0_{im}+prop_{im}_{ep}_0"
@@ -101,6 +158,8 @@ def get_zero_conf_log_file(netname, ep, im):
 def is_fp_log(im, logfile, netname):
     net_path = os.path.join(orig_net_dir, netname)
     cex = extract_ce(logfile)
+    print(logfile)
+    print(cex.shape)
     cex_label = get_cex_label(cex, net_path)
     print(f"cex label: {cex_label}, orig label: {LABELS[im]}")
     is_fp_1 = is_fp(cex_label, cex)
@@ -121,26 +180,80 @@ def update_res_table(conf, is_zero, res):
     
     RES_TABLE[conf] = res_tabel_1
 
+def dump_images(log_file, res, net_dir):
+    netname, im, conf, ep = get_net_im_conf_ep_1(log_file)
+    dump_file_name = f"{netname[:-5]}+{im}+{conf}+{ep}"
+    if res == 'fp':
+        dir_path = os.path.join(log_dir, 'cex', 'fp')
+        if not os.path.isdir(dir_path):
+            os.makedirs(dir_path)
+    elif res == 'tp':
+        dir_path = os.path.join(log_dir, 'cex', 'tp')
+        if not os.path.isdir(dir_path):
+            os.makedirs(dir_path)
+    elif res == 'fn':
+        dir_path = os.path.join(log_dir, 'cex', 'fn')
+        if not os.path.isdir(dir_path):
+            os.makedirs(dir_path)
+
+        log_file = get_zero_conf_log_file(netname, ep, im)
+        npy_path = os.path.join(dir_path, 'npy')
+        if not os.path.isdir(npy_path):
+            os.makedirs(npy_path)
+        
+        cex = extract_ce(log_file)
+        oracle_label = get_oracle_output(cex, oracle_net_dir, orcale_nets)
+        oracle_label = oracle_label[0]
+
+        fn_file_name = f"{dump_file_name}+{oracle_label}.npy"        
+        np.save(os.path.join(npy_path, fn_file_name), cex)  
+    else: #tn
+        dir_path = os.path.join(log_dir, 'cex', 'tn')
+        if not os.path.isdir(dir_path):
+            os.makedirs(dir_path)
+
+        log_file = get_zero_conf_log_file(netname, ep, im)
+    
+
+    cex = extract_ce(log_file)
+    oracle_label = get_oracle_output(cex, oracle_net_dir, orcale_nets)
+    oracle_label = oracle_label[0]
+    dump_file_name = f"{dump_file_name}+{oracle_label}.png"
+    dump_cex_path = os.path.join(dir_path, dump_file_name)
+    print_ce_oracle(log_file, dump_cex_path, net_dir=net_dir)
+
+
+
+        
+        
+    
+
 
 def analyse_log_file_count(log_file):
+    net_dir = orig_net_dir
     netname, im, conf, ep = get_net_im_conf_ep_1(log_file)
     res = get_result(log_file)
     if conf != 0.0:
         if res == 'sat':
             is_fp = is_fp_log(im, log_file, netname)
-            if is_fp:  
-                update_res_table(conf, False, 'fp')
+            if is_fp: 
+                res = 'fp'
             else:
-                update_res_table(conf, False, 'tp')
+                res = 'tp'
+            update_res_table(conf, False, res)
+            dump_images(log_file, res, net_dir)
             
             log_file_0_conf = get_zero_conf_log_file(netname, ep, im)
             res1 = get_result(log_file_0_conf)
             if res1 == 'sat':
                 is_fp1 = is_fp_log(im, log_file_0_conf, netname)
                 if is_fp1:
-                    update_res_table(conf, True, 'fp')
+                    res = 'fp'
                 else:
-                    update_res_table(conf, True, 'tp')
+                    res = 'tp'
+
+                update_res_table(conf, True, res)
+                dump_images(log_file_0_conf, res, net_dir)
             elif res1 == 'unsat':
                 print(f"Something wrong......{log_file_0_conf}...............")
 
@@ -152,16 +265,14 @@ def analyse_log_file_count(log_file):
                 cex = extract_ce(log_file_0_conf)
                 if is_fp:
                     update_res_table(conf, False, 'tn')
+                    dump_images(log_file, 'tn', net_dir)
                     update_res_table(conf, True, 'fp')
+                    dump_images(log_file_0_conf, 'fp', net_dir)
                 else:
                     update_res_table(conf, False, 'fn')
+                    dump_images(log_file, 'fn', net_dir)
                     update_res_table(conf, True, 'tp')
-                    fn_file_name = f"{netname}+{conf}+{im}+{ep}.npy"
-                    fn_log_dir = os.path.join(dump_fn_dir, str(conf), 'fn')
-                    if not os.path.isdir(fn_log_dir):
-                        os.makedirs(fn_log_dir)
-                    
-                    np.save(os.path.join(fn_log_dir, fn_file_name), cex)
+                    dump_images(log_file_0_conf, 'tp', net_dir)
                     
 
             elif res1 == 'unsat':
@@ -175,14 +286,14 @@ def analyse_dir():
     file_list = os.listdir(log_dir)
     for filename in file_list:
         log_file =  os.path.join(log_dir, filename)
-        if os.path.isfile(log_file):
+        if os.path.isfile(log_file) and not filename.startswith('res_') and not filename.startswith('script'):
             analyse_log_file_count(log_file)
 
 
 
                                 
 if __name__ == '__main__':
-    global orig_net_dir, oracle_net_dir, orcale_nets, log_dir, dump_fn_dir
+    global orig_net_dir, oracle_net_dir, orcale_nets, log_dir
     potential_datasets = [mnist_dataset, cifar10_dataset]
     if len(sys.argv) > 1:
         config_file = sys.argv[1]
@@ -194,19 +305,19 @@ if __name__ == '__main__':
 
     is_test_data = config['is_test_data']
     dataset = config['dataset']
+    is_gans_input = config['is_gans_input']
+    images_csv = config['images_csv_file']
+    image_shape = config['image_shape']
     assert dataset in potential_datasets, "Invalid dataset"
-    set_images_labels(dataset, is_test_data)
-    net_root_dir = config['net_root_dir']
-    
-    if dataset == mnist_dataset:
-        orig_net_dir = os.path.join(net_root_dir, 'mnist', 'vnncomp')
-    elif dataset == cifar10_dataset:
-        orig_net_dir = os.path.join(net_root_dir, 'cifar10', 'vnncomp')
-    
+    if is_gans_input:
+        set_images_labels_gan_with_oracle(images_csv, image_shape)
+    else:
+        set_images_labels(dataset, is_test_data)    
+
+    orig_net_dir = config['net_dir']
     oracle_net_dir = config['orcale_net_dir']
     orcale_nets = config['orcale_nets']
     log_dir = config['log_dir']
-    dump_fn_dir = config['dump_fn_dir']
 
     analyse_dir()
 

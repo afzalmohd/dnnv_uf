@@ -121,6 +121,13 @@ def get_eran_images(eran_images_file):
     labels = labels.reshape(images.shape[0],)
     return images, labels
 
+def is_exist_tuple(benchmarks_list, net, ep, im_idx):
+    for l in benchmarks_list:
+        if l[0] == net and l[1] == ep and l[2] == im_idx:
+            return True
+        
+    return False
+
 
 def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, max_num_images, is_softmax, orig_net_dir, epsilons, is_cnn, preprocessing_dir, image_shape, images_csv_file):
     confs_t = [c for c in confs if c != 0]
@@ -183,8 +190,69 @@ def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, max_num_
         gen_props(prop_dir_normal, selected_images, selected_labels, low_plus_high_conf_images_idxs, epsilons, conf=0, is_standard_prop=True, mean=mean, std=std, dataset=dataset) 
         gen_instances_file(net_dir, [net], prop_dir_normal, low_plus_high_conf_images_idxs, [0], epsilons, instances_file, timeout=timeout)
 
+def setup_modified_props_one_hop(nets, dataset, mean, std, confs, timeout, max_num_images, is_softmax, orig_net_dir, epsilons, is_cnn, preprocessing_dir, image_shape1, images_csv_file, log_dir):
+
+    setup_dir = os.path.join(preprocessing_dir, 'benchmarks')
+    clean_directory(setup_dir)
+    net_dir = os.path.join(setup_dir, 'nets')
+    prop_dir = os.path.join(setup_dir, 'props')
+    instances_file = os.path.join(setup_dir, 'instances.csv')
+    if os.path.isfile(instances_file):
+        os.remove(instances_file)
+    create_empty_dirs(net_dir, prop_dir)
+
+    print(log_dir)
+    fn_dir = os.path.join(log_dir, 'cex', 'fn', 'npy')
+    if not os.path.isdir(fn_dir):
+        print(f"Wrong false negative directory: {fn_dir}")
+    list_already_build = []
+    for filename in os.listdir(fn_dir):
+        filename1 = filename[:-4]
+        filename1_l = filename1.split('+')
+        net = filename1_l[0]+".onnx"
+        im_idx = int(filename1_l[1])
+        conf = float(filename1_l[2])
+        ep= float(filename1_l[3])
+        epsilons = [ep]
+        label = int(filename1_l[4])
+
+        np_filename = os.path.join(fn_dir, filename)
+        image = np.load(np_filename)
+        image_shape1 = (1,) + image_shape
+        image = image.reshape(image_shape1)
+        image = image.astype(np.float32)
+        selected_images = image
+        selected_labels = np.array([label])
+        selected_idxs = [im_idx]
+        is_high_conf = False
+        prop_dir1 = os.path.join(prop_dir, net[:-5])
+        if not os.path.isdir(prop_dir1):
+            os.makedirs(prop_dir1)
+        if not is_high_conf:
+            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[conf], is_high_conf=False)
+            gen_props(prop_dir1, selected_images, selected_labels, selected_idxs, epsilons,conf=conf, mean=mean, std=std, dataset=dataset)
+            gen_instances_file(net_dir, [net], prop_dir1, selected_idxs, [conf], epsilons, instances_file, timeout=timeout)
+        else:
+            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[conf], is_high_conf=True)
+            gen_props(prop_dir1, selected_images, selected_labels, selected_idxs, epsilons,conf=conf, mean=mean, std=std, dataset=dataset, is_standard_prop=True)
+            gen_instances_file(net_dir, [net], prop_dir1, selected_idxs, [conf], epsilons, instances_file, timeout=timeout)
+
+        if not is_exist_tuple(list_already_build, net, ep, im_idx):
+            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[0], is_high_conf=False)
+            prop_dir_normal = os.path.join(prop_dir, 'standard')
+            if not os.path.isdir(prop_dir_normal):
+                os.makedirs(prop_dir_normal)
+            gen_props(prop_dir_normal, selected_images, selected_labels, selected_idxs, epsilons, conf=0, is_standard_prop=True, mean=mean, std=std, dataset=dataset) 
+            gen_instances_file(net_dir, [net], prop_dir_normal, selected_idxs, [0], epsilons, instances_file, timeout=timeout)
+            l = [net, ep, im_idx]
+            list_already_build.append(l)
+        else:
+            print(f"Already build:  {net}, {ep}, {im_idx}")
 
 
+
+
+    
 def setup_modified_props_old():
     orig_net_dir = '/home/afzal/tools/networks/conf_final/eran_mod'
     nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
@@ -525,6 +593,7 @@ if __name__ == '__main__':
     property_type = config['property']
     is_cnn = config['is_cnn']
     image_shape = tuple(config['image_shape'])
+    log_dir = config['log_dir']
 
     if property_type  == 'low_conf_cex':
         setup_on_orig_dataset_images(nets=nets, 
@@ -542,7 +611,7 @@ if __name__ == '__main__':
                                      image_shape=image_shape
                                     )
     else:
-        setup_modified_props_gans(nets=nets, 
+        setup_modified_props_one_hop(nets=nets, 
                              dataset=dataset, 
                              mean=mean,
                              std=std,
@@ -554,8 +623,9 @@ if __name__ == '__main__':
                              epsilons=epsilons, 
                              is_cnn=is_cnn,
                              preprocessing_dir=preprocessing_dir, 
-                             image_shape=image_shape,
-                             images_csv_file = images_csv_file
+                             image_shape1=image_shape,
+                             images_csv_file = images_csv_file,
+                             log_dir = log_dir
                              )
 
     # dataset_name = cifar10_dataset

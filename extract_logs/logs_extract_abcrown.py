@@ -294,10 +294,11 @@ def get_net_im_conf_ep_1(file_path, is_top_k = False):
         else:
             netname = filename_l[0]+".onnx"
     else:
-        if conf != 0.0:
-            netname = "_".join(netname_l[:-2])+".onnx"
-        else:
-            netname = "_".join(netname_l)+".onnx"
+        netname = "_".join(netname_l[:-2])+".onnx"
+        # if conf != 0.0:
+        #     netname = "_".join(netname_l[:-2])+".onnx"
+        # else:
+        #     netname = "_".join(netname_l)+".onnx"
 
     return netname, im, conf, ep
 
