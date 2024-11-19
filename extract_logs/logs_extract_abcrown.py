@@ -35,6 +35,7 @@ def extract_ce(log_file):
                 # print(line)
                 is_adv = False
                 is_tensor = False
+                break
             elif is_adv and is_tensor:
                 line = line.replace('[', '')
                 line = line.replace('],', '')

@@ -129,7 +129,7 @@ def is_exist_tuple(benchmarks_list, net, ep, im_idx):
     return False
 
 
-def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, max_num_images, is_softmax, orig_net_dir, epsilons, is_cnn, preprocessing_dir, image_shape, images_csv_file):
+def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, max_num_images, is_softmax, orig_net_dir, epsilons, is_cnn, preprocessing_dir, image_shape, images_csv_file, log_dir):
     confs_t = [c for c in confs if c != 0]
     confs = confs_t
     max_low_conf_images = int(0.9*max_num_images)
@@ -611,7 +611,7 @@ if __name__ == '__main__':
                                      image_shape=image_shape
                                     )
     else:
-        setup_modified_props_one_hop(nets=nets, 
+        setup_modified_props_gans(nets=nets, 
                              dataset=dataset, 
                              mean=mean,
                              std=std,
@@ -623,7 +623,7 @@ if __name__ == '__main__':
                              epsilons=epsilons, 
                              is_cnn=is_cnn,
                              preprocessing_dir=preprocessing_dir, 
-                             image_shape1=image_shape,
+                             image_shape=image_shape,
                              images_csv_file = images_csv_file,
                              log_dir = log_dir
                              )
