@@ -59,6 +59,7 @@ def top_k_pred(softmax_output, k):
 
 
 def run_network(net_path, image, is_normalized=True):
+    # print(f"netpath_1: {net_path}")
     session = ort.InferenceSession(net_path)
     input_name = session.get_inputs()[0].name
     # print(image.shape)
@@ -281,12 +282,15 @@ def get_net_im_conf_ep(file_path, is_top_k = False):
 
 def get_net_im_conf_ep_1(file_path, is_top_k = False):
     filename = os.path.basename(file_path)
-    print(filename)
+    # print(filename)
     filename_l = filename.split('+')
     prop_l = filename_l[1].split('_')
     im = int(prop_l[1])
     ep = float(prop_l[2])
-    conf = float(prop_l[3])
+    try:
+        conf = int(prop_l[3])
+    except:
+        conf = float(prop_l[3])
     netname_l = filename_l[0].split('_')
     if is_top_k:
         conf = 0

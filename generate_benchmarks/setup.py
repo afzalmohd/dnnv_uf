@@ -77,14 +77,16 @@ def get_images_csv_gans(dataset_idxs_file, image_shape):
         selected_images, selected_labels, selected_indexes = [], [], []
         csv_readers = csv.reader(f, delimiter=',')
         idx = 0
+        fixed_idxs = [2,29,49,77,79,83,111,142,157,164,176]
         for row in csv_readers:
-            label = int(row[0])
-            image = np.array(row[1:])
-            image = image.reshape(image_shape)
-            image = image.astype(np.float32)
-            selected_images.append(image)
-            selected_labels.append(label)
-            selected_indexes.append(idx)
+            if idx in fixed_idxs:
+                label = int(row[0])
+                image = np.array(row[1:])
+                image = image.reshape(image_shape)
+                image = image.astype(np.float32)
+                selected_images.append(image)
+                selected_labels.append(label)
+                selected_indexes.append(idx)
             idx += 1
 
     return selected_images, selected_labels, selected_indexes
@@ -147,8 +149,6 @@ def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, max_num_
     g_images, g_labels, g_indexes = get_images_csv_gans(images_csv_file, image_shape)
     g_images = np.array(g_images)
     g_labels = np.array(g_labels)
-    IMAGES = g_images
-    LABELS = g_labels
 
     for net in nets:
         low_plus_high_conf_images_idxs = []
@@ -527,6 +527,23 @@ def select_images_with_labels(dataset, dataset_idxs_file, max_num_indexs=50):
     
     return images, labels, indexes
 
+def set_images_labels_gan_with_oracle(image_csv, image_shape):
+    global IMAGES, LABELS
+    with open(image_csv, 'r') as f:
+        selected_images, selected_labels = [], []
+        csv_readers = csv.reader(f, delimiter=',')
+        for row in csv_readers:
+            label = int(row[0])
+            image = np.array(row[1:])
+            image = image.reshape(image_shape)
+            image = image.astype(np.float32)
+            selected_images.append(image)
+            selected_labels.append(label)
+
+    IMAGES = np.array(selected_images)
+    LABELS = np.array(selected_labels)
+    print(IMAGES.shape)
+    print(LABELS.shape)
 
 def setup_on_orig_dataset_images(nets, dataset, mean, std, confs, timeout, max_num_images, is_softmax, orig_net_dir, dataset_idxs_file, epsilons, preprocessing_dir, image_shape):
 
@@ -572,7 +589,14 @@ if __name__ == '__main__':
     is_test_data = config['is_test_data']
     dataset = config['dataset']
     assert dataset in potential_datasets, "Invalid dataset"
-    set_images_labels(dataset, is_test_data)
+    is_gans_input = config['is_gans_input']
+    images_csv_file = config['images_csv_file']
+    image_shape = tuple(config['image_shape'])
+    if is_gans_input:
+        set_images_labels_gan_with_oracle(images_csv_file, image_shape)
+    else:
+        set_images_labels(dataset, is_test_data)
+
     mean = np.array(config['mean'], dtype=np.float32)
     std = np.array(config['std'], dtype=np.float32)
     net_dir = config['net_dir']
@@ -583,7 +607,7 @@ if __name__ == '__main__':
     is_softmax = config['is_softmax']
     epsilons = config['epsilons']
     dataset_idxs_file = config['dataset_idxs_file']
-    images_csv_file = config['images_csv_file']
+    
 
     
     preprocessing_dir = config['preprocessing_dir']
@@ -592,7 +616,7 @@ if __name__ == '__main__':
 
     property_type = config['property']
     is_cnn = config['is_cnn']
-    image_shape = tuple(config['image_shape'])
+    
     log_dir = config['log_dir']
 
     if property_type  == 'low_conf_cex':
