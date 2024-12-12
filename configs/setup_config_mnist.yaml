@@ -1,5 +1,5 @@
-# property: 'low_conf_cex' # mod_prop
-property: 'mod_prop'
+property: 'low_conf_cex' # mod_prop
+# property: 'mod_prop'
 dataset: 'MNIST' 
 is_test_data: True
 mean: [0.0]
@@ -9,16 +9,16 @@ net_dir: '/home/afzal/tools/networks/conf_final/mnist/vnncomp'
 nets: ['mnist-net_256x2.onnx', 'mnist-net_256x4.onnx', 'mnist-net_256x6.onnx']
 dataset_idxs_file: '/home/afzal/tools/networks/conf_final/mnist/selected_idxs_mnist.txt'
 images_csv_file: '/home/afzal/tools/my_scripts/gans/results/images_csv.csv'
-confs: [0, 60, 70, 80]
+confs: [0, 60, 80, 90, 95]
 timeout: 2000
-max_num_images: 200
+max_num_images: 500
 is_softmax: True
 epsilons: [0.06]
 is_cnn: False
 is_nilgiri: False
 abcrown_config: 'mnist.yaml'
 image_shape: [1,784,1]
-is_gans_input: True
+is_gans_input: False
 
 orcale_net_dir: '/home/afzal/tools/networks/oracle_nets'
 orcale_nets: ['mnist_relu_5_100.onnx', 'ffnnRELU__Point_6_500.onnx', 'ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx', 'convSmallRELU__Point.onnx', 'convSmallRELU__PGDK.onnx', 'convSmallRELU__DiffAI.onnx', 'convMedGRELU__Point.onnx', 'convBigRELU__DiffAI.onnx']

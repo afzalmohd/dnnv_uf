@@ -527,6 +527,12 @@ def select_images_with_labels(dataset, dataset_idxs_file, max_num_indexs=50):
     
     return images, labels, indexes
 
+def select_images_with_labels_first(dataset, dataset_idxs_file, max_num_indexs=50):
+    indexes = [i for i in range(max_num_images)]
+    images = IMAGES[indexes]
+    labels = LABELS[indexes] 
+    return images, labels, indexes
+
 def set_images_labels_gan_with_oracle(image_csv, image_shape):
     global IMAGES, LABELS
     with open(image_csv, 'r') as f:
@@ -556,7 +562,7 @@ def setup_on_orig_dataset_images(nets, dataset, mean, std, confs, timeout, max_n
         os.remove(instances_file)
     create_empty_dirs(net_dir, prop_dir)
 
-    selected_images, selected_labels, selected_idxs = select_images_with_labels(dataset, dataset_idxs_file, max_num_indexs=max_num_images)
+    selected_images, selected_labels, selected_idxs = select_images_with_labels_first(dataset, dataset_idxs_file, max_num_indexs=max_num_images)
     selected_labels = selected_labels.reshape(-1)
     for conf in confs:
         gen_props(prop_dir, selected_images, selected_labels, selected_idxs, epsilons,conf=conf, tolerance_param=-1e-5, dataset=dataset, mean=mean, std=std) 
