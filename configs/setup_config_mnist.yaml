@@ -11,7 +11,7 @@ dataset_idxs_file: '/home/afzal/tools/networks/conf_final/mnist/selected_idxs_mn
 images_csv_file: '/home/afzal/tools/my_scripts/gans/results/images_csv.csv'
 confs: [0, 60, 80, 90, 95]
 timeout: 3000
-image_indexes_range: [500, 750]
+image_indexes_range: [750, 1000]
 is_softmax: True
 epsilons: [0.06]
 is_cnn: False
