@@ -131,9 +131,10 @@ def is_exist_tuple(benchmarks_list, net, ep, im_idx):
     return False
 
 
-def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, max_num_images, is_softmax, orig_net_dir, epsilons, is_cnn, preprocessing_dir, image_shape, images_csv_file, log_dir):
+def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, start_idx, end_idx, is_softmax, orig_net_dir, epsilons, is_cnn, preprocessing_dir, image_shape, images_csv_file, log_dir):
     confs_t = [c for c in confs if c != 0]
     confs = confs_t
+    max_num_images = end_idx - start_idx
     max_low_conf_images = int(0.9*max_num_images)
     max_high_conf_images = max_num_images - max_low_conf_images
 
@@ -250,62 +251,6 @@ def setup_modified_props_one_hop(nets, dataset, mean, std, confs, timeout, max_n
             print(f"Already build:  {net}, {ep}, {im_idx}")
 
 
-
-
-    
-def setup_modified_props_old():
-    orig_net_dir = '/home/afzal/tools/networks/conf_final/eran_mod'
-    nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
-    nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
-    # nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_6_100.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
-    confs = [0, 60, 70, 80, 90, 95]
-    epsilons = [0.04]
-    max_low_conf_images = 100
-    max_high_conf_images = 20
-    setup_dir = '/home/afzal/tools/networks/mod_props'
-    clean_directory(setup_dir)
-    net_dir = os.path.join(setup_dir, 'nets')
-    prop_dir = os.path.join(setup_dir, 'props')
-    instances_file = os.path.join(setup_dir, 'instances.csv')
-    if os.path.isfile(instances_file):
-        os.remove(instances_file)
-    create_empty_dirs(net_dir, prop_dir)
-
-    for net in nets:
-        for conf in confs:
-            if conf != 0:
-                _, _, low_confs_idx, _, high_conf_idx, _  = run_network_mnist_test(os.path.join(orig_net_dir, net), conf_th=conf)
-                low_confs_idx = low_confs_idx[:max_low_conf_images]
-                print(f"net: {net},conf:{conf},low conf images: {len(low_confs_idx)}")
-                print(low_confs_idx)
-                selected_images = IMAGES[low_confs_idx]
-                selected_labels = LABELS[low_confs_idx]
-                append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, low_confs_idx, is_softmax=True, confs=[conf], is_high_conf=False)
-                gen_props(prop_dir, selected_images, selected_labels, low_confs_idx, epsilons) 
-                gen_instances_file(net_dir, [net], prop_dir, low_confs_idx, [conf], epsilons, instances_file)
-
-                high_conf_idx = high_conf_idx[:max_high_conf_images]
-                print(f"net: {net},conf:{conf},high conf images: {len(high_conf_idx)}")
-                print(high_conf_idx)
-                selected_images = IMAGES[high_conf_idx]
-                selected_labels = LABELS[high_conf_idx]
-                append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, high_conf_idx, is_softmax=True, confs=[conf], is_high_conf=True)
-                gen_props(prop_dir, selected_images, selected_labels, high_conf_idx, epsilons)
-                gen_instances_file(net_dir, [net], prop_dir, high_conf_idx, [conf], epsilons, instances_file)
-            else:
-                _, _, low_confs_idx, _, high_conf_idx, _  = run_network_mnist_test(os.path.join(orig_net_dir, net), conf_th=100)
-                low_confs_idx = low_confs_idx[:max_low_conf_images]
-                print(f"net: {net},conf:{conf},low conf images: {len(low_confs_idx)}")
-                print(low_confs_idx)
-                selected_images = IMAGES[low_confs_idx]
-                selected_labels = LABELS[low_confs_idx]
-                append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, low_confs_idx, is_softmax=True, confs=[conf], is_high_conf=False)
-                prop_dir_normal = os.path.join(prop_dir, 'standard')
-                if not os.path.isdir(prop_dir_normal):
-                    os.makedirs(prop_dir_normal)
-                gen_props(prop_dir_normal, selected_images, selected_labels, low_confs_idx, epsilons, is_standard_prop=True) 
-                gen_instances_file(net_dir, [net], prop_dir_normal, low_confs_idx, [conf], epsilons, instances_file)
-
 def setup_modified_props_special(nets, dataset, mean, std, confs, timeout, max_num_images, is_softmax, net_root_dir, orig_net_dir, epsilons, is_cnn, preprocessing_dir):
     im_dirs = '/home/afzal/temp/fn_images'
     confs = [60]
@@ -352,9 +297,10 @@ def setup_modified_props_special(nets, dataset, mean, std, confs, timeout, max_n
 
 
 
-def setup_modified_props(nets, dataset, mean, std, confs, timeout, max_num_images, is_softmax, orig_net_dir, epsilons, is_cnn, preprocessing_dir, image_shape, dataset_idxs_file):
+def setup_modified_props(nets, dataset, mean, std, confs, timeout, start_idx, end_idx, is_softmax, orig_net_dir, epsilons, is_cnn, preprocessing_dir, image_shape, dataset_idxs_file):
     confs_t = [c for c in confs if c != 0]
     confs = confs_t
+    max_num_images = end_idx - start_idx
     max_low_conf_images = int(0.9*max_num_images)
     max_high_conf_images = max_num_images - max_low_conf_images
 
@@ -517,7 +463,7 @@ def get_deeppoly_images(num_images = 21):
 
 
 
-def select_images_with_labels(dataset, dataset_idxs_file, max_num_indexs=50):
+def select_images_with_labels(dataset_idxs_file, max_num_indexs=50):
     with open(dataset_idxs_file) as f:
         line = f.readline()
         indexes = np.fromstring(line, dtype=int, sep=',')
@@ -527,8 +473,8 @@ def select_images_with_labels(dataset, dataset_idxs_file, max_num_indexs=50):
     
     return images, labels, indexes
 
-def select_images_with_labels_first(dataset, dataset_idxs_file, max_num_indexs=50):
-    indexes = [i for i in range(max_num_images)]
+def select_images_with_labels_first(dataset_idxs_file, start_idx = 0, end_idx=50):
+    indexes = [i for i in range(start_idx, end_idx)]
     images = IMAGES[indexes]
     labels = LABELS[indexes] 
     return images, labels, indexes
@@ -551,7 +497,7 @@ def set_images_labels_gan_with_oracle(image_csv, image_shape):
     print(IMAGES.shape)
     print(LABELS.shape)
 
-def setup_on_orig_dataset_images(nets, dataset, mean, std, confs, timeout, max_num_images, is_softmax, orig_net_dir, dataset_idxs_file, epsilons, preprocessing_dir, image_shape):
+def setup_on_orig_dataset_images(nets, dataset, mean, std, confs, timeout, start_idx, end_idx, is_softmax, orig_net_dir, dataset_idxs_file, epsilons, preprocessing_dir, image_shape):
 
     setup_dir = os.path.join(preprocessing_dir, 'benchmarks')
     clean_directory(setup_dir)
@@ -562,7 +508,7 @@ def setup_on_orig_dataset_images(nets, dataset, mean, std, confs, timeout, max_n
         os.remove(instances_file)
     create_empty_dirs(net_dir, prop_dir)
 
-    selected_images, selected_labels, selected_idxs = select_images_with_labels_first(dataset, dataset_idxs_file, max_num_indexs=max_num_images)
+    selected_images, selected_labels, selected_idxs = select_images_with_labels_first(dataset_idxs_file, start_idx=start_idx, end_idx=end_idx)
     selected_labels = selected_labels.reshape(-1)
     for conf in confs:
         gen_props(prop_dir, selected_images, selected_labels, selected_idxs, epsilons,conf=conf, tolerance_param=-1e-5, dataset=dataset, mean=mean, std=std) 
@@ -609,7 +555,9 @@ if __name__ == '__main__':
     nets = config['nets']
     confs = config['confs']
     timeout = config['timeout']
-    max_num_images = config['max_num_images']
+    image_indexes_range = config['image_indexes_range']
+    start_idx = image_indexes_range[0]
+    end_idx = image_indexes_range[1]
     is_softmax = config['is_softmax']
     epsilons = config['epsilons']
     dataset_idxs_file = config['dataset_idxs_file']
@@ -617,7 +565,7 @@ if __name__ == '__main__':
 
     
     preprocessing_dir = config['preprocessing_dir']
-    print(nets, confs, timeout, max_num_images, is_softmax, epsilons)
+    print(nets, confs, timeout, image_indexes_range, is_softmax, epsilons)
     # print(dataset_idxs_file, orig_net_dir)
 
     property_type = config['property']
@@ -632,7 +580,8 @@ if __name__ == '__main__':
                                      std=std,
                                      confs=confs,
                                      timeout=timeout,
-                                     max_num_images=max_num_images,
+                                     start_idx=start_idx,
+                                     end_idx=end_idx,
                                      is_softmax=is_softmax,
                                      orig_net_dir=net_dir,
                                      dataset_idxs_file=dataset_idxs_file,
@@ -647,7 +596,8 @@ if __name__ == '__main__':
                              std=std,
                              confs=confs,
                              timeout=timeout,
-                             max_num_images=max_num_images,
+                             start_idx=start_idx,
+                             end_idx=end_idx,
                              is_softmax=is_softmax,
                              orig_net_dir=net_dir, 
                              epsilons=epsilons, 

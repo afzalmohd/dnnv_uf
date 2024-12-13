@@ -10,12 +10,12 @@ nets: ['mnist-net_256x2.onnx', 'mnist-net_256x4.onnx', 'mnist-net_256x6.onnx']
 dataset_idxs_file: '/home/afzal/tools/networks/conf_final/mnist/selected_idxs_mnist.txt'
 images_csv_file: '/home/afzal/tools/my_scripts/gans/results/images_csv.csv'
 confs: [0, 60, 80, 90, 95]
-timeout: 2000
-max_num_images: 500
+timeout: 3000
+image_indexes_range: [0, 250]
 is_softmax: True
 epsilons: [0.06]
 is_cnn: False
-is_nilgiri: False
+is_nilgiri: True
 abcrown_config: 'mnist.yaml'
 image_shape: [1,784,1]
 is_gans_input: False
