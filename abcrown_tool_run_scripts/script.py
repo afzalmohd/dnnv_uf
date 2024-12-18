@@ -220,7 +220,7 @@ if __name__ == '__main__':
     preprocessing_dir = config['preprocessing_dir']
     instance_file = os.path.join(preprocessing_dir, 'benchmarks', 'instances.csv')
 
-    print_cmnds_abcrowns(num_cpu, log_dir, tool_main=tool_main, config_path=config_path, num_cores=num_cores_per_benchmarks, instance_file=instance_file)
+    print_cmnds_abcrowns(num_cpu, log_dir, tool_main=tool_main, config_path=config_path, num_cores=num_cores_per_benchmarks, instance_file=instance_file, dataset=dataset)
 
 
 
