@@ -218,6 +218,7 @@ def get_fc_layer_weights_simple(label, output_dims=10, conf=0.40):
     return weights
 
 def get_fc_layer_weights(label, output_dims=10):
+    # np.set_printoptions(threshold=np.inf, linewidth=np.inf, suppress=True)
     weights = []
     for i in range(output_dims):
         if i != label:
@@ -229,7 +230,7 @@ def get_fc_layer_weights(label, output_dims=10):
                     weights += l
 
     # print(len(weights))
-    # print(np.array(weights).reshape(81,10))
+    # print(np.array(weights).reshape((output_dims-1)*(output_dims-1),output_dims)[:198])
     return weights
 
 def get_fc_layer_weights_inverse(label, output_dims=10):
@@ -246,12 +247,13 @@ def get_fc_layer_weights_inverse(label, output_dims=10):
     return weights
                 
 
-def get_output_layer_weight():
+def get_output_layer_weight(output_dim = 10):
     weights = []
-    for i in range(9):
-        l = [0.0]*81
-        for j in range(9):
-            l[9*i + j] = -1.0
+    actutal_out_dim = output_dim-1
+    for i in range(actutal_out_dim):
+        l = [0.0]*(actutal_out_dim*actutal_out_dim)
+        for j in range(actutal_out_dim):
+            l[actutal_out_dim*i + j] = -1.0
         weights += l
 
     return weights
@@ -381,7 +383,7 @@ def append_fc_relu_softmax(model_path, output_model_path, label = 0, delta=1.98,
 
 
 def update_fc_relu_softmax_testing(model_path, output_model_path, label = 0, delta=1.98, fc_output_dim=81, existing_model_out_dims = 10):
-    
+    fc_output_dim = (existing_model_out_dims - 1)*(existing_model_out_dims - 1)
     w_weight_name, b_weight_name  = get_output_affine_layers_weights(model_path)
     model = onnx.load(model_path)
     graph = model.graph
@@ -398,8 +400,8 @@ def update_fc_relu_softmax_testing(model_path, output_model_path, label = 0, del
         elif b_weight_name in  initializer.name:
             output_layer_bias = np.frombuffer(initializer.raw_data, dtype=np.float32)
 
-        new_w = get_fc_layer_weights(label)
-    new_fc_weight = np.reshape(new_w, (fc_output_dim, output_layer_output_dim))
+    new_w = get_fc_layer_weights(label, output_dims=existing_model_out_dims)
+    new_fc_weight = np.reshape(new_w, (fc_output_dim, existing_model_out_dims))
     new_fc_weight = np.asarray(new_fc_weight, dtype=np.float32)
     new_fc_bias = np.array([delta]*fc_output_dim, dtype=np.float32)
     # Combine the weights and biases
@@ -435,10 +437,10 @@ def update_fc_relu_softmax_testing(model_path, output_model_path, label = 0, del
                                name=str(output_fc_layer_name)
                                )
 
-    weight = get_output_layer_weight()
-    fc_weight = helper.make_tensor(name=weight_name, data_type=TensorProto.FLOAT, dims=[9, fc_output_dim],vals=weight)
+    weight = get_output_layer_weight(output_dim=existing_model_out_dims)
+    fc_weight = helper.make_tensor(name=weight_name, data_type=TensorProto.FLOAT, dims=[existing_model_out_dims-1, fc_output_dim],vals=weight)
 
-    fc_bias = helper.make_tensor(name=bias_name, data_type=TensorProto.FLOAT, dims=[9], vals=[0.0] * 9)
+    fc_bias = helper.make_tensor(name=bias_name, data_type=TensorProto.FLOAT, dims=[existing_model_out_dims-1], vals=[0.0] * (existing_model_out_dims-1))
 
 
     graph.node.append(relu_node)
@@ -451,7 +453,7 @@ def update_fc_relu_softmax_testing(model_path, output_model_path, label = 0, del
         # Assuming there is only one output tensor, if there are multiple, you may need to specify the exact one
         dim_value = output.type.tensor_type.shape.dim
         if len(dim_value) == 2:
-            dim_value[1].dim_value = 9
+            dim_value[1].dim_value = existing_model_out_dims-1
 
     model = shape_inference.infer_shapes(model)
     onnx.save(model, output_model_path)
@@ -856,6 +858,12 @@ def append_layers_simple(model_path, output_model_path, label = 0, conf=40, fc_o
 
 
 
+def append_layers_vnncomp_prop(input_net_path, target_net_path, conf, orig_label, existing_output_dim=10):
+    if conf == 0:
+        shutil.copy2(input_net_path, target_net_path)
+    else:
+        append_layers_softmax(input_net_path, target_net_path, label=orig_label, conf=conf, existing_model_out_dims=existing_output_dim)
+
 
 def append_layers(nets, input_dir, output_dir, selected_images, selected_labels, selected_idx,confs, is_softmax=False, is_high_conf = False):
     input_model_paths = []
@@ -896,8 +904,10 @@ def append_layers(nets, input_dir, output_dir, selected_images, selected_labels,
 
 
 if __name__ == '__main__':
+    # get_fc_layer_weights(label=1, output_dims=100)
+    # exit(0)
     input_dir = '/home/u1411251/Documents/tools/networks/vnncomp2021/benchmarks/cifar2020/nets'
-    output_dir = '/home/u1411251/temp'
+    output_dir = '/home/ruhy/temp'
     dataset_path = '/home/u1411251/Documents/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mnist_test.csv'
     nets = ['resnet_2b.onnx','resnet_4b.onnx']
     confs = [0, 60]
@@ -906,21 +916,24 @@ if __name__ == '__main__':
     labels = []
     idexs = []
     i = 0
-    with open(dataset_path, 'r') as f:
-        Lines = f.readlines()
-        for line in Lines:
-            line = line.strip()
-            line = line.split(',')
-            labels.append(int(line[0]))
-            idexs.append(i)
-            im = [float(em) for em in line[1:]]
-            images.append(np.array(im, dtype=np.float32)/255.0)
-            i += 1
+    # with open(dataset_path, 'r') as f:
+    #     Lines = f.readlines()
+    #     for line in Lines:
+    #         line = line.strip()
+    #         line = line.split(',')
+    #         labels.append(int(line[0]))
+    #         idexs.append(i)
+    #         im = [float(em) for em in line[1:]]
+    #         images.append(np.array(im, dtype=np.float32)/255.0)
+    #         i += 1
 
     # append_layers(nets, input_dir, output_dir, images[:2], labels[:2], idexs[:2], is_softmax=True, confs=confs)
     # model = onnx.load_model('resnet_2b.onnx')
     # change_output_node(model)
     # onnx.save(model, 'resnet_2b_modified.onnx')
-    input_path = os.path.join(input_dir, 'cifar10_2_255_simplified.onnx')
-    update_fc_relu_softmax_testing(input_path, 'resnet_2b_modified.onnx')
+    # input_path = os.path.join(input_dir, 'cifar10_2_255_simplified.onnx')
+    # update_fc_relu_softmax_testing(input_path, 'resnet_2b_modified.onnx')
+    # print("Check...")
+    append_layers_vnncomp_prop('CIFAR100_resnet_small.onnx', '/home/ruhy/tools/vnncomp2022_benchmarks/benchmarks/cifar100_tinyimagenet_resnet/onnx', 
+                               output_dir, 60, 1, existing_output_dim=100)
 

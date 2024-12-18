@@ -6,9 +6,11 @@ from PIL import Image
 import csv
 import numpy as np
 from modify_onnx import append_layers
+from modify_onnx import append_layers_vnncomp_prop
 from generate_properties import gen_props
 from generate_instance_file import gen_instances_file
 from generate_instance_file import gen_instances_file_top_k
+from generate_properties import save_vnnlib_from_vnncomp
 from simulate_network import get_mnist_test_data
 from simulate_network import get_mnist_train_data
 from simulate_network import run_network_mnist_test
@@ -526,7 +528,56 @@ def setup_on_orig_dataset_images(nets, dataset, mean, std, confs, timeout, start
     #         else:
     #             gen_instances_file(net_dir, [net], prop_dir_normal, selected_idxs, [conf], epsilons, instances_file, timeout=timeout)   
 
+def get_label_vnncomp_prp(prp_file):
+    with open(prp_file, 'r') as file:
+        first_line = file.readline().strip()
+        # Extract the number after 'label: '
+        if "; CIFAR100 property with label:" in first_line:
+            label = first_line.split("label:")[-1].strip().rstrip('.')
+            return int(label) 
 
+
+def setup_on_vnncomp_prop(nets, dataset, mean, std, confs, timeout, start_idx, end_idx, is_softmax, orig_net_dir, dataset_idxs_file, epsilons, preprocessing_dir, vnncomp_benchmarks_dir, image_shape, tolerance_param):
+    setup_dir = os.path.join(preprocessing_dir, 'benchmarks')
+    clean_directory(setup_dir)
+    net_dir = os.path.join(setup_dir, 'nets')
+    prop_dir = os.path.join(setup_dir, 'props')
+    instances_file = os.path.join(setup_dir, 'instances.csv')
+    if os.path.isfile(instances_file):
+        os.remove(instances_file)
+    create_empty_dirs(net_dir, prop_dir)
+
+    vnncomp_instance_file = os.path.join(vnncomp_benchmarks_dir, 'instances.csv')
+
+    with open(vnncomp_instance_file, 'r') as vnncomp_instance_f:
+        idx = 0
+        ep = epsilons[0]
+        output_dims = 200
+        instance_lines = []
+        for line in vnncomp_instance_f:
+            if 'CIFAR100' in line:
+                output_dims=100
+            else:
+                output_dims=200
+            line = line.strip()
+            line_l = line.split(',')
+            vnncomp_net_path = os.path.join(vnncomp_benchmarks_dir,  line_l[0])
+            vnncomp_prp_path = os.path.join(vnncomp_benchmarks_dir, line_l[1])
+            _, netname = os.path.split(vnncomp_net_path)
+            _, prpname = os.path.split(vnncomp_prp_path)
+            label = get_label_vnncomp_prp(vnncomp_prp_path)
+            # print(type(label))
+            for conf in confs:
+                target_net_path = os.path.join(net_dir, f"{netname[:-5]}_{idx}_{ep}_{conf}.onnx")
+                target_prp_path = os.path.join(prop_dir, f"{prpname[:-7]}_{idx}_{ep}_{conf}.vnnlib")
+                append_layers_vnncomp_prop(input_net_path=vnncomp_net_path, target_net_path=target_net_path, conf=conf, orig_label=label, existing_output_dim=output_dims)
+                save_vnnlib_from_vnncomp(vnncomp_prp_path, target_prp_path, conf=conf, total_output_class=output_dims-1, tolerance_param=tolerance_param)
+                ins_line = f"{target_net_path},{target_prp_path},{timeout}\n"
+                instance_lines.append(ins_line)
+            idx += 1
+
+        with open(instances_file, 'w') as f:
+            f.writelines(instance_lines)
 
 if __name__ == '__main__':
     potential_datasets = [mnist_dataset, cifar10_dataset]
@@ -561,10 +612,12 @@ if __name__ == '__main__':
     is_softmax = config['is_softmax']
     epsilons = config['epsilons']
     dataset_idxs_file = config['dataset_idxs_file']
+    tolerance_param = config['tolerance_param']
     
 
     
     preprocessing_dir = config['preprocessing_dir']
+    vnncomp_benchmarks_dir = config['vnncomp_benchmarks_dir']
     print(nets, confs, timeout, image_indexes_range, is_softmax, epsilons)
     # print(dataset_idxs_file, orig_net_dir)
 
@@ -574,7 +627,7 @@ if __name__ == '__main__':
     log_dir = config['log_dir']
 
     if property_type  == 'low_conf_cex':
-        setup_on_orig_dataset_images(nets=nets, 
+        setup_on_vnncomp_prop(nets=nets, 
                                      dataset=dataset, 
                                      mean=mean,
                                      std=std,
@@ -587,7 +640,9 @@ if __name__ == '__main__':
                                      dataset_idxs_file=dataset_idxs_file,
                                      epsilons=epsilons, 
                                      preprocessing_dir=preprocessing_dir, 
-                                     image_shape=image_shape
+                                     vnncomp_benchmarks_dir=vnncomp_benchmarks_dir,
+                                     image_shape=image_shape, 
+                                     tolerance_param=tolerance_param
                                     )
     else:
         setup_modified_props_gans(nets=nets, 
