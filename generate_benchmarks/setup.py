@@ -5,6 +5,7 @@ import shutil
 from PIL import Image
 import csv
 import numpy as np
+import math
 from modify_onnx import append_layers
 from modify_onnx import append_layers_vnncomp_prop
 from generate_properties import gen_props
@@ -59,6 +60,11 @@ def create_empty_dirs(net_dir, prop_dir):
     if not os.path.isdir(prop_dir):
         os.makedirs(prop_dir)
 
+def get_lb_conf(conf, out_dims = 10):
+    delta = -math.log((100/conf) - 1)
+    lb_conf = 100 / (1 + (out_dims-1)*math.exp(-delta))
+    return lb_conf
+
 def clean_directory(directory_path):
     if os.path.exists(directory_path):
         # Loop over the files and subdirectories in the directory
@@ -79,16 +85,16 @@ def get_images_csv_gans(dataset_idxs_file, image_shape):
         selected_images, selected_labels, selected_indexes = [], [], []
         csv_readers = csv.reader(f, delimiter=',')
         idx = 0
-        fixed_idxs = [2,29,49,77,79,83,111,142,157,164,176]
+        # fixed_idxs = [2,29,49,77,79,83,111,142,157,164,176]
         for row in csv_readers:
-            if idx in fixed_idxs:
-                label = int(row[0])
-                image = np.array(row[1:])
-                image = image.reshape(image_shape)
-                image = image.astype(np.float32)
-                selected_images.append(image)
-                selected_labels.append(label)
-                selected_indexes.append(idx)
+            # if idx in fixed_idxs:
+            label = int(row[0])
+            image = np.array(row[1:])
+            image = image.reshape(image_shape)
+            image = image.astype(np.float32)
+            selected_images.append(image)
+            selected_labels.append(label)
+            selected_indexes.append(idx)
             idx += 1
 
     return selected_images, selected_labels, selected_indexes
@@ -137,8 +143,9 @@ def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, start_id
     confs_t = [c for c in confs if c != 0]
     confs = confs_t
     max_num_images = end_idx - start_idx
-    max_low_conf_images = int(0.9*max_num_images)
-    max_high_conf_images = max_num_images - max_low_conf_images
+    # max_low_conf_images = int(0.9*max_num_images)
+    # max_high_conf_images = max_num_images - max_low_conf_images
+
 
     setup_dir = os.path.join(preprocessing_dir, 'benchmarks')
     clean_directory(setup_dir)
@@ -156,9 +163,9 @@ def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, start_id
     for net in nets:
         low_plus_high_conf_images_idxs = []
         for conf in confs:
-            print(os.path.join(orig_net_dir, net))
-            high_confs_idx, low_confs_idx= get_selected_images_gans(os.path.join(orig_net_dir, net), g_images, g_indexes, conf, image_shape=image_shape)
-            low_confs_idx = low_confs_idx[:max_low_conf_images]
+            lb_conf = get_lb_conf(conf)
+            high_confs_idx, low_confs_idx= get_selected_images_gans(os.path.join(orig_net_dir, net), g_images, g_indexes, lb_conf, image_shape=image_shape)
+            # low_confs_idx = low_confs_idx[:max_low_conf_images]
             selected_idxs = low_confs_idx
             low_plus_high_conf_images_idxs += selected_idxs
             selected_images = IMAGES[selected_idxs]
@@ -171,7 +178,7 @@ def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, start_id
             gen_props(prop_dir1, selected_images, selected_labels, selected_idxs, epsilons,conf=conf, mean=mean, std=std, dataset=dataset)
             gen_instances_file(net_dir, [net], prop_dir1, selected_idxs, [conf], epsilons, instances_file, timeout=timeout)
                 
-            high_confs_idx = high_confs_idx[:max_high_conf_images]
+            # high_confs_idx = high_confs_idx[:max_high_conf_images]
             print(f"net: {net},conf:{conf},high conf images: {len(high_confs_idx)}")
             low_plus_high_conf_images_idxs += high_confs_idx
             # print(high_conf_idx)
@@ -252,6 +259,62 @@ def setup_modified_props_one_hop(nets, dataset, mean, std, confs, timeout, max_n
         else:
             print(f"Already build:  {net}, {ep}, {im_idx}")
 
+
+
+
+    
+def setup_modified_props_old():
+    orig_net_dir = '/home/afzal/tools/networks/conf_final/eran_mod'
+    nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_5_100.onnx', 'mnist_relu_6_100.onnx']
+    nets += ['mnist_relu_6_200.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
+    # nets = ['mnist_relu_3_50.onnx', 'mnist_relu_3_100.onnx', 'mnist_relu_6_100.onnx', 'mnist_relu_9_100.onnx', 'mnist_relu_9_200.onnx']
+    confs = [0, 60, 70, 80, 90, 95]
+    epsilons = [0.04]
+    max_low_conf_images = 100
+    max_high_conf_images = 20
+    setup_dir = '/home/afzal/tools/networks/mod_props'
+    clean_directory(setup_dir)
+    net_dir = os.path.join(setup_dir, 'nets')
+    prop_dir = os.path.join(setup_dir, 'props')
+    instances_file = os.path.join(setup_dir, 'instances.csv')
+    if os.path.isfile(instances_file):
+        os.remove(instances_file)
+    create_empty_dirs(net_dir, prop_dir)
+
+    for net in nets:
+        for conf in confs:
+            if conf != 0:
+                _, _, low_confs_idx, _, high_conf_idx, _  = run_network_mnist_test(os.path.join(orig_net_dir, net), conf_th=conf)
+                low_confs_idx = low_confs_idx[:max_low_conf_images]
+                print(f"net: {net},conf:{conf},low conf images: {len(low_confs_idx)}")
+                print(low_confs_idx)
+                selected_images = IMAGES[low_confs_idx]
+                selected_labels = LABELS[low_confs_idx]
+                append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, low_confs_idx, is_softmax=True, confs=[conf], is_high_conf=False)
+                gen_props(prop_dir, selected_images, selected_labels, low_confs_idx, epsilons) 
+                gen_instances_file(net_dir, [net], prop_dir, low_confs_idx, [conf], epsilons, instances_file)
+
+                high_conf_idx = high_conf_idx[:max_high_conf_images]
+                print(f"net: {net},conf:{conf},high conf images: {len(high_conf_idx)}")
+                print(high_conf_idx)
+                selected_images = IMAGES[high_conf_idx]
+                selected_labels = LABELS[high_conf_idx]
+                append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, high_conf_idx, is_softmax=True, confs=[conf], is_high_conf=True)
+                gen_props(prop_dir, selected_images, selected_labels, high_conf_idx, epsilons)
+                gen_instances_file(net_dir, [net], prop_dir, high_conf_idx, [conf], epsilons, instances_file)
+            else:
+                _, _, low_confs_idx, _, high_conf_idx, _  = run_network_mnist_test(os.path.join(orig_net_dir, net), conf_th=100)
+                low_confs_idx = low_confs_idx[:max_low_conf_images]
+                print(f"net: {net},conf:{conf},low conf images: {len(low_confs_idx)}")
+                print(low_confs_idx)
+                selected_images = IMAGES[low_confs_idx]
+                selected_labels = LABELS[low_confs_idx]
+                append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, low_confs_idx, is_softmax=True, confs=[conf], is_high_conf=False)
+                prop_dir_normal = os.path.join(prop_dir, 'standard')
+                if not os.path.isdir(prop_dir_normal):
+                    os.makedirs(prop_dir_normal)
+                gen_props(prop_dir_normal, selected_images, selected_labels, low_confs_idx, epsilons, is_standard_prop=True) 
+                gen_instances_file(net_dir, [net], prop_dir_normal, low_confs_idx, [conf], epsilons, instances_file)
 
 def setup_modified_props_special(nets, dataset, mean, std, confs, timeout, max_num_images, is_softmax, net_root_dir, orig_net_dir, epsilons, is_cnn, preprocessing_dir):
     im_dirs = '/home/afzal/temp/fn_images'
