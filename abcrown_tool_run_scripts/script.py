@@ -138,8 +138,23 @@ def get_tasks_mnistfc_modified():
 
     return tasks
 
+def get_confg_path_cifar100(net_path):
+    config_file = ''
+    if 'CIFAR100_resnet_small' in net_path:
+        config_file = 'cifar100_small_2022.yaml'
+    elif 'CIFAR100_resnet_medium' in net_path:
+        config_file = 'cifar100_med_2022.yaml'
+    elif 'CIFAR100_resnet_large' in net_path:
+        config_file = 'cifar100_large_2022.yaml'
+    elif 'CIFAR100_resnet_super' in net_path:
+        config_file = 'cifar100_super_2022.yaml'
+    elif 'TinyImageNet_resnet_medium' in net_path:
+        config_file = 'tinyimagenet_2022.yaml'
 
-def print_cmnds_abcrowns(num_cpu, log_dir, tool_main, config_path, num_cores, instance_file):
+    return config_file
+
+
+def print_cmnds_abcrowns(num_cpu, log_dir, tool_main, config_path, num_cores, instance_file, dataset):
     tasks = get_tasks(instance_file=instance_file)
     random.shuffle(tasks)
     # tasks = get_tasks_mnistfc_modified()
@@ -166,6 +181,8 @@ def print_cmnds_abcrowns(num_cpu, log_dir, tool_main, config_path, num_cores, in
             net_path = l[0]
             prop_path = l[1]
             timeout = int(l[2])
+            if dataset == 'CIFAR100':
+                config_path = get_confg_path_cifar100(net_path)
             log_file = os.path.basename(net_path)[:-5]+"+"+os.path.basename(prop_path)[:-7]
             log_file = os.path.join(log_dir, log_file)
             result_file = "res_"+os.path.basename(net_path)[:-5]+"+"+os.path.basename(prop_path)[:-7]
@@ -174,7 +191,6 @@ def print_cmnds_abcrowns(num_cpu, log_dir, tool_main, config_path, num_cores, in
             cmds.append(command)
         file_name = os.path.join(log_dir, f"script_{idx}.sh")
         write_script_file(file_name, cmds)
-
 
 
 
