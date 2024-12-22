@@ -31,12 +31,12 @@ tsr_dataset = 'tsr'
 
 def set_images_labels(dataset, is_test_data):
     global IMAGES, LABELS
-    if dataset == 'MNIST':
+    if dataset == mnist_dataset:
         if is_test_data:
             IMAGES, LABELS = get_mnist_test_data()
         else:
             IMAGES, LABELS = get_mnist_train_data()
-    elif dataset == 'CIFAR10':
+    elif dataset == cifar10_dataset or dataset == cifar100_dataset:
         if is_test_data:
             IMAGES, LABELS = get_cifar10_test_data()
         else:
@@ -600,7 +600,8 @@ def get_label_vnncomp_prp(prp_file):
             return int(label) 
 
 
-def setup_on_vnncomp_prop(nets, dataset, mean, std, confs, timeout, start_idx, end_idx, is_softmax, orig_net_dir, dataset_idxs_file, epsilons, preprocessing_dir, vnncomp_benchmarks_dir, image_shape, tolerance_param):
+def setup_on_vnncomp_prop(dataset, confs, timeout, epsilons, preprocessing_dir, vnncomp_benchmarks_dir, tolerance_param):
+    print(dataset, confs, timeout, epsilons, preprocessing_dir, vnncomp_benchmarks_dir, tolerance_param)
     setup_dir = os.path.join(preprocessing_dir, 'benchmarks')
     clean_directory(setup_dir)
     net_dir = os.path.join(setup_dir, 'nets')
@@ -629,7 +630,6 @@ def setup_on_vnncomp_prop(nets, dataset, mean, std, confs, timeout, start_idx, e
             _, netname = os.path.split(vnncomp_net_path)
             _, prpname = os.path.split(vnncomp_prp_path)
             label = get_label_vnncomp_prp(vnncomp_prp_path)
-            # print(type(label))
             for conf in confs:
                 target_net_path = os.path.join(net_dir, f"{netname[:-5]}_{idx}_{ep}_{conf}.onnx")
                 target_prp_path = os.path.join(prop_dir, f"{prpname[:-7]}_{idx}_{ep}_{conf}.vnnlib")
@@ -643,7 +643,7 @@ def setup_on_vnncomp_prop(nets, dataset, mean, std, confs, timeout, start_idx, e
             f.writelines(instance_lines)
 
 if __name__ == '__main__':
-    potential_datasets = [mnist_dataset, cifar10_dataset]
+    potential_datasets = [mnist_dataset, cifar10_dataset, cifar100_dataset]
     if len(sys.argv) > 1:
         config_file = sys.argv[1]
     else:
@@ -651,43 +651,36 @@ if __name__ == '__main__':
 
     with open(config_file, 'r') as file:
         config = yaml.safe_load(file)
-
+    
     is_test_data = config.get('is_test_data', None)
     dataset = config.get('dataset', None)
-    assert dataset in potential_datasets, "Invalid dataset"
     is_gans_input = config.get('is_gans_input', None)
     images_csv_file = config.get('images_csv_file', None)
-    image_shape = tuple(config.get('image_shape', None))
-    if is_gans_input:
-        set_images_labels_gan_with_oracle(images_csv_file, image_shape)
-    else:
-        set_images_labels(dataset, is_test_data)
-
+    image_shape = tuple(config.get('image_shape', [1,784,1]))
     mean = np.array(config.get('mean', None), dtype=np.float32)
     std = np.array(config.get('std', None), dtype=np.float32)
     net_dir = config.get('net_dir', None)
     nets = config.get('nets', None)
     confs = config.get('confs', None)
     timeout = config.get('timeout', None)
-    image_indexes_range = config.get('image_indexes_range', None)
+    image_indexes_range = config.get('image_indexes_range', [0,100])
     start_idx = image_indexes_range[0]
     end_idx = image_indexes_range[1]
     is_softmax = config.get('is_softmax',None)
     epsilons = config.get('epsilons', None)
     dataset_idxs_file = config.get('dataset_idxs_file', None)
     tolerance_param = config.get('tolerance_param', None)
-    
-
-    
     preprocessing_dir = config.get('preprocessing_dir', None)
     vnncomp_benchmarks_dir = config.get('vnncomp_benchmarks_dir', None)
-    print(nets, confs, timeout, image_indexes_range, is_softmax, epsilons)
-    # print(dataset_idxs_file, orig_net_dir)
-
     property_type = config.get('property', None)
     is_cnn = config.get('is_cnn', None)
-    
     log_dir = config.get('log_dir', None)
+    
+    assert dataset in potential_datasets, "Invalid dataset"
+    if is_gans_input:
+        set_images_labels_gan_with_oracle(images_csv_file, image_shape)
+    else:
+        set_images_labels(dataset, is_test_data)
 
     if property_type  == 'low_conf_cex':
         setup_on_vnncomp_prop(nets=nets, 
@@ -705,6 +698,15 @@ if __name__ == '__main__':
                                      preprocessing_dir=preprocessing_dir, 
                                      vnncomp_benchmarks_dir=vnncomp_benchmarks_dir,
                                      image_shape=image_shape, 
+                                     tolerance_param=tolerance_param
+                                    )
+    elif property_type == 'vnncomp':
+         setup_on_vnncomp_prop(dataset=dataset, 
+                                     confs=confs,
+                                     timeout=timeout,
+                                     epsilons=epsilons, 
+                                     preprocessing_dir=preprocessing_dir, 
+                                     vnncomp_benchmarks_dir=vnncomp_benchmarks_dir,
                                      tolerance_param=tolerance_param
                                     )
     else:
