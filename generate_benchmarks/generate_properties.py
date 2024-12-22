@@ -307,12 +307,15 @@ def save_vnnlib_from_vnncomp(vnncomp_spec_path, target_spec_path: str, conf, tot
             lines = file.readlines()
         
         output_constraints_start = None
+        remove_line = None
         for i, line in enumerate(lines):
+            if f"declare-const Y_{total_output_class} Real" in line:
+                remove_line = i                
             if "; Output constraints:" in line:
                 output_constraints_start = i
                 break
         
-        lines = lines[:output_constraints_start + 1] + output_constrnt_lines
+        lines = lines[:remove_line] + lines[remove_line+1:output_constraints_start + 1] + output_constrnt_lines
 
         with open(target_spec_path, 'w') as file:
             file.writelines(lines)
