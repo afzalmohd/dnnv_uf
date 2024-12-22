@@ -1,13 +1,19 @@
 import os
 import csv
 import sys
+cwd = os.getcwd()
+sys.path.append(f"{cwd}")
 import onnxruntime as ort
 import numpy as np
 import matplotlib.pyplot as plt
 from generate_benchmarks.simulate_network import get_mnist_test_data, get_mnist_train_data
 
+
+
 IMAGES = []
 LABELS = []
+
+RES_TABLE = {}
 
 top_k = 3
 
@@ -388,12 +394,30 @@ def print_ce(log_file, output_dir, is_conf_logs=True, is_top_k=False, is_gans = 
     plt.savefig(output_file)
 
 
+def res_count_conf(log_file):
+    with open(log_file, 'r') as f_log:
+        netname, im, conf, ep = get_net_im_conf_ep_1(log_file)
+        res = get_result(log_file)
+        tab1 = RES_TABLE.get(conf, {})
+        count = tab1.get(res, 0)
+        count += 1
+        tab1[res] = count
+        RES_TABLE[conf] = tab1
 
 
 
 
+def analyse_dir(log_dir):
+    file_list = os.listdir(log_dir)
+    count = 0
+    for filename in file_list:
+        log_file =  os.path.join(log_dir, filename)
+        if os.path.isfile(log_file) and not filename.startswith('res_') and not filename.startswith('script'):
+            res_count_conf(log_file)
+            count += 1
+            print(f"Processed file: {count}")
 
-
+    print(RES_TABLE)
 
 if __name__ == '__main__':
     is_test_dataset = True
@@ -402,7 +426,7 @@ if __name__ == '__main__':
         IMAGES, LABELS = get_mnist_test_data()
     IS_CONF_ANALYSIS = True
     if IS_CONF_ANALYSIS:
-        log_dir = '/home/u1411251/Documents/tools/result_dir/mod_prop/vnncomp/mnist/logs_mnist'
+        log_dir = '/home/ruhy/tools/result_dir/low_conf/mnist/logs_all'
     else:
         log_dir = '/home/u1411251/Documents/tools/result_dir/with_venky/logs_simple_selected_idx'
 
@@ -416,8 +440,9 @@ if __name__ == '__main__':
      
     if IS_CONF_ANALYSIS:
         # extract_dir_conf(log_dir, cex_dir, net_dir, is_print_ce=False)
-        extract_dir_confwise(log_dir, cex_dir, net_dir, is_print_ce=False)
+        # extract_dir_confwise(log_dir, cex_dir, net_dir, is_print_ce=False)
         # extract_dir_conf_gans(log_dir, cex_dir, net_dir, is_print_ce=True)
+        analyse_dir(log_dir)
     else:
         extract_dir_normal(log_dir, cex_dir, net_dir)
 
