@@ -294,6 +294,8 @@ def save_vnnlib_tf_1(lb, ub, label: int, spec_path: str, dataset = 'MNIST', tota
         f.write("))")
 
 def save_vnnlib_from_vnncomp(vnncomp_spec_path, target_spec_path: str, conf, total_output_class: int = 9, tolerance_param = -1e-3):
+    if tolerance_param > 0.0:
+        tolerance_param = -tolerance_param
     if conf == 0:
         shutil.copy2(vnncomp_spec_path, target_spec_path)
     else:
