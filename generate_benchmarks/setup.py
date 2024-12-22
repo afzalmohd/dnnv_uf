@@ -139,7 +139,7 @@ def is_exist_tuple(benchmarks_list, net, ep, im_idx):
     return False
 
 
-def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, start_idx, end_idx, is_softmax, orig_net_dir, epsilons, is_cnn, preprocessing_dir, image_shape, images_csv_file, log_dir):
+def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, start_idx, end_idx, is_softmax, orig_net_dir, epsilons, is_cnn, preprocessing_dir, image_shape, images_csv_file, log_dir, tolerance_param):
     confs_t = [c for c in confs if c != 0]
     confs = confs_t
     max_num_images = end_idx - start_idx
@@ -175,7 +175,7 @@ def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, start_id
             if not os.path.isdir(prop_dir1):
                 os.makedirs(prop_dir1)
             append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[conf], is_high_conf=False)
-            gen_props(prop_dir1, selected_images, selected_labels, selected_idxs, epsilons,conf=conf, mean=mean, std=std, dataset=dataset)
+            gen_props(prop_dir1, selected_images, selected_labels, selected_idxs, epsilons,conf=conf, mean=mean, std=std, dataset=dataset, tolerance_param=tolerance_param)
             gen_instances_file(net_dir, [net], prop_dir1, selected_idxs, [conf], epsilons, instances_file, timeout=timeout)
                 
             # high_confs_idx = high_confs_idx[:max_high_conf_images]
@@ -186,7 +186,7 @@ def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, start_id
             selected_images = IMAGES[high_confs_idx]
             selected_labels = LABELS[high_confs_idx]
             append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[conf], is_high_conf=True)
-            gen_props(prop_dir1, selected_images, selected_labels, selected_idxs, epsilons,conf=conf, mean=mean, std=std, dataset=dataset, is_standard_prop=True)
+            gen_props(prop_dir1, selected_images, selected_labels, selected_idxs, epsilons,conf=conf, mean=mean, std=std, dataset=dataset, is_standard_prop=True, tolerance_param=tolerance_param)
             gen_instances_file(net_dir, [net], prop_dir1, selected_idxs, [conf], epsilons, instances_file, timeout=timeout)
 
         low_plus_high_conf_images_idxs = list(set(low_plus_high_conf_images_idxs))
@@ -197,7 +197,7 @@ def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, start_id
         prop_dir_normal = os.path.join(prop_dir, 'standard')
         if not os.path.isdir(prop_dir_normal):
             os.makedirs(prop_dir_normal)
-        gen_props(prop_dir_normal, selected_images, selected_labels, low_plus_high_conf_images_idxs, epsilons, conf=0, is_standard_prop=True, mean=mean, std=std, dataset=dataset) 
+        gen_props(prop_dir_normal, selected_images, selected_labels, low_plus_high_conf_images_idxs, epsilons, conf=0, is_standard_prop=True, mean=mean, std=std, dataset=dataset, tolerance_param=tolerance_param) 
         gen_instances_file(net_dir, [net], prop_dir_normal, low_plus_high_conf_images_idxs, [0], epsilons, instances_file, timeout=timeout)
 
 def setup_modified_props_one_hop(nets, dataset, mean, std, confs, timeout, max_num_images, is_softmax, orig_net_dir, epsilons, is_cnn, preprocessing_dir, image_shape1, images_csv_file, log_dir):
@@ -652,42 +652,42 @@ if __name__ == '__main__':
     with open(config_file, 'r') as file:
         config = yaml.safe_load(file)
 
-    is_test_data = config['is_test_data']
-    dataset = config['dataset']
+    is_test_data = config.get('is_test_data', None)
+    dataset = config.get('dataset', None)
     assert dataset in potential_datasets, "Invalid dataset"
-    is_gans_input = config['is_gans_input']
-    images_csv_file = config['images_csv_file']
-    image_shape = tuple(config['image_shape'])
+    is_gans_input = config.get('is_gans_input', None)
+    images_csv_file = config.get('images_csv_file', None)
+    image_shape = tuple(config.get('image_shape', None))
     if is_gans_input:
         set_images_labels_gan_with_oracle(images_csv_file, image_shape)
     else:
         set_images_labels(dataset, is_test_data)
 
-    mean = np.array(config['mean'], dtype=np.float32)
-    std = np.array(config['std'], dtype=np.float32)
-    net_dir = config['net_dir']
-    nets = config['nets']
-    confs = config['confs']
-    timeout = config['timeout']
-    image_indexes_range = config['image_indexes_range']
+    mean = np.array(config.get('mean', None), dtype=np.float32)
+    std = np.array(config.get('std', None), dtype=np.float32)
+    net_dir = config.get('net_dir', None)
+    nets = config.get('nets', None)
+    confs = config.get('confs', None)
+    timeout = config.get('timeout', None)
+    image_indexes_range = config.get('image_indexes_range', None)
     start_idx = image_indexes_range[0]
     end_idx = image_indexes_range[1]
-    is_softmax = config['is_softmax']
-    epsilons = config['epsilons']
-    dataset_idxs_file = config['dataset_idxs_file']
-    tolerance_param = config['tolerance_param']
+    is_softmax = config.get('is_softmax',None)
+    epsilons = config.get('epsilons', None)
+    dataset_idxs_file = config.get('dataset_idxs_file', None)
+    tolerance_param = config.get('tolerance_param', None)
     
 
     
-    preprocessing_dir = config['preprocessing_dir']
-    vnncomp_benchmarks_dir = config['vnncomp_benchmarks_dir']
+    preprocessing_dir = config.get('preprocessing_dir', None)
+    vnncomp_benchmarks_dir = config.get('vnncomp_benchmarks_dir', None)
     print(nets, confs, timeout, image_indexes_range, is_softmax, epsilons)
     # print(dataset_idxs_file, orig_net_dir)
 
-    property_type = config['property']
-    is_cnn = config['is_cnn']
+    property_type = config.get('property', None)
+    is_cnn = config.get('is_cnn', None)
     
-    log_dir = config['log_dir']
+    log_dir = config.get('log_dir', None)
 
     if property_type  == 'low_conf_cex':
         setup_on_vnncomp_prop(nets=nets, 
@@ -723,7 +723,8 @@ if __name__ == '__main__':
                              preprocessing_dir=preprocessing_dir, 
                              image_shape=image_shape,
                              images_csv_file = images_csv_file,
-                             log_dir = log_dir
+                             log_dir = log_dir, 
+                             tolerance_param=tolerance_param
                              )
 
     # dataset_name = cifar10_dataset

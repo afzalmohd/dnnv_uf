@@ -45,6 +45,8 @@ def gen_props_specific(spec_dir):
     print(f"Total number of props: {counter}")
 
 def gen_props(spec_dir, selected_images, selected_labels, selected_idxs, eps,conf, is_standard_prop:bool = False, net_out_dims:int = 9, tolerance_param = -1e-3, dataset='MNIST', mean = np.array([0.0]), std = np.array([1.0])):
+    if tolerance_param > 0.0:
+        tolerance_param = -tolerance_param
     if conf == 0:
         is_standard_prop = True
     counter = 0
