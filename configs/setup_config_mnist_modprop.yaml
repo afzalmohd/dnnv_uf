@@ -8,7 +8,7 @@ net_dir: '/home/afzal/tools/networks/conf_final/mnist/vnncomp'
 nets: ['mnist-net_256x2.onnx', 'mnist-net_256x4.onnx', 'mnist-net_256x6.onnx']
 dataset_idxs_file: '/home/afzal/tools/networks/conf_final/mnist/selected_idxs_mnist.txt'
 images_csv_file: '/home/afzal/tools/my_scripts/gans/results/images_csv.csv'
-confs: [70]
+confs: [73]
 timeout: 3000
 image_indexes_range: [750, 1000]
 is_softmax: True
