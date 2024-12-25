@@ -80,7 +80,7 @@ def clean_directory(directory_path):
             except Exception as e:
                 print(f'Failed to delete {file_path}. Reason: {e}')
 
-def get_images_csv_gans(dataset_idxs_file, image_shape):
+def get_images_csv_gans(dataset_idxs_file, image_shape, start_idx, end_idx):
     with open(dataset_idxs_file, 'r') as f:
         selected_images, selected_labels, selected_indexes = [], [], []
         csv_readers = csv.reader(f, delimiter=',')
@@ -88,13 +88,14 @@ def get_images_csv_gans(dataset_idxs_file, image_shape):
         # fixed_idxs = [2,29,49,77,79,83,111,142,157,164,176]
         for row in csv_readers:
             # if idx in fixed_idxs:
-            label = int(row[0])
-            image = np.array(row[1:])
-            image = image.reshape(image_shape)
-            image = image.astype(np.float32)
-            selected_images.append(image)
-            selected_labels.append(label)
-            selected_indexes.append(idx)
+            if idx >= start_idx and idx < end_idx:
+                label = int(row[0])
+                image = np.array(row[1:])
+                image = image.reshape(image_shape)
+                image = image.astype(np.float32)
+                selected_images.append(image)
+                selected_labels.append(label)
+                selected_indexes.append(idx)
             idx += 1
 
     return selected_images, selected_labels, selected_indexes
@@ -156,7 +157,7 @@ def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, start_id
         os.remove(instances_file)
     create_empty_dirs(net_dir, prop_dir)
 
-    g_images, g_labels, g_indexes = get_images_csv_gans(images_csv_file, image_shape)
+    g_images, g_labels, g_indexes = get_images_csv_gans(images_csv_file, image_shape, start_idx=start_idx, end_idx=end_idx)
     g_images = np.array(g_images)
     g_labels = np.array(g_labels)
 
@@ -710,6 +711,9 @@ if __name__ == '__main__':
                                      tolerance_param=tolerance_param
                                     )
     else:
+        if not is_gans_input:
+            print(f"Please enable the Gans input in config file: {config_file}")
+            exit(0)
         setup_modified_props_gans(nets=nets, 
                              dataset=dataset, 
                              mean=mean,
