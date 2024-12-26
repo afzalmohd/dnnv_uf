@@ -40,9 +40,12 @@ def is_output_layer_activation_fn(model_path):
         return False
 
 def get_delta(conf):
-    val = (100.0/conf) - 1
-    ln = math.log(val, math.e)
-    return -ln
+    # val = (100.0/conf) - 1
+    # ln = math.log(val, math.e)
+    # return -ln
+    delta = -math.log((100/conf) - 1)
+    # delta = round(delta, 5)
+    return delta
 
 
 def layers_index_reduce(model):

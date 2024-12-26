@@ -16,7 +16,7 @@ from simulate_network import get_mnist_test_data
 from simulate_network import get_mnist_train_data
 from simulate_network import run_network_mnist_test
 from simulate_network import select_images_top_k
-from simulate_network import get_selected_images_gans
+from simulate_network import get_selected_images_gans, get_selected_images_gans_with_delta_th
 from simulate_network import get_cifar10_test_data
 from simulate_network import get_cifar10_train_data
 from simulate_network import run_network_cifar10
@@ -164,14 +164,16 @@ def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, start_id
     for net in nets:
         low_plus_high_conf_images_idxs = []
         for conf in confs:
-            lb_conf = get_lb_conf(conf)
-            high_confs_idx, low_confs_idx= get_selected_images_gans(os.path.join(orig_net_dir, net), g_images, g_indexes, lb_conf, image_shape=image_shape)
-            # low_confs_idx = low_confs_idx[:max_low_conf_images]
+            # lb_conf = get_lb_conf(conf)
+            delta_th = -math.log((100/conf) - 1)
+            delta_th = round(delta_th, 3)
+            # high_confs_idx, low_confs_idx= get_selected_images_gans(os.path.join(orig_net_dir, net), g_images, g_indexes, lb_conf, image_shape=image_shape)
+            high_confs_idx, low_confs_idx= get_selected_images_gans_with_delta_th(os.path.join(orig_net_dir, net), g_images, g_indexes, delta_th, image_shape=image_shape)
             selected_idxs = low_confs_idx
             low_plus_high_conf_images_idxs += selected_idxs
             selected_images = IMAGES[selected_idxs]
             selected_labels = LABELS[selected_idxs]
-            print(f"net: {net},conf:{conf},low conf images: {len(selected_idxs)}")
+            print(f"net: {net},conf:{conf},delta:{delta_th},low conf images: {len(selected_idxs)}")
             prop_dir1 = os.path.join(prop_dir, net[:-5])
             if not os.path.isdir(prop_dir1):
                 os.makedirs(prop_dir1)
@@ -180,7 +182,7 @@ def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, start_id
             gen_instances_file(net_dir, [net], prop_dir1, selected_idxs, [conf], epsilons, instances_file, timeout=timeout)
                 
             # high_confs_idx = high_confs_idx[:max_high_conf_images]
-            print(f"net: {net},conf:{conf},high conf images: {len(high_confs_idx)}")
+            print(f"net: {net},conf:{conf},delta:{delta_th},high conf images: {len(high_confs_idx)}")
             low_plus_high_conf_images_idxs += high_confs_idx
             # print(high_conf_idx)
             selected_idxs = high_confs_idx
@@ -643,7 +645,18 @@ def setup_on_vnncomp_prop(dataset, confs, timeout, epsilons, preprocessing_dir, 
         with open(instances_file, 'w') as f:
             f.writelines(instance_lines)
 
+def conf_delta():
+    confs = [70,73]
+    for conf in confs:
+        delta = -math.log((100/conf) - 1)
+        delta = round(delta, 2)
+        conf1 = 100/(1+math.exp(-delta))
+        print(conf, delta, conf1)
+
+
 if __name__ == '__main__':
+    # conf_delta()
+    # exit(0)
     potential_datasets = [mnist_dataset, cifar10_dataset, cifar100_dataset]
     if len(sys.argv) > 1:
         config_file = sys.argv[1]

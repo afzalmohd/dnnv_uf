@@ -1,6 +1,8 @@
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
+import math
+
 
 # Load CIFAR-100 dataset
 (x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar100.load_data()

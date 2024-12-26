@@ -370,6 +370,40 @@ def get_selected_images_gans(net_path, images, idxes, conf_th, is_normalized = T
 
     return high_conf_indexes, low_conf_indexes
 
+def get_selected_images_gans_with_delta_th(net_path, images, idxes, delta_th, is_normalized = True, image_shape=(1,784,1)):
+    session = ort.InferenceSession(net_path)
+    input_name = session.get_inputs()[0].name
+    low_conf_indexes = []
+    high_conf_indexes = []
+    for i in range(len(images)):
+        image = images[i]
+        test_input = image.reshape(image_shape)
+        # print(test_input.shape)
+        if not is_normalized:
+            test_input /= 255
+        # test_input = test_input.astype(np.float32)
+        output = session.run(None, {input_name: test_input})
+        output = output[0][0]
+        
+        max_value = np.max(output)
+        max_count = np.sum(output == max_value)
+        if max_count > 1:
+            second_max = max_value  # Second max is the same as max
+            gap = 0
+        else:
+            masked_arr = output[output != max_value]
+            second_max = np.max(masked_arr) if masked_arr.size > 0 else None
+            gap = (max_value - second_max) if second_max is not None else None
+            
+        assert gap != None, "Something wrong in images filteration with delta threshold"
+       
+        if gap >= delta_th:
+            high_conf_indexes.append(idxes[i])
+        else:
+            low_conf_indexes.append(idxes[i])
+
+    return high_conf_indexes, low_conf_indexes
+
 
 
 def extract_w_b(model_path):
