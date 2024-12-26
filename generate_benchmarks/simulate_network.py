@@ -370,6 +370,28 @@ def get_selected_images_gans(net_path, images, idxes, conf_th, is_normalized = T
 
     return high_conf_indexes, low_conf_indexes
 
+def get_max_smax(arr):
+    max_value = np.max(arr)
+    max_indices = np.where(arr == max_value)[0]
+
+    # Count occurrences of the maximum value
+    max_count = len(max_indices)
+
+    if max_count > 1:
+        second_max = max_value  # Second max is the same as max
+        second_max_indices = max_indices
+    else:
+        # Mask array to exclude the maximum value
+        masked_arr = arr[arr != max_value]
+        if masked_arr.size > 0:
+            second_max = np.max(masked_arr)
+            second_max_indices = np.where(arr == second_max)[0]
+        else:
+            second_max = None
+            second_max_indices = None
+    
+    return max_value, max_indices, second_max, second_max_indices
+
 def get_selected_images_gans_with_delta_th(net_path, images, idxes, delta_th, is_normalized = True, image_shape=(1,784,1)):
     session = ort.InferenceSession(net_path)
     input_name = session.get_inputs()[0].name
@@ -384,17 +406,8 @@ def get_selected_images_gans_with_delta_th(net_path, images, idxes, delta_th, is
         # test_input = test_input.astype(np.float32)
         output = session.run(None, {input_name: test_input})
         output = output[0][0]
-        
-        max_value = np.max(output)
-        max_count = np.sum(output == max_value)
-        if max_count > 1:
-            second_max = max_value  # Second max is the same as max
-            gap = 0
-        else:
-            masked_arr = output[output != max_value]
-            second_max = np.max(masked_arr) if masked_arr.size > 0 else None
-            gap = (max_value - second_max) if second_max is not None else None
-            
+        max_value, _,  second_max, _ = get_max_smax(output)
+        gap = (max_value - second_max) if second_max is not None else None
         assert gap != None, "Something wrong in images filteration with delta threshold"
        
         if gap >= delta_th:

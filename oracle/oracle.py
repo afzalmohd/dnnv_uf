@@ -6,12 +6,13 @@ import yaml
 import matplotlib.pyplot as plt
 from collections import Counter
 import csv
+import math
 # import pandas as pd
 cwd = os.getcwd()
 sys.path.append(f"{cwd}")
 
 from extract_logs.logs_extract_abcrown import extract_ce, get_result, get_net_im_conf_ep_1, run_network, top_k_pred
-from generate_benchmarks.simulate_network import get_mnist_test_data, get_mnist_train_data, get_cifar10_test_data, get_cifar10_train_data, softmax
+from generate_benchmarks.simulate_network import get_mnist_test_data, get_mnist_train_data, get_cifar10_test_data, get_cifar10_train_data, softmax, get_max_smax
 
 mnist_dataset = 'MNIST'
 cifar10_dataset = 'CIFAR10'
@@ -123,16 +124,20 @@ def get_oracle_output_for_logs(im:np.ndarray, net_dir, nets):
     
     return ret_str   
 
-def get_im_label(cex, net_path, top_k = 3):
+def get_im_label(im, net_path, top_k = 3):
     # print(f"netpath: {net_path}")
-    cex = cex.reshape(1,784,1)
+    im = im.reshape(1,784,1)
     session = ort.InferenceSession(net_path)
     input_name = session.get_inputs()[0].name
-    output = session.run(None, {input_name: cex})
+    output = session.run(None, {input_name: im})
+    output = output[0][0]
     # pred = np.argmax(output[0][0])
-    softmax_output = softmax(output[0][0])
+    max_val, max_ind, smax_val, smax_val_ind = get_max_smax(output)
+    min_val = np.min(output)
+    min_ind = np.where(output == min_val)[0]
+    softmax_output = softmax(output)
     top_indeces, top_confidences = top_k_pred(softmax_output, top_k)
-    return top_indeces, top_confidences
+    return top_indeces, top_confidences, max_val, max_ind, smax_val, smax_val_ind, min_val, min_ind
 
 def is_fp(cex_label, cex: np.ndarray):
     oracle_output = get_oracle_output(cex, oracle_net_dir, orcale_nets)
@@ -381,9 +386,15 @@ def update_data():
     im = non_zero_dict['im']
     ep = non_zero_dict['ep']
     conf = non_zero_dict['conf']
+    delta_th = -math.log((100/conf) - 1)
+    delta_th = round(delta_th, 2)
     row_non_zero = [os.path.basename(non_zero_dict['logfile']), netname, im, ep, conf, -1, LABELS[im], non_zero_dict['net_label_orig'], non_zero_dict['net_conf_orig'], non_zero_dict['res'], non_zero_dict.get('cex_label', None),
                     non_zero_dict.get('cex_conf', None), non_zero_dict.get('res1', None), non_zero_dict.get('fn_against', None), 
-                    non_zero_dict['orig_im_oo'], non_zero_dict['orig_im_oo_log'],  non_zero_dict.get('cex_im_oo', None),  non_zero_dict.get('cex_im_oo_log', None)]
+                    non_zero_dict['orig_im_oo'], non_zero_dict['orig_im_oo_log'],  non_zero_dict.get('cex_im_oo', None),  non_zero_dict.get('cex_im_oo_log', None), 
+                    delta_th, non_zero_dict['orig_max_ind'], non_zero_dict['orig_smax_ind'], non_zero_dict['orig_min_ind'], 
+                    non_zero_dict['orig_max_val'], non_zero_dict['orig_smax_val'], non_zero_dict['orig_min_val'], 
+                    non_zero_dict.get('cex_max_ind', None), non_zero_dict.get('cex_smax_ind', None), non_zero_dict.get('cex_min_ind', None), 
+                    non_zero_dict.get('cex_max_val', None), non_zero_dict.get('cex_smax_val', None), non_zero_dict.get('cex_min_val', None)]
     
     write_to_csv_file(row_non_zero)
     up_res = non_zero_dict.get('res1', 'timeout')
@@ -391,7 +402,11 @@ def update_data():
               
     row_zero =  [os.path.basename(non_zero_dict['logfile']), netname, im, ep, 0, conf, LABELS[im], non_zero_dict['net_label_orig'], non_zero_dict['net_conf_orig'], zero_dict['res'], zero_dict.get('cex_label', None),
                     zero_dict.get('cex_conf', None), zero_dict.get('res1', None), None, 
-                    non_zero_dict['orig_im_oo'], non_zero_dict['orig_im_oo_log'],  zero_dict.get('cex_im_oo', None), zero_dict.get('cex_im_oo_log', None)]   
+                    non_zero_dict['orig_im_oo'], non_zero_dict['orig_im_oo_log'],  zero_dict.get('cex_im_oo', None), zero_dict.get('cex_im_oo_log', None), 
+                    delta_th, non_zero_dict['orig_max_ind'], non_zero_dict['orig_smax_ind'], non_zero_dict['orig_min_ind'], 
+                    non_zero_dict['orig_max_val'], non_zero_dict['orig_smax_val'], non_zero_dict['orig_min_val'], 
+                    zero_dict.get('cex_max_ind', None), zero_dict.get('cex_smax_ind', None), zero_dict.get('cex_min_ind', None), 
+                    zero_dict.get('cex_max_val', None), zero_dict.get('cex_smax_val', None), zero_dict.get('cex_min_val', None)]   
     
     write_to_csv_file(row_zero)
     up_res = zero_dict.get('res1', 'timeout')
@@ -417,11 +432,17 @@ def analyse_zero_conf_log_file():
         zero_dict['cex_im_oo'] = cex_im_oo
         zero_dict['cex_im_oo_log'] = cex_im_oo_log
         net_path = os.path.join(orig_net_dir, netname)
-        cex_indeces_top, cex_conf_top = get_im_label(cex, net_path, top_k=3)
+        cex_indeces_top, cex_conf_top, max_val, max_ind, smax_val, smax_ind, min_val, min_ind = get_im_label(cex, net_path, top_k=3)
         zero_dict['cex_indeces_top'] = cex_indeces_top
         zero_dict['cex_conf_top'] = cex_conf_top
         zero_dict['cex_label'] = cex_indeces_top[0]
         zero_dict['cex_conf'] =  round(cex_conf_top[0] * 100, 2)
+        zero_dict['cex_max_val'] = max_val
+        zero_dict['cex_max_ind'] = max_ind
+        zero_dict['cex_smax_val'] = smax_val
+        zero_dict['cex_smax_ind'] = smax_ind
+        zero_dict['cex_min_val'] = min_val
+        zero_dict['cex_min_ind'] = min_ind
         if  zero_dict['cex_label'] in cex_im_oo:
             zero_dict['res1'] = 'fp'
         else:
@@ -456,11 +477,17 @@ def analyse_log_file_count(log_file):
     netname, im, conf, ep = get_net_im_conf_ep_1(log_file)
     if conf != 0.0:
         net_path = os.path.join(orig_net_dir, netname)
-        orig_indeces_top, orig_conf_top = get_im_label(IMAGES[im], net_path, top_k=3)
+        orig_indeces_top, orig_conf_top, max_val, max_ind, smax_val, smax_ind, min_val, min_ind = get_im_label(IMAGES[im], net_path, top_k=3)
         non_zero_dict['orig_indeces_top'] = orig_indeces_top
         non_zero_dict['orig_conf_top'] = orig_conf_top
         non_zero_dict['net_label_orig'] = orig_indeces_top[0]
         non_zero_dict['net_conf_orig'] =  round(orig_conf_top[0] * 100, 2)
+        non_zero_dict['orig_max_val'] = max_val
+        non_zero_dict['orig_max_ind'] = max_ind
+        non_zero_dict['orig_smax_val'] = smax_val
+        non_zero_dict['orig_smax_ind'] = smax_ind
+        non_zero_dict['orig_min_val'] = min_val
+        non_zero_dict['orig_min_ind'] = min_ind
         res = get_result(log_file)
         non_zero_dict['logfile'] = log_file
         non_zero_dict['res'] = res
@@ -477,119 +504,29 @@ def analyse_log_file_count(log_file):
             non_zero_dict['cex'] = cex
             non_zero_dict['cex_im_oo'] = cex_im_oo
             non_zero_dict['cex_im_oo_log'] = cex_im_oo_log
-            cex_indeces_top, cex_conf_top = get_im_label(cex, net_path, top_k=3)
+            cex_indeces_top, cex_conf_top, max_val, max_ind, smax_val, smax_ind, min_val, min_ind = get_im_label(cex, net_path, top_k=3)
             non_zero_dict['cex_indeces_top'] = cex_indeces_top
             non_zero_dict['cex_conf_top'] = cex_conf_top
             non_zero_dict['cex_label'] = cex_indeces_top[0]
             non_zero_dict['cex_conf'] = round(cex_conf_top[0] * 100, 2) 
+            non_zero_dict['cex_max_val'] = max_val
+            non_zero_dict['cex_max_ind'] = max_ind
+            non_zero_dict['cex_smax_val'] = smax_val
+            non_zero_dict['cex_smax_ind'] = smax_ind
+            non_zero_dict['cex_min_val'] = min_val
+            non_zero_dict['cex_min_ind'] = min_ind
             if non_zero_dict['cex_label'] in cex_im_oo:
                 non_zero_dict['res1'] = 'fp'
             else:
                 non_zero_dict['res1'] = 'tp'
         
         analyse_zero_conf_log_file()
-                      
-            
-        
-        
-        
-        
-        
-        # if res == 'sat':
-        #     is_fp = is_fp_log(im, log_file, netname)
-        #     if is_fp: 
-        #         res1 = 'fp'
-        #         fp_conf.append(os.path.basename(log_file))
-        #     else:
-        #         res1 = 'tp'
-        #     update_res_table(conf, False, res1)
-        #     dump_images(log_file, res1, net_dir)
-        #     dump_to_csv_file(log_file, res, res1)
-            
-        #     log_file_0_conf = get_zero_conf_log_file(netname, ep, im)
-        #     res_0 = get_result(log_file_0_conf)
-        #     if res_0 == 'sat':
-        #         is_fp1 = is_fp_log(im, log_file_0_conf, netname)
-        #         if is_fp1:
-        #             res1 = 'fp'
-        #             fp_zero.append(os.path.basename(log_file))
-        #         else:
-        #             res1 = 'tp'
-
-        #         update_res_table(conf, True, res1)
-        #         dump_images(log_file_0_conf, res1, net_dir)
-        #         dump_to_csv_file(log_file_0_conf, res_0, res1, conf1=conf)
-        #     elif res_0 == 'unsat':
-        #         print(f"Something wrong......{log_file_0_conf}...............")
-        #     else:
-        #         update_res_table(conf, True, 'timeout')
-        #         dump_to_csv_file(log_file_0_conf, res_0, None, conf1=conf)
-
-
-        # elif res == 'unsat':
-        #     log_file_0_conf = get_zero_conf_log_file(netname, ep, im)
-        #     res_0 = get_result(log_file_0_conf)
-        #     if res_0 == 'sat':
-        #         is_fp = is_fp_log(im, log_file_0_conf, netname)
-        #         if is_fp:
-        #             update_res_table(conf, False, 'tn')
-        #             dump_images(log_file, 'tn', net_dir)
-        #             dump_to_csv_file(log_file, res, 'tn', log_file_0_conf)
-
-        #             update_res_table(conf, True, 'fp')
-        #             dump_images(log_file_0_conf, 'fp', net_dir)
-        #             fp_zero.append(os.path.basename(log_file))
-        #             dump_to_csv_file(log_file_0_conf, res_0, 'fp', conf1=conf)
-        #         else:
-        #             update_res_table(conf, False, 'fn')
-        #             dump_images(log_file, 'fn', net_dir)
-        #             dump_to_csv_file(log_file, res, 'fn', log_file_0_conf)
-
-        #             update_res_table(conf, True, 'tp')
-        #             dump_images(log_file_0_conf, 'tp', net_dir)
-        #             dump_to_csv_file(log_file_0_conf, res_0, 'tp', conf1=conf)
-                    
-        #     elif res_0 == 'unsat':
-        #         update_res_table(conf, False, 'tn')
-        #         dump_to_csv_file(log_file, res, 'tn')
-
-        #         update_res_table(conf, True, 'tn')
-        #         dump_to_csv_file(log_file_0_conf, res_0, 'tn', conf1=conf)
-        #     else:
-        #         update_res_table(conf, False, 'tn')
-        #         dump_to_csv_file(log_file, res, 'tn')
-
-        #         update_res_table(conf, True, 'timeout')
-        #         dump_to_csv_file(log_file_0_conf, res_0, None, conf1=conf)
-
-        # else:
-        #     update_res_table(conf, False, 'timeout')
-        #     dump_to_csv_file(log_file, res, None)
-        #     log_file_0_conf = get_zero_conf_log_file(netname, ep, im)
-        #     res_0 = get_result(log_file_0_conf)
-        #     if res_0 == 'sat':
-        #         is_fp = is_fp_log(im, log_file_0_conf, netname)
-        #         if is_fp:
-        #             update_res_table(conf, True, 'fp')
-        #             dump_images(log_file_0_conf, 'fp', net_dir)
-        #             fp_zero.append(os.path.basename(log_file))
-        #             dump_to_csv_file(log_file_0_conf, res_0, 'fp', conf1=conf)
-        #         else:
-        #             update_res_table(conf, True, 'tp')
-        #             dump_images(log_file_0_conf, 'tp', net_dir)
-        #             dump_to_csv_file(log_file_0_conf, res_0, 'tp', conf1=conf)
-                    
-        #     elif res_0 == 'unsat':
-        #         update_res_table(conf, True, 'tn')
-        #         dump_to_csv_file(log_file_0_conf, res_0, 'tn', conf1=conf)
-        #     else:
-        #         update_res_table(conf, True, 'timeout')
-        #         dump_to_csv_file(log_file_0_conf, res_0, None, conf1=conf)
 
 
 def analyse_dir():
     res_csv_header = ['logfile_name', 'netname', 'image_index', 'epsilon', 'user_conf', 'user_conf1', 'orig_label', 'net_label', 'net_conf', 'result', 'cex_label_net', 'cex_conf_net', 
-                      'result1', 'against', 'orig_im_oracle', 'orig_im_oracle_log', 'cex_im_oracle', 'cex_im_oracle_log']
+                      'result1', 'against', 'orig_im_oracle', 'orig_im_oracle_log', 'cex_im_oracle', 'cex_im_oracle_log', 'delta_th', 'orig_max_ind',  'orig_smax_ind', 'orig_min_ind',
+                      'orig_max_val', 'orig_smax_val', 'orig_min_val', 'cex_max_ind',  'cex_smax_ind', 'cex_min_ind', 'cex_max_val', 'cex_smax_val', 'cex_min_val']
     global non_zero_dict, zero_dict
     write_to_csv_file(res_csv_header)
     file_list = os.listdir(log_dir)

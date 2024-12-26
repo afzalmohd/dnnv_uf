@@ -6,7 +6,7 @@ from PIL import Image
 import csv
 import numpy as np
 import math
-from modify_onnx import append_layers
+from modify_onnx import append_layers, get_delta
 from modify_onnx import append_layers_vnncomp_prop
 from generate_properties import gen_props
 from generate_instance_file import gen_instances_file
@@ -165,8 +165,7 @@ def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, start_id
         low_plus_high_conf_images_idxs = []
         for conf in confs:
             # lb_conf = get_lb_conf(conf)
-            delta_th = -math.log((100/conf) - 1)
-            delta_th = round(delta_th, 3)
+            delta_th = get_delta(conf=conf)
             # high_confs_idx, low_confs_idx= get_selected_images_gans(os.path.join(orig_net_dir, net), g_images, g_indexes, lb_conf, image_shape=image_shape)
             high_confs_idx, low_confs_idx= get_selected_images_gans_with_delta_th(os.path.join(orig_net_dir, net), g_images, g_indexes, delta_th, image_shape=image_shape)
             selected_idxs = low_confs_idx
