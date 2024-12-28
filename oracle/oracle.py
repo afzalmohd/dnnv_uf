@@ -133,8 +133,8 @@ def get_im_label(im, net_path, top_k = 3):
     output = output[0][0]
     # pred = np.argmax(output[0][0])
     max_val, max_ind, smax_val, smax_val_ind = get_max_smax(output)
-    min_val = np.min(output)
-    min_ind = np.where(output == min_val)[0]
+    min_val = float(np.min(output))
+    min_ind = np.where(output == min_val)[0].astype(int)[0]
     softmax_output = softmax(output)
     top_indeces, top_confidences = top_k_pred(softmax_output, top_k)
     return top_indeces, top_confidences, max_val, max_ind, smax_val, smax_val_ind, min_val, min_ind
@@ -309,9 +309,39 @@ def dump_to_csv_file(log_file, res, res1, log_file1=None, conf1=-1):
     
     write_to_csv_file(csv_row)     
 
+def get_delta(conf):
+    # val = (100.0/conf) - 1
+    # ln = math.log(val, math.e)
+    # return -ln
+    delta = -math.log((100/conf) - 1)
+    # delta = round(delta, 5)
+    return delta
+
+def is_satisfied_delta_threshold(delta_th, data_dict, is_cex):
+    if is_cex:
+        y_max = data_dict['cex_max_val']
+        y_smax = data_dict['cex_smax_val']
+    else:
+        y_max = data_dict['orig_max_val']
+        y_smax = data_dict['orig_smax_val']
+    
+    return (y_max - y_smax) >= delta_th
+
 def print_image_general(dump_file, is_zero, top_k = 3):
+    vals_round_digit = 4
     orig_indeces_top = non_zero_dict['orig_indeces_top']
-    orig_conf_top = non_zero_dict['orig_conf_top']
+    # print(type(non_zero_dict['orig_conf_top'][0]))
+    orig_conf = non_zero_dict['net_conf_orig']
+    delta_th = get_delta(non_zero_dict['conf'])
+    delta_th = round(delta_th, 2)
+    orig_max_ind = non_zero_dict['orig_max_ind']
+    orig_max_val = round(non_zero_dict['orig_max_val'], vals_round_digit)
+    orig_smax_ind = non_zero_dict['orig_smax_ind']
+    orig_smax_val = round(non_zero_dict['orig_smax_val'], vals_round_digit)
+    orig_min_ind = non_zero_dict['orig_min_ind']
+    orig_min_val = round(non_zero_dict['orig_min_val'], vals_round_digit)
+         
+
     orig_image = IMAGES[non_zero_dict['im']]
     orig_image = orig_image.reshape(28, 28)
     if is_zero:
@@ -321,7 +351,14 @@ def print_image_general(dump_file, is_zero, top_k = 3):
             return
         cex = cex.reshape(28,28)
         cex_indeces_top = zero_dict['cex_indeces_top']
-        cex_conf_top = zero_dict['cex_conf_top']
+        cex_conf = zero_dict['cex_conf']
+        is_satisfied_delta_cex = is_satisfied_delta_threshold(delta_th, zero_dict, True)
+        cex_max_ind = zero_dict['cex_max_ind']
+        cex_max_val = round(zero_dict['cex_max_val'], vals_round_digit)
+        cex_smax_ind = zero_dict['cex_smax_ind']
+        cex_smax_val = round(zero_dict['cex_smax_val'], vals_round_digit)
+        cex_min_ind = zero_dict['cex_min_ind']
+        cex_min_val = round(zero_dict['cex_min_val'], vals_round_digit)
     else:
         cex = non_zero_dict.get('cex', None)
         if cex is None:
@@ -329,12 +366,21 @@ def print_image_general(dump_file, is_zero, top_k = 3):
             return
         cex = cex.reshape(28,28)
         cex_indeces_top = non_zero_dict['cex_indeces_top']
-        cex_conf_top = non_zero_dict['cex_conf_top']  
+        cex_conf = cex_conf = non_zero_dict['cex_conf'] 
+        is_satisfied_delta_cex = is_satisfied_delta_threshold(delta_th, non_zero_dict, True)
+        cex_max_ind = non_zero_dict['cex_max_ind']
+        cex_max_val = round(non_zero_dict['cex_max_val'], vals_round_digit)
+        cex_smax_ind = non_zero_dict['cex_smax_ind']
+        cex_smax_val = round(non_zero_dict['cex_smax_val'], vals_round_digit)
+        cex_min_ind = non_zero_dict['cex_min_ind']
+        cex_min_val = round(non_zero_dict['cex_min_val'], vals_round_digit)
          
     fig, axes = plt.subplots(1, 3, figsize=(6, 6))
     titled_str = ""
-    for i in range(top_k):
-        titled_str += f"{orig_indeces_top[i]},{orig_conf_top[i] * 100:.2f}\n"
+    titled_str += f"{orig_conf},{delta_th},{is_satisfied_delta_threshold(delta_th, non_zero_dict, False)}\n"
+    titled_str += f"max,{orig_max_ind},{orig_max_val}\n"
+    titled_str += f"smax,{orig_smax_ind},{orig_smax_val}\n"
+    titled_str += f"min,{orig_min_ind},{orig_min_val}\n"
     axes[0].imshow(orig_image, cmap='gray_r')
     axes[0].set_title(titled_str)
     axes[0].axis('off')
@@ -346,8 +392,10 @@ def print_image_general(dump_file, is_zero, top_k = 3):
     axes[1].axis('off')
 
     titled_str = ""
-    for i in range(top_k):
-        titled_str += f"{cex_indeces_top[i]},{cex_conf_top[i] * 100:.2f}\n"
+    titled_str += f"{cex_conf},{delta_th},{is_satisfied_delta_cex}\n"
+    titled_str += f"max,{cex_max_ind},{cex_max_val}\n"
+    titled_str += f"smax,{cex_smax_ind},{cex_smax_val}\n"
+    titled_str += f"min,{cex_min_ind},{cex_min_val}\n"
     axes[2].imshow(cex, cmap='gray_r')
     axes[2].set_title(titled_str)
     axes[2].axis('off')
@@ -386,7 +434,7 @@ def update_data():
     im = non_zero_dict['im']
     ep = non_zero_dict['ep']
     conf = non_zero_dict['conf']
-    delta_th = -math.log((100/conf) - 1)
+    delta_th = get_delta(conf)
     delta_th = round(delta_th, 2)
     row_non_zero = [os.path.basename(non_zero_dict['logfile']), netname, im, ep, conf, -1, LABELS[im], non_zero_dict['net_label_orig'], non_zero_dict['net_conf_orig'], non_zero_dict['res'], non_zero_dict.get('cex_label', None),
                     non_zero_dict.get('cex_conf', None), non_zero_dict.get('res1', None), non_zero_dict.get('fn_against', None), 
@@ -436,7 +484,7 @@ def analyse_zero_conf_log_file():
         zero_dict['cex_indeces_top'] = cex_indeces_top
         zero_dict['cex_conf_top'] = cex_conf_top
         zero_dict['cex_label'] = cex_indeces_top[0]
-        zero_dict['cex_conf'] =  round(cex_conf_top[0] * 100, 2)
+        zero_dict['cex_conf'] =  round(float(cex_conf_top[0]) * 100, 2)
         zero_dict['cex_max_val'] = max_val
         zero_dict['cex_max_ind'] = max_ind
         zero_dict['cex_smax_val'] = smax_val
@@ -481,7 +529,7 @@ def analyse_log_file_count(log_file):
         non_zero_dict['orig_indeces_top'] = orig_indeces_top
         non_zero_dict['orig_conf_top'] = orig_conf_top
         non_zero_dict['net_label_orig'] = orig_indeces_top[0]
-        non_zero_dict['net_conf_orig'] =  round(orig_conf_top[0] * 100, 2)
+        non_zero_dict['net_conf_orig'] =  round(float(orig_conf_top[0]) * 100, 2)
         non_zero_dict['orig_max_val'] = max_val
         non_zero_dict['orig_max_ind'] = max_ind
         non_zero_dict['orig_smax_val'] = smax_val
@@ -508,7 +556,7 @@ def analyse_log_file_count(log_file):
             non_zero_dict['cex_indeces_top'] = cex_indeces_top
             non_zero_dict['cex_conf_top'] = cex_conf_top
             non_zero_dict['cex_label'] = cex_indeces_top[0]
-            non_zero_dict['cex_conf'] = round(cex_conf_top[0] * 100, 2) 
+            non_zero_dict['cex_conf'] = round(float(cex_conf_top[0]) * 100, 2)
             non_zero_dict['cex_max_val'] = max_val
             non_zero_dict['cex_max_ind'] = max_ind
             non_zero_dict['cex_smax_val'] = smax_val

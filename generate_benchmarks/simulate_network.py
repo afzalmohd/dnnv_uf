@@ -371,8 +371,8 @@ def get_selected_images_gans(net_path, images, idxes, conf_th, is_normalized = T
     return high_conf_indexes, low_conf_indexes
 
 def get_max_smax(arr):
-    max_value = np.max(arr)
-    max_indices = np.where(arr == max_value)[0]
+    max_value = float(np.max(arr))
+    max_indices = np.where(arr == max_value)[0].astype(int)
 
     # Count occurrences of the maximum value
     max_count = len(max_indices)
@@ -384,13 +384,13 @@ def get_max_smax(arr):
         # Mask array to exclude the maximum value
         masked_arr = arr[arr != max_value]
         if masked_arr.size > 0:
-            second_max = np.max(masked_arr)
-            second_max_indices = np.where(arr == second_max)[0]
+            second_max = float(np.max(masked_arr))
+            second_max_indices = np.where(arr == second_max)[0].astype(int)
         else:
             second_max = None
             second_max_indices = None
-    
-    return max_value, max_indices, second_max, second_max_indices
+    # print(type(max_value), type(max_indices), type(second_max), type(second_max_indices))
+    return max_value, max_indices[0], second_max, second_max_indices[0]
 
 def get_selected_images_gans_with_delta_th(net_path, images, idxes, delta_th, is_normalized = True, image_shape=(1,784,1)):
     session = ort.InferenceSession(net_path)
