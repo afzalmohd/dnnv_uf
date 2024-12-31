@@ -139,6 +139,10 @@ def is_exist_tuple(benchmarks_list, net, ep, im_idx):
         
     return False
 
+def get_delta(conf):
+    delta_th = -math.log((100/conf) - 1)
+    delta_th = round(delta_th, 3)
+    return delta_th
 
 def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, start_idx, end_idx, is_softmax, orig_net_dir, epsilons, is_cnn, preprocessing_dir, image_shape, images_csv_file, log_dir, tolerance_param):
     confs_t = [c for c in confs if c != 0]
@@ -165,7 +169,11 @@ def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, start_id
         low_plus_high_conf_images_idxs = []
         for conf in confs:
             # lb_conf = get_lb_conf(conf)
+<<<<<<< HEAD
+            delta_th = get_delta(conf)
+=======
             delta_th = get_delta(conf=conf)
+>>>>>>> 291e930ee7def9855db5df6f692548bacc185419
             # high_confs_idx, low_confs_idx= get_selected_images_gans(os.path.join(orig_net_dir, net), g_images, g_indexes, lb_conf, image_shape=image_shape)
             high_confs_idx, low_confs_idx= get_selected_images_gans_with_delta_th(os.path.join(orig_net_dir, net), g_images, g_indexes, delta_th, image_shape=image_shape)
             selected_idxs = low_confs_idx
@@ -202,7 +210,7 @@ def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, start_id
         gen_props(prop_dir_normal, selected_images, selected_labels, low_plus_high_conf_images_idxs, epsilons, conf=0, is_standard_prop=True, mean=mean, std=std, dataset=dataset, tolerance_param=tolerance_param) 
         gen_instances_file(net_dir, [net], prop_dir_normal, low_plus_high_conf_images_idxs, [0], epsilons, instances_file, timeout=timeout)
 
-def setup_modified_props_one_hop(nets, dataset, mean, std, confs, timeout, max_num_images, is_softmax, orig_net_dir, epsilons, is_cnn, preprocessing_dir, image_shape1, images_csv_file, log_dir):
+def setup_modified_props_one_hop(nets, dataset, mean, std, confs, timeout, max_num_images, is_softmax, orig_net_dir, epsilons, is_cnn, preprocessing_dir, image_shape, images_csv_file, log_dir):
 
     setup_dir = os.path.join(preprocessing_dir, 'benchmarks')
     clean_directory(setup_dir)
@@ -223,11 +231,15 @@ def setup_modified_props_one_hop(nets, dataset, mean, std, confs, timeout, max_n
         filename1_l = filename1.split('+')
         net = filename1_l[0]+".onnx"
         im_idx = int(filename1_l[1])
-        conf = float(filename1_l[2])
+        try:
+            conf = int(filename1_l[2])
+        except:
+            conf = float(filename1_l[2])
+        
         ep= float(filename1_l[3])
         epsilons = [ep]
         label = int(filename1_l[4])
-
+        delta_th = get_delta(conf)
         np_filename = os.path.join(fn_dir, filename)
         image = np.load(np_filename)
         image_shape1 = (1,) + image_shape
@@ -236,7 +248,10 @@ def setup_modified_props_one_hop(nets, dataset, mean, std, confs, timeout, max_n
         selected_images = image
         selected_labels = np.array([label])
         selected_idxs = [im_idx]
+        high_confs_idx, low_confs_idx= get_selected_images_gans_with_delta_th(os.path.join(orig_net_dir, net), selected_images, selected_idxs, delta_th, image_shape=image_shape)
         is_high_conf = False
+        if len(high_confs_idx) > 0:
+            is_high_conf = True
         prop_dir1 = os.path.join(prop_dir, net[:-5])
         if not os.path.isdir(prop_dir1):
             os.makedirs(prop_dir1)
@@ -249,17 +264,17 @@ def setup_modified_props_one_hop(nets, dataset, mean, std, confs, timeout, max_n
             gen_props(prop_dir1, selected_images, selected_labels, selected_idxs, epsilons,conf=conf, mean=mean, std=std, dataset=dataset, is_standard_prop=True)
             gen_instances_file(net_dir, [net], prop_dir1, selected_idxs, [conf], epsilons, instances_file, timeout=timeout)
 
-        if not is_exist_tuple(list_already_build, net, ep, im_idx):
-            append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[0], is_high_conf=False)
-            prop_dir_normal = os.path.join(prop_dir, 'standard')
-            if not os.path.isdir(prop_dir_normal):
-                os.makedirs(prop_dir_normal)
-            gen_props(prop_dir_normal, selected_images, selected_labels, selected_idxs, epsilons, conf=0, is_standard_prop=True, mean=mean, std=std, dataset=dataset) 
-            gen_instances_file(net_dir, [net], prop_dir_normal, selected_idxs, [0], epsilons, instances_file, timeout=timeout)
-            l = [net, ep, im_idx]
-            list_already_build.append(l)
-        else:
-            print(f"Already build:  {net}, {ep}, {im_idx}")
+        # if not is_exist_tuple(list_already_build, net, ep, im_idx):
+        #     append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[0], is_high_conf=False)
+        #     prop_dir_normal = os.path.join(prop_dir, 'standard')
+        #     if not os.path.isdir(prop_dir_normal):
+        #         os.makedirs(prop_dir_normal)
+        #     gen_props(prop_dir_normal, selected_images, selected_labels, selected_idxs, epsilons, conf=0, is_standard_prop=True, mean=mean, std=std, dataset=dataset) 
+        #     gen_instances_file(net_dir, [net], prop_dir_normal, selected_idxs, [0], epsilons, instances_file, timeout=timeout)
+        #     l = [net, ep, im_idx]
+        #     list_already_build.append(l)
+        # else:
+        #     print(f"Already build:  {net}, {ep}, {im_idx}")
 
 
 
@@ -726,7 +741,26 @@ if __name__ == '__main__':
         if not is_gans_input:
             print(f"Please enable the Gans input in config file: {config_file}")
             exit(0)
-        setup_modified_props_gans(nets=nets, 
+        # setup_modified_props_gans(nets=nets, 
+        #                      dataset=dataset, 
+        #                      mean=mean,
+        #                      std=std,
+        #                      confs=confs,
+        #                      timeout=timeout,
+        #                      start_idx=start_idx,
+        #                      end_idx=end_idx,
+        #                      is_softmax=is_softmax,
+        #                      orig_net_dir=net_dir, 
+        #                      epsilons=epsilons, 
+        #                      is_cnn=is_cnn,
+        #                      preprocessing_dir=preprocessing_dir, 
+        #                      image_shape=image_shape,
+        #                      images_csv_file = images_csv_file,
+        #                      log_dir = log_dir, 
+        #                      tolerance_param=tolerance_param
+        #                      )
+        
+        setup_modified_props_one_hop(nets=nets, 
                              dataset=dataset, 
                              mean=mean,
                              std=std,
