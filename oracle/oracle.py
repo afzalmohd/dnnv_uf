@@ -428,6 +428,12 @@ def dump_images_1():
         os.makedirs(dump_dir, exist_ok=True) 
         dump_file = os.path.join(dump_dir, f"{os.path.basename(zero_dict['logfile'])}.png")
         print_image_general(dump_file, is_zero=True, top_k=3)
+    
+    if zero_dict.get('res1', None) == 'tp' and non_zero_dict.get('res1', None) != 'tp':
+        dump_dir = os.path.join(log_dir, 'cex', f"{conf}", 'reduced_fp')
+        os.makedirs(dump_dir, exist_ok=True)
+        dump_file = os.path.join(dump_dir, f"{os.path.basename(zero_dict['logfile'])}.png")
+        print_image_general(dump_file, is_zero=True, top_k=3)
 
 def update_data():
     netname = non_zero_dict['netname']
