@@ -210,7 +210,7 @@ if __name__ == '__main__':
     is_nilgiri = config['is_nilgiri']
     if is_nilgiri:
         tool_main = '/home/afzal/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
-        total_cores = 20
+        total_cores = 16
     else:
         tool_main = '/home/afzal/tools/vnncomp23/alpha-beta-CROWN/complete_verifier/abcrown.py'
         total_cores = 60

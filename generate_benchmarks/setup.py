@@ -6,7 +6,7 @@ from PIL import Image
 import csv
 import numpy as np
 import math
-from modify_onnx import append_layers, get_delta
+from modify_onnx import append_layers
 from modify_onnx import append_layers_vnncomp_prop
 from generate_properties import gen_props
 from generate_instance_file import gen_instances_file
@@ -169,11 +169,7 @@ def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, start_id
         low_plus_high_conf_images_idxs = []
         for conf in confs:
             # lb_conf = get_lb_conf(conf)
-<<<<<<< HEAD
             delta_th = get_delta(conf)
-=======
-            delta_th = get_delta(conf=conf)
->>>>>>> 291e930ee7def9855db5df6f692548bacc185419
             # high_confs_idx, low_confs_idx= get_selected_images_gans(os.path.join(orig_net_dir, net), g_images, g_indexes, lb_conf, image_shape=image_shape)
             high_confs_idx, low_confs_idx= get_selected_images_gans_with_delta_th(os.path.join(orig_net_dir, net), g_images, g_indexes, delta_th, image_shape=image_shape)
             selected_idxs = low_confs_idx
@@ -210,7 +206,7 @@ def setup_modified_props_gans(nets, dataset, mean, std, confs, timeout, start_id
         gen_props(prop_dir_normal, selected_images, selected_labels, low_plus_high_conf_images_idxs, epsilons, conf=0, is_standard_prop=True, mean=mean, std=std, dataset=dataset, tolerance_param=tolerance_param) 
         gen_instances_file(net_dir, [net], prop_dir_normal, low_plus_high_conf_images_idxs, [0], epsilons, instances_file, timeout=timeout)
 
-def setup_modified_props_one_hop(nets, dataset, mean, std, confs, timeout, max_num_images, is_softmax, orig_net_dir, epsilons, is_cnn, preprocessing_dir, image_shape, images_csv_file, log_dir):
+def setup_modified_props_one_hop(nets, dataset, mean, std, confs, timeout, start_idx, end_idx, is_softmax, orig_net_dir, epsilons, is_cnn, preprocessing_dir, image_shape, images_csv_file, log_dir, tolerance_param):
 
     setup_dir = os.path.join(preprocessing_dir, 'benchmarks')
     clean_directory(setup_dir)
@@ -257,11 +253,11 @@ def setup_modified_props_one_hop(nets, dataset, mean, std, confs, timeout, max_n
             os.makedirs(prop_dir1)
         if not is_high_conf:
             append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[conf], is_high_conf=False)
-            gen_props(prop_dir1, selected_images, selected_labels, selected_idxs, epsilons,conf=conf, mean=mean, std=std, dataset=dataset)
+            gen_props(prop_dir1, selected_images, selected_labels, selected_idxs, epsilons,conf=conf, mean=mean, std=std, dataset=dataset, tolerance_param=tolerance_param)
             gen_instances_file(net_dir, [net], prop_dir1, selected_idxs, [conf], epsilons, instances_file, timeout=timeout)
         else:
             append_layers([net], orig_net_dir, net_dir, selected_images, selected_labels, selected_idxs, is_softmax=is_softmax, confs=[conf], is_high_conf=True)
-            gen_props(prop_dir1, selected_images, selected_labels, selected_idxs, epsilons,conf=conf, mean=mean, std=std, dataset=dataset, is_standard_prop=True)
+            gen_props(prop_dir1, selected_images, selected_labels, selected_idxs, epsilons,conf=conf, mean=mean, std=std, dataset=dataset, is_standard_prop=True, tolerance_param=tolerance_param)
             gen_instances_file(net_dir, [net], prop_dir1, selected_idxs, [conf], epsilons, instances_file, timeout=timeout)
 
         # if not is_exist_tuple(list_already_build, net, ep, im_idx):
@@ -737,29 +733,29 @@ if __name__ == '__main__':
                                      vnncomp_benchmarks_dir=vnncomp_benchmarks_dir,
                                      tolerance_param=tolerance_param
                                     )
-    else:
+    elif property_type == 'mod_prop':
         if not is_gans_input:
             print(f"Please enable the Gans input in config file: {config_file}")
             exit(0)
-        # setup_modified_props_gans(nets=nets, 
-        #                      dataset=dataset, 
-        #                      mean=mean,
-        #                      std=std,
-        #                      confs=confs,
-        #                      timeout=timeout,
-        #                      start_idx=start_idx,
-        #                      end_idx=end_idx,
-        #                      is_softmax=is_softmax,
-        #                      orig_net_dir=net_dir, 
-        #                      epsilons=epsilons, 
-        #                      is_cnn=is_cnn,
-        #                      preprocessing_dir=preprocessing_dir, 
-        #                      image_shape=image_shape,
-        #                      images_csv_file = images_csv_file,
-        #                      log_dir = log_dir, 
-        #                      tolerance_param=tolerance_param
-        #                      )
-        
+        setup_modified_props_gans(nets=nets, 
+                             dataset=dataset, 
+                             mean=mean,
+                             std=std,
+                             confs=confs,
+                             timeout=timeout,
+                             start_idx=start_idx,
+                             end_idx=end_idx,
+                             is_softmax=is_softmax,
+                             orig_net_dir=net_dir, 
+                             epsilons=epsilons, 
+                             is_cnn=is_cnn,
+                             preprocessing_dir=preprocessing_dir, 
+                             image_shape=image_shape,
+                             images_csv_file = images_csv_file,
+                             log_dir = log_dir, 
+                             tolerance_param=tolerance_param
+                             )
+    else:
         setup_modified_props_one_hop(nets=nets, 
                              dataset=dataset, 
                              mean=mean,
