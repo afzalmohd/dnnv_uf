@@ -4,6 +4,7 @@ import numpy as np
 import onnxruntime as ort
 import yaml
 import matplotlib.pyplot as plt
+import pandas as pd
 from collections import Counter
 import csv
 import math
@@ -430,7 +431,7 @@ def dump_images_1():
         print_image_general(dump_file, is_zero=True, top_k=3)
     
     if zero_dict.get('res1', None) == 'tp' and non_zero_dict.get('res1', None) != 'tp':
-        dump_dir = os.path.join(log_dir, 'cex', f"{conf}", 'reduced_fp')
+        dump_dir = os.path.join(log_dir, 'cex', f"{conf}", 'reduced_tp')
         os.makedirs(dump_dir, exist_ok=True)
         dump_file = os.path.join(dump_dir, f"{os.path.basename(zero_dict['logfile'])}.png")
         print_image_general(dump_file, is_zero=True, top_k=3)
@@ -593,10 +594,17 @@ def analyse_dir():
             count += 1
             print(f"Processed file: {count}")
 
+def analysing_csv_file(file_path='res_analysed.csv'):
+    df = pd.read_csv(file_path)
+    filtered_data = df[(df['user_conf'] == 70) & (df['result1'] == 'fp')]
+    print(filtered_data)
+
 
 
                                 
 if __name__ == '__main__':
+    # analysing_csv_file()
+    # exit(0)
     global orig_net_dir, oracle_net_dir, orcale_nets, log_dir, result_csv, fp_conf, fp_zero, is_print_images
     potential_datasets = [mnist_dataset, cifar10_dataset]
     if len(sys.argv) > 1:
@@ -632,6 +640,8 @@ if __name__ == '__main__':
     analyse_dir()
 
     print(RES_TABLE)
+    df = pd.DataFrame(RES_TABLE)
+    print(df)
 
     # print(len(fp_zero))
     # # fp_zero = ['mnist-net_256x6_0_119+prop_119_0.06_0', 'mnist-net_256x4_0_52+prop_52_0.06_0', 'mnist-net_256x2_0_183+prop_183_0.06_0', 'mnist-net_256x4_0_119+prop_119_0.06_0', 'mnist-net_256x6_0_79+prop_79_0.06_0', 'mnist-net_256x4_0_114+prop_114_0.06_0', 'mnist-net_256x4_0_69+prop_69_0.06_0', 'mnist-net_256x6_0_183+prop_183_0.06_0', 'mnist-net_256x6_0_61+prop_61_0.06_0', 'mnist-net_256x2_0_29+prop_29_0.06_0', 'mnist-net_256x4_0_183+prop_183_0.06_0', 'mnist-net_256x6_0_69+prop_69_0.06_0', 'mnist-net_256x4_0_61+prop_61_0.06_0', 'mnist-net_256x4_0_49+prop_49_0.06_0']
