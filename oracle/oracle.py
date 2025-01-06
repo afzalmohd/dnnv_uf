@@ -140,6 +140,15 @@ def get_im_label(im, net_path, top_k = 3):
     top_indeces, top_confidences = top_k_pred(softmax_output, top_k)
     return top_indeces, top_confidences, max_val, max_ind, smax_val, smax_val_ind, min_val, min_ind
 
+def get_net_output(im, net_path):
+    im = im.reshape(1,784,1)
+    session = ort.InferenceSession(net_path)
+    input_name = session.get_inputs()[0].name
+    output = session.run(None, {input_name: im})
+    output = output[0][0]
+    return output
+
+
 def is_fp(cex_label, cex: np.ndarray):
     oracle_output = get_oracle_output(cex, oracle_net_dir, orcale_nets)
     if cex_label in oracle_output:
@@ -449,7 +458,7 @@ def update_data():
                     delta_th, non_zero_dict['orig_max_ind'], non_zero_dict['orig_smax_ind'], non_zero_dict['orig_min_ind'], 
                     non_zero_dict['orig_max_val'], non_zero_dict['orig_smax_val'], non_zero_dict['orig_min_val'], 
                     non_zero_dict.get('cex_max_ind', None), non_zero_dict.get('cex_smax_ind', None), non_zero_dict.get('cex_min_ind', None), 
-                    non_zero_dict.get('cex_max_val', None), non_zero_dict.get('cex_smax_val', None), non_zero_dict.get('cex_min_val', None)]
+                    non_zero_dict.get('cex_max_val', None), non_zero_dict.get('cex_smax_val', None), non_zero_dict.get('cex_min_val', None), non_zero_dict.get('net_output_orig', None), non_zero_dict.get('net_output_cex', None) ]
     
     write_to_csv_file(row_non_zero)
     up_res = non_zero_dict.get('res1', 'timeout')
@@ -461,7 +470,7 @@ def update_data():
                     delta_th, non_zero_dict['orig_max_ind'], non_zero_dict['orig_smax_ind'], non_zero_dict['orig_min_ind'], 
                     non_zero_dict['orig_max_val'], non_zero_dict['orig_smax_val'], non_zero_dict['orig_min_val'], 
                     zero_dict.get('cex_max_ind', None), zero_dict.get('cex_smax_ind', None), zero_dict.get('cex_min_ind', None), 
-                    zero_dict.get('cex_max_val', None), zero_dict.get('cex_smax_val', None), zero_dict.get('cex_min_val', None)]   
+                    zero_dict.get('cex_max_val', None), zero_dict.get('cex_smax_val', None), zero_dict.get('cex_min_val', None),non_zero_dict.get('net_output_orig', None), non_zero_dict.get('net_output_cex', None)]   
     
     write_to_csv_file(row_zero)
     up_res = zero_dict.get('res1', 'timeout')
@@ -470,7 +479,22 @@ def update_data():
         dump_images_1()
     
     
-    
+
+def is_false_negative():
+    if zero_dict['res'] == 'sat':
+        orig_label = non_zero_dict['net_label_orig']
+        cex_label = zero_dict['cex_label']
+        net_output_orig = non_zero_dict['net_output_orig']
+        net_output_cex = zero_dict['net_output_cex']
+        conf = non_zero_dict['conf']
+        delta_th = get_delta(conf)
+        is_cex = check_for_cond(orig_label, cex_label, net_output_orig, net_output_cex, delta_th)
+        if is_cex and zero_dict.get('res1', None) == 'tp':
+            return True
+
+    return False
+
+
 def analyse_zero_conf_log_file():
     netname = non_zero_dict['netname']
     im = non_zero_dict['im']
@@ -498,6 +522,8 @@ def analyse_zero_conf_log_file():
         zero_dict['cex_smax_ind'] = smax_ind
         zero_dict['cex_min_val'] = min_val
         zero_dict['cex_min_ind'] = min_ind
+        net_output_cex = get_net_output(cex, net_path)
+        zero_dict['net_output_cex'] = net_output_cex
         if  zero_dict['cex_label'] in cex_im_oo:
             zero_dict['res1'] = 'fp'
         else:
@@ -508,7 +534,8 @@ def analyse_zero_conf_log_file():
         pass 
     
     if non_zero_dict['res'] == 'unsat':
-        if zero_dict.get('res1', None) == 'tp':
+        # if zero_dict.get('res1', None) == 'tp':
+        if is_false_negative():
             non_zero_dict['res1'] = 'fn'
             non_zero_dict['fn_against'] = f"{netname[:-5]}_0_{im}+prop_{im}_{ep}_0"
             
@@ -526,13 +553,22 @@ def analyse_zero_conf_log_file():
     
     update_data()
     
-    
+def check_for_cond(orig_label, cex_label, net_output_orig, net_output_cex, delta_th):
+    diff1 = net_output_orig[orig_label] - net_output_orig[cex_label]
+    diff2 = net_output_cex[cex_label] - net_output_cex[orig_label]
+    non_zero_dict['orig_max_val1'] = net_output_orig[cex_label]
+    non_zero_dict['cex_max_val1'] = net_output_cex[orig_label]
+    return (diff1 >= delta_th) or (diff2 >= delta_th)
+
 
 def analyse_log_file_count(log_file):
     netname, im, conf, ep = get_net_im_conf_ep_1(log_file)
     if conf != 0.0:
+        delta_th = get_delta(conf)
         net_path = os.path.join(orig_net_dir, netname)
         orig_indeces_top, orig_conf_top, max_val, max_ind, smax_val, smax_ind, min_val, min_ind = get_im_label(IMAGES[im], net_path, top_k=3)
+        net_output_orig = get_net_output(IMAGES[im], net_path)
+        non_zero_dict['net_output_orig'] = net_output_orig
         non_zero_dict['orig_indeces_top'] = orig_indeces_top
         non_zero_dict['orig_conf_top'] = orig_conf_top
         non_zero_dict['net_label_orig'] = orig_indeces_top[0]
@@ -553,27 +589,47 @@ def analyse_log_file_count(log_file):
         orig_im_oo, orig_im_oo_log = get_oracle_output(IMAGES[im], oracle_net_dir, orcale_nets)
         non_zero_dict['orig_im_oo'] = orig_im_oo
         non_zero_dict['orig_im_oo_log'] = orig_im_oo_log
+        # if orig_indeces_top[0] not in orig_im_oo:
+        #     print(f"Oracle and nets output mismatched on orig image: {log_file}")
+        #     return 
         if res == 'sat':
             cex = extract_ce(log_file)
-            cex_im_oo, cex_im_oo_log = get_oracle_output(cex, oracle_net_dir, orcale_nets)
-            non_zero_dict['cex'] = cex
-            non_zero_dict['cex_im_oo'] = cex_im_oo
-            non_zero_dict['cex_im_oo_log'] = cex_im_oo_log
+            net_output_cex = get_net_output(cex, net_path)
             cex_indeces_top, cex_conf_top, max_val, max_ind, smax_val, smax_ind, min_val, min_ind = get_im_label(cex, net_path, top_k=3)
-            non_zero_dict['cex_indeces_top'] = cex_indeces_top
-            non_zero_dict['cex_conf_top'] = cex_conf_top
-            non_zero_dict['cex_label'] = cex_indeces_top[0]
-            non_zero_dict['cex_conf'] = round(float(cex_conf_top[0]) * 100, 2)
-            non_zero_dict['cex_max_val'] = max_val
-            non_zero_dict['cex_max_ind'] = max_ind
-            non_zero_dict['cex_smax_val'] = smax_val
-            non_zero_dict['cex_smax_ind'] = smax_ind
-            non_zero_dict['cex_min_val'] = min_val
-            non_zero_dict['cex_min_ind'] = min_ind
-            if non_zero_dict['cex_label'] in cex_im_oo:
-                non_zero_dict['res1'] = 'fp'
+            if orig_indeces_top[0] == cex_indeces_top[0]:
+                return
+            is_cex = True
+            # is_cex = check_for_cond(orig_indeces_top[0], cex_indeces_top[0], net_output_orig, net_output_cex, delta_th=delta_th)
+            if is_cex:
+                non_zero_dict['cex_indeces_top'] = cex_indeces_top
+                non_zero_dict['cex_conf_top'] = cex_conf_top
+                non_zero_dict['cex_label'] = cex_indeces_top[0]
+                non_zero_dict['cex_conf'] = round(float(cex_conf_top[0]) * 100, 2)
+                non_zero_dict['cex_max_val'] = max_val
+                non_zero_dict['cex_max_ind'] = max_ind
+                non_zero_dict['cex_smax_val'] = smax_val
+                non_zero_dict['cex_smax_ind'] = smax_ind
+                non_zero_dict['cex_min_val'] = min_val
+                non_zero_dict['cex_min_ind'] = min_ind
+                cex_im_oo, cex_im_oo_log = get_oracle_output(cex, oracle_net_dir, orcale_nets)
+                non_zero_dict['cex'] = cex
+                non_zero_dict['cex_im_oo'] = cex_im_oo
+                non_zero_dict['cex_im_oo_log'] = cex_im_oo_log
+                non_zero_dict['net_output_cex'] = net_output_cex
+
+                if non_zero_dict['cex_label'] in cex_im_oo:
+                    non_zero_dict['res1'] = 'fp'
+                else:
+                    non_zero_dict['res1'] = 'tp'
             else:
-                non_zero_dict['res1'] = 'tp'
+                non_zero_dict['res'] = 'unsat'
+                print(f"Orig_class: {orig_indeces_top[0]}, cex_class: {cex_indeces_top[0]}, oracle_class: {LABELS[im]}")
+                print(net_output_orig)
+                print(net_output_cex)
+                diff1 = net_output_orig[orig_indeces_top[0]] - net_output_orig[cex_indeces_top[0]]
+                diff2 = net_output_cex[cex_indeces_top[0]] - net_output_cex[orig_indeces_top[0]]
+                print(f"Logfile: {log_file}")
+                print(f"diff1: {diff1}, diff2: {diff2}, max_smax: {non_zero_dict['orig_max_val'] - non_zero_dict['orig_smax_val']}, max_smax_1: {max_val - smax_val}")
         
         analyse_zero_conf_log_file()
 
@@ -581,7 +637,8 @@ def analyse_log_file_count(log_file):
 def analyse_dir():
     res_csv_header = ['logfile_name', 'netname', 'image_index', 'epsilon', 'user_conf', 'user_conf1', 'orig_label', 'net_label', 'net_conf', 'result', 'cex_label_net', 'cex_conf_net', 
                       'result1', 'against', 'orig_im_oracle', 'orig_im_oracle_log', 'cex_im_oracle', 'cex_im_oracle_log', 'delta_th', 'orig_max_ind',  'orig_smax_ind', 'orig_min_ind',
-                      'orig_max_val', 'orig_smax_val', 'orig_min_val', 'cex_max_ind',  'cex_smax_ind', 'cex_min_ind', 'cex_max_val', 'cex_smax_val', 'cex_min_val']
+                      'orig_max_val', 'orig_smax_val', 'orig_min_val', 'cex_max_ind',  'cex_smax_ind', 'cex_min_ind', 'cex_max_val', 'cex_smax_val', 'cex_min_val',
+                      'net_output_orig', 'net_output_cex']
     global non_zero_dict, zero_dict
     write_to_csv_file(res_csv_header)
     file_list = os.listdir(log_dir)
@@ -590,6 +647,7 @@ def analyse_dir():
         log_file =  os.path.join(log_dir, filename)
         if os.path.isfile(log_file) and not filename.startswith('res_') and not filename.startswith('script'):
             non_zero_dict, zero_dict = {}, {}
+            # if count in [408, 1526]:
             analyse_log_file_count(log_file)
             count += 1
             print(f"Processed file: {count}")
@@ -640,8 +698,8 @@ if __name__ == '__main__':
     analyse_dir()
 
     print(RES_TABLE)
-    df = pd.DataFrame(RES_TABLE)
-    print(df)
+    # df = pd.DataFrame(RES_TABLE)
+    # print(df)
 
     # print(len(fp_zero))
     # # fp_zero = ['mnist-net_256x6_0_119+prop_119_0.06_0', 'mnist-net_256x4_0_52+prop_52_0.06_0', 'mnist-net_256x2_0_183+prop_183_0.06_0', 'mnist-net_256x4_0_119+prop_119_0.06_0', 'mnist-net_256x6_0_79+prop_79_0.06_0', 'mnist-net_256x4_0_114+prop_114_0.06_0', 'mnist-net_256x4_0_69+prop_69_0.06_0', 'mnist-net_256x6_0_183+prop_183_0.06_0', 'mnist-net_256x6_0_61+prop_61_0.06_0', 'mnist-net_256x2_0_29+prop_29_0.06_0', 'mnist-net_256x4_0_183+prop_183_0.06_0', 'mnist-net_256x6_0_69+prop_69_0.06_0', 'mnist-net_256x4_0_61+prop_61_0.06_0', 'mnist-net_256x4_0_49+prop_49_0.06_0']
