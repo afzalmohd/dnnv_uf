@@ -273,6 +273,16 @@ def get_output_layer_weight_simple():
     # print(np.array([weights]).reshape(9,18))
     return weights
 
+def get_output_layer_weights_misclasified(lb, existing_output_dim = 10):
+    weights = []
+    for i in range(existing_output_dim):
+        if i != lb:
+            l = [0.0]*existing_output_dim
+            l[lb] = 1.0
+            l[i] = -1.0
+            weights += l
+    return weights
+
 def get_output_affine_layers_weights(model_path):
     if not is_output_layer_activation_fn(model_path):
         # Load the existing ONNX model
@@ -866,6 +876,59 @@ def append_layers_vnncomp_prop(input_net_path, target_net_path, conf, orig_label
         shutil.copy2(input_net_path, target_net_path)
     else:
         append_layers_softmax(input_net_path, target_net_path, label=orig_label, conf=conf, existing_model_out_dims=existing_output_dim)
+
+
+def append_layers_mod_prop(net, input_dir, output_dir, conf, idx, correct_lb, net_output, existing_output_dim = 10, new_out_dim = 9):
+    model_path = os.path.join(input_dir, net)
+    model = onnx.load(model_path)
+    graph = model.graph
+    delta_th = get_delta(conf)
+    w_weight_name, b_weight_name = get_output_affine_layers_weights(model_path)
+    for initializer in graph.initializer:
+        # print(initializer.name)
+        if w_weight_name in  initializer.name:
+            output_layer_weight = np.frombuffer(initializer.raw_data, dtype=np.float32).reshape(initializer.dims)
+            # output_layer_input_dim = initializer.dims[1]
+            output_layer_output_dim = initializer.dims[0]
+        elif b_weight_name in  initializer.name:
+            output_layer_bias = np.frombuffer(initializer.raw_data, dtype=np.float32)
+
+    new_w = get_output_layer_weights_misclasified(correct_lb, existing_output_dim=existing_output_dim)
+    new_fc_weight = np.reshape(new_w, (new_out_dim, existing_output_dim))
+    new_fc_weight = np.asarray(new_fc_weight, dtype=np.float32)
+    new_bias = []
+    for i in range(existing_output_dim):
+        if i != correct_lb:
+            if net_output[correct_lb] - net_output[i] >= delta_th:
+                new_bias.append(0)
+            else:
+                new_bias.append(delta_th)
+    
+    new_fc_bias = np.array(new_bias, dtype=np.float32)
+    # Combine the weights and biases
+    combined_weight = np.dot(new_fc_weight, output_layer_weight)
+    combined_bias = np.dot(new_fc_weight, output_layer_bias) + new_fc_bias
+
+    # Update the initializers in the graph
+    for initializer in graph.initializer:
+        if w_weight_name in  initializer.name:
+            initializer.raw_data = combined_weight.tobytes()
+            initializer.dims[:] = combined_weight.shape
+        elif b_weight_name in  initializer.name:
+            initializer.raw_data = combined_bias.tobytes()
+            initializer.dims[:] = combined_bias.shape
+    # Save the modified model
+
+    for output in graph.output:
+        # Assuming there is only one output tensor, if there are multiple, you may need to specify the exact one
+        dim_value = output.type.tensor_type.shape.dim
+        if len(dim_value) == 2:
+            dim_value[1].dim_value = existing_output_dim-1
+
+    model = shape_inference.infer_shapes(model)
+    net_name = f"{net[:-5]}_{conf}_{idx}.onnx"
+    output_model_path = os.path.join(output_dir, net_name)
+    onnx.save(model, output_model_path)
 
 
 def append_layers(nets, input_dir, output_dir, selected_images, selected_labels, selected_idx,confs, is_softmax=False, is_high_conf = False):

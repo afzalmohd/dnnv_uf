@@ -392,11 +392,12 @@ def get_max_smax(arr):
     # print(type(max_value), type(max_indices), type(second_max), type(second_max_indices))
     return max_value, max_indices[0], second_max, second_max_indices[0]
 
-def get_selected_images_gans_with_delta_th(net_path, images, idxes, delta_th, is_normalized = True, image_shape=(1,784,1)):
+def get_selected_images_gans_with_delta_th(net_path, images, idxes, delta_th, images_lables, is_normalized = True, image_shape=(1,784,1)):
     session = ort.InferenceSession(net_path)
     input_name = session.get_inputs()[0].name
     low_conf_indexes = []
     high_conf_indexes = []
+    filtered_idxs = []
     for i in range(len(images)):
         image = images[i]
         test_input = image.reshape(image_shape)
@@ -406,16 +407,17 @@ def get_selected_images_gans_with_delta_th(net_path, images, idxes, delta_th, is
         # test_input = test_input.astype(np.float32)
         output = session.run(None, {input_name: test_input})
         output = output[0][0]
-        max_value, _,  second_max, _ = get_max_smax(output)
+        max_value, max_idx,  second_max, _ = get_max_smax(output)
         gap = (max_value - second_max) if second_max is not None else None
         assert gap != None, "Something wrong in images filteration with delta threshold"
-       
-        if gap >= delta_th:
-            high_conf_indexes.append(idxes[i])
-        else:
-            low_conf_indexes.append(idxes[i])
+        if images_lables[i] == max_idx:
+            filtered_idxs.append(i)
+            if gap >= delta_th:
+                high_conf_indexes.append(idxes[i])
+            else:
+                low_conf_indexes.append(idxes[i])
 
-    return high_conf_indexes, low_conf_indexes
+    return filtered_idxs, high_conf_indexes, low_conf_indexes
 
 
 
@@ -448,20 +450,19 @@ def softmax(x):
     return e_x / e_x.sum(axis=-1, keepdims=True)
 
 
-def run_model(model_path, images):
+def run_model(model_path, im, is_normalized=True):
     session = ort.InferenceSession(model_path)
-    for i,im in enumerate(images):
-        if not isinstance(im, np.ndarray):
-            im = np.array(im, dtype=np.float32)
+    # for i,im in enumerate(images):
+    if not isinstance(im, np.ndarray):
+        im = np.array(im, dtype=np.float32)
+    if not is_normalized:
         im = im/255
-        input_tensor = im.reshape(1, 784, 1)
-        input_name = session.get_inputs()[0].name
-        output = session.run(None, {input_name: input_tensor.astype(np.float32)})
-        softmax_output= softmax(output[0][0])
-        max_index = np.argmax(softmax_output)
-        max_value = np.max(softmax_output)
-        if max_value <= 0.8:
-            print(f"{i},{max_index},{max_value:0.4f}")
+    input_tensor = im.reshape(1, 784, 1)
+    input_name = session.get_inputs()[0].name
+    output = session.run(None, {input_name: input_tensor.astype(np.float32)})
+    output = output[0][0]
+    return np.argmax(output), output
+        
 
 
 
