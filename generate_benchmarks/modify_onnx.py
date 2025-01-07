@@ -278,8 +278,8 @@ def get_output_layer_weights_misclasified(lb, existing_output_dim = 10):
     for i in range(existing_output_dim):
         if i != lb:
             l = [0.0]*existing_output_dim
-            l[lb] = 1.0
-            l[i] = -1.0
+            l[lb] = -1.0
+            l[i] = 1.0
             weights += l
     return weights
 
@@ -902,7 +902,7 @@ def append_layers_mod_prop(net, input_dir, output_dir, conf, idx, correct_lb, ne
             if net_output[correct_lb] - net_output[i] >= delta_th:
                 new_bias.append(0)
             else:
-                new_bias.append(delta_th)
+                new_bias.append(-delta_th)
     
     new_fc_bias = np.array(new_bias, dtype=np.float32)
     # Combine the weights and biases
