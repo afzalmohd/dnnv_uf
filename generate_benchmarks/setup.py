@@ -510,7 +510,7 @@ def set_images_labels_gan_with_oracle(image_csv, image_shape):
     print(IMAGES.shape)
     print(LABELS.shape)
 
-def setup_on_orig_dataset_images(nets, dataset, mean, std, confs, timeout, start_idx, end_idx, is_softmax, orig_net_dir, dataset_idxs_file, epsilons, preprocessing_dir, image_shape):
+def setup_on_orig_dataset_images(nets, dataset, mean, std, confs, timeout, start_idx, end_idx, is_softmax, orig_net_dir, dataset_idxs_file, epsilons, preprocessing_dir, image_shape, tolerance_param):
 
     setup_dir = os.path.join(preprocessing_dir, 'benchmarks')
     clean_directory(setup_dir)
@@ -524,7 +524,7 @@ def setup_on_orig_dataset_images(nets, dataset, mean, std, confs, timeout, start
     selected_images, selected_labels, selected_idxs = select_images_with_labels_first(dataset_idxs_file, start_idx=start_idx, end_idx=end_idx)
     selected_labels = selected_labels.reshape(-1)
     for conf in confs:
-        gen_props(prop_dir, selected_images, selected_labels, selected_idxs, epsilons,conf=conf, tolerance_param=-1e-5, dataset=dataset, mean=mean, std=std) 
+        gen_props(prop_dir, selected_images, selected_labels, selected_idxs, epsilons,conf=conf, tolerance_param=tolerance_param, dataset=dataset, mean=mean, std=std) 
     # prop_dir_normal = os.path.join(prop_dir, 'standard')
     # if not os.path.isdir(prop_dir_normal):
     #     os.makedirs(prop_dir_normal)
@@ -543,7 +543,7 @@ def get_label_vnncomp_prp(prp_file):
     with open(prp_file, 'r') as file:
         first_line = file.readline().strip()
         # Extract the number after 'label: '
-        if "; CIFAR100 property with label:" in first_line:
+        if "property with label:" in first_line:
             label = first_line.split("label:")[-1].strip().rstrip('.')
             return int(label) 
 
@@ -564,13 +564,13 @@ def setup_on_vnncomp_prop(dataset, confs, timeout, epsilons, preprocessing_dir, 
     with open(vnncomp_instance_file, 'r') as vnncomp_instance_f:
         idx = 0
         ep = epsilons[0]
-        output_dims = 200
+        output_dims = 10
         instance_lines = []
         for line in vnncomp_instance_f:
-            if 'CIFAR100' in line:
-                output_dims=100
-            else:
-                output_dims=200
+            # if 'CIFAR100' in line:
+            #     output_dims=100
+            # else:
+            #     output_dims=200
             line = line.strip()
             line_l = line.split(',')
             vnncomp_net_path = os.path.join(vnncomp_benchmarks_dir,  line_l[0])
@@ -642,7 +642,7 @@ if __name__ == '__main__':
         set_images_labels(dataset, is_test_data)
 
     if property_type  == 'low_conf_cex':
-        setup_on_vnncomp_prop(nets=nets, 
+        setup_on_orig_dataset_images(nets=nets, 
                                      dataset=dataset, 
                                      mean=mean,
                                      std=std,
@@ -655,7 +655,6 @@ if __name__ == '__main__':
                                      dataset_idxs_file=dataset_idxs_file,
                                      epsilons=epsilons, 
                                      preprocessing_dir=preprocessing_dir, 
-                                     vnncomp_benchmarks_dir=vnncomp_benchmarks_dir,
                                      image_shape=image_shape, 
                                      tolerance_param=tolerance_param
                                     )

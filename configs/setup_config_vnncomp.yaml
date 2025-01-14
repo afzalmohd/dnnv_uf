@@ -1,10 +1,10 @@
 property: 'vnncomp' # mod_prop
 # property: 'mod_prop'
-dataset: 'CIFAR100' 
-vnncomp_benchmarks_dir: '/home/afzal/tools/networks/vnncomp2022_benchmarks/benchmarks/cifar100_tinyimagenet_resnet'
+dataset: 'MNIST' #'CIFAR100' 
+vnncomp_benchmarks_dir: '/home/afzal/tools/networks/vnncomp2022_benchmarks/benchmarks/mnist_fc'
 preprocessing_dir: '/home/afzal/tools/my_scripts'
-confs: [0, 60]
-timeout: 3000
+confs: [0, 60, 80, 90, 95]
+timeout: 500
 is_softmax: True
 epsilons: [0.0039]
 tolerance_param: -0.001
