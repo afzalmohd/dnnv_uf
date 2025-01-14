@@ -8,7 +8,7 @@ timeout: 500
 is_softmax: True
 epsilons: [0.0039]
 tolerance_param: -0.001
-is_nilgiri: True
+is_nilgiri: False
 abcrown_config: 'mnist.yaml'
 is_gans_input: False
 
