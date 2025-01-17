@@ -327,15 +327,34 @@ def get_delta(conf):
     # delta = round(delta, 5)
     return delta
 
-def is_satisfied_delta_threshold(delta_th, data_dict, is_cex):
+def is_satified_delta_threshold1(orig_lb, cex_label, net_output_orig, net_output_cex, delta_th, is_cex):
     if is_cex:
-        y_max = data_dict['cex_max_val']
-        y_smax = data_dict['cex_smax_val']
+        cex_lb_val = net_output_cex[cex_label]
+        orig_lb_val = net_output_cex[orig_lb]
+        return (cex_lb_val - orig_lb_val) >= delta_th
     else:
-        y_max = data_dict['orig_max_val']
-        y_smax = data_dict['orig_smax_val']
+        orig_lb_val = net_output_orig[orig_lb]
+        cex_lb_val = net_output_orig[cex_label]
+        return (orig_lb_val - cex_lb_val) >= delta_th
+
+
+
+def is_satisfied_delta_threshold(delta_th, data_dict, is_cex, is_mod_prop1 = False):
+    if is_mod_prop1:
+        if is_cex:
+            pass
+        else:
+            orig_label = data_dict['orig_max_ind']
+
+    else:
+        if is_cex:
+            y_max = data_dict['cex_max_val']
+            y_smax = data_dict['cex_smax_val']
+        else:
+            y_max = data_dict['orig_max_val']
+            y_smax = data_dict['orig_smax_val']
+        return (y_max - y_smax) >= delta_th
     
-    return (y_max - y_smax) >= delta_th
 
 def print_image_general(dump_file, is_zero, top_k = 3):
     vals_round_digit = 4
@@ -350,7 +369,7 @@ def print_image_general(dump_file, is_zero, top_k = 3):
     orig_smax_val = round(non_zero_dict['orig_smax_val'], vals_round_digit)
     orig_min_ind = non_zero_dict['orig_min_ind']
     orig_min_val = round(non_zero_dict['orig_min_val'], vals_round_digit)
-         
+    net_out_orig = non_zero_dict['net_output_orig']  
 
     orig_image = IMAGES[non_zero_dict['im']]
     orig_image = orig_image.reshape(28, 28)
@@ -369,6 +388,8 @@ def print_image_general(dump_file, is_zero, top_k = 3):
         cex_smax_val = round(zero_dict['cex_smax_val'], vals_round_digit)
         cex_min_ind = zero_dict['cex_min_ind']
         cex_min_val = round(zero_dict['cex_min_val'], vals_round_digit)
+        net_output_cex = zero_dict['net_output_cex']
+
     else:
         cex = non_zero_dict.get('cex', None)
         if cex is None:
@@ -384,13 +405,20 @@ def print_image_general(dump_file, is_zero, top_k = 3):
         cex_smax_val = round(non_zero_dict['cex_smax_val'], vals_round_digit)
         cex_min_ind = non_zero_dict['cex_min_ind']
         cex_min_val = round(non_zero_dict['cex_min_val'], vals_round_digit)
-         
+        net_output_cex = non_zero_dict['net_output_cex']
+
+    orig_im_cex_label_val = round(float(net_out_orig[cex_max_ind]),4)
+    cex_im_orig_label_val = round(float(net_output_cex[orig_max_ind]),4)
+    # is_satisfied_delta_orig = is_satisfied_delta_threshold(delta_th, non_zero_dict, False)
+    is_satisfied_delta_orig = is_satified_delta_threshold1(orig_max_ind, cex_max_ind, net_out_orig, net_output_cex, delta_th, False)
+    is_satisfied_delta_cex = is_satified_delta_threshold1(orig_max_ind, cex_max_ind, net_out_orig, net_output_cex, delta_th, True)
     fig, axes = plt.subplots(1, 3, figsize=(6, 6))
     titled_str = ""
-    titled_str += f"{orig_conf},{delta_th},{is_satisfied_delta_threshold(delta_th, non_zero_dict, False)}\n"
+    titled_str += f"{orig_conf},{delta_th},{is_satisfied_delta_orig}\n"
     titled_str += f"max,{orig_max_ind},{orig_max_val}\n"
     titled_str += f"smax,{orig_smax_ind},{orig_smax_val}\n"
     titled_str += f"min,{orig_min_ind},{orig_min_val}\n"
+    titled_str += f"cex_lb,{cex_max_ind},{orig_im_cex_label_val}"
     axes[0].imshow(orig_image, cmap='gray_r')
     axes[0].set_title(titled_str)
     axes[0].axis('off')
@@ -406,6 +434,7 @@ def print_image_general(dump_file, is_zero, top_k = 3):
     titled_str += f"max,{cex_max_ind},{cex_max_val}\n"
     titled_str += f"smax,{cex_smax_ind},{cex_smax_val}\n"
     titled_str += f"min,{cex_min_ind},{cex_min_val}\n"
+    titled_str += f"seed_lb,{orig_max_ind},{cex_im_orig_label_val}"
     axes[2].imshow(cex, cmap='gray_r')
     axes[2].set_title(titled_str)
     axes[2].axis('off')
@@ -534,8 +563,8 @@ def analyse_zero_conf_log_file():
         pass 
     
     if non_zero_dict['res'] == 'unsat':
-        # if zero_dict.get('res1', None) == 'tp':
-        if is_false_negative():
+        if zero_dict.get('res1', None) == 'tp':
+        # if is_false_negative():
             non_zero_dict['res1'] = 'fn'
             non_zero_dict['fn_against'] = f"{netname[:-5]}_0_{im}+prop_{im}_{ep}_0"
             

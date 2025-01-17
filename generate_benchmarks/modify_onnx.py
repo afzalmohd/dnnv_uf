@@ -931,7 +931,7 @@ def append_layers_mod_prop(net, input_dir, output_dir, conf, idx, correct_lb, ne
     onnx.save(model, output_model_path)
 
 
-def append_layers(nets, input_dir, output_dir, selected_images, selected_labels, selected_idx,confs, is_softmax=False, is_high_conf = False):
+def append_layers(nets, input_dir, output_dir, selected_images, selected_labels, selected_idx, confs, is_softmax=False, is_high_conf = False):
     input_model_paths = []
     for net in nets:
         input_model_paths.append(os.path.join(input_dir, net))
