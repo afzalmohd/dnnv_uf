@@ -1,14 +1,17 @@
 property: 'vnncomp' # mod_prop
 # property: 'mod_prop'
-dataset: 'CIFAR10' #'CIFAR100' 
-vnncomp_benchmarks_dir: '/home/u1411251/tools/vnncomp_benchmarks/cifar10/cifar10_resnet'
-target_benchmarks_dir: '/home/u1411251/temp/benchmarks'
-confs: [0, 60, 80]
+dataset: 'IMAGENET' #'CIFAR100' 
+vnncomp_benchmarks_dir: '/home/u1411251/tools/vnncomp_benchmarks/imagenet/vggnet16'
+target_benchmarks_dir: '/home/u1411251/tools/benchmarks/relaxed/imagenet/vggnet16'
+log_dir: '/home/u1411251/tools/logs/relaxed/imagenet/vggnet16'
+confs: [0]
 timeout: 500
 is_softmax: True
 epsilons: [0.0039]
 tolerance_param: -0.001
 is_nilgiri: False
-abcrown_config: 'mnist.yaml'
+abcrown_config: 'abcrown_tool_run_scripts/ab_crown_configs/vggnet16.yaml'
+abcrown_tool: 'external_tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
 is_less_than_output_prp: False
-
+is_target_prop: True
+device: 'cpu'
