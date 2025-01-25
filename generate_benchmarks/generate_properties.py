@@ -313,7 +313,7 @@ def save_vnnlib_from_vnncomp(vnncomp_spec_path, target_spec_path: str, conf, tot
         for i, line in enumerate(lines):
             if f"declare-const Y_{total_output_class} Real" in line:
                 remove_line = i                
-            if "; Output constraints:" in line:
+            if "; Output constraint" in line or "output constraints" in line:
                 output_constraints_start = i
                 break
         

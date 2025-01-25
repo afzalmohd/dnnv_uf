@@ -6,6 +6,7 @@ from PIL import Image
 import csv
 import numpy as np
 import math
+import re
 from modify_onnx import append_layers
 from modify_onnx import append_layers_vnncomp_prop, append_layers_mod_prop
 from generate_properties import gen_props
@@ -79,6 +80,9 @@ def clean_directory(directory_path):
                     shutil.rmtree(file_path)
             except Exception as e:
                 print(f'Failed to delete {file_path}. Reason: {e}')
+
+    else:
+        os.makedirs(directory_path, exist_ok=True)
 
 def get_images_csv_gans(dataset_idxs_file, image_shape, start_idx, end_idx):
     with open(dataset_idxs_file, 'r') as f:
@@ -539,32 +543,49 @@ def setup_on_orig_dataset_images(nets, dataset, mean, std, confs, timeout, start
     #         else:
     #             gen_instances_file(net_dir, [net], prop_dir_normal, selected_idxs, [conf], epsilons, instances_file, timeout=timeout)   
 
-def get_label_vnncomp_prp(prp_file):
+def get_label_vnncomp_prp(prp_file, is_less_than_output_prp=False):
+    # with open(prp_file, 'r') as file:
+    #     first_line = file.readline().strip()
+    #     # Extract the number after 'label: '
+    #     if "property with label:" in first_line:
+    #         label = first_line.split("label:")[-1].strip().rstrip('.')
+    #         return int(label) 
+        
     with open(prp_file, 'r') as file:
-        first_line = file.readline().strip()
-        # Extract the number after 'label: '
-        if "property with label:" in first_line:
-            label = first_line.split("label:")[-1].strip().rstrip('.')
-            return int(label) 
+        lines = file.readlines()  # Read all lines into a list
+        last_lines = lines[-10:]
+        last_content = ''.join(last_lines)
+        matches = re.findall(r'Y_(\d+)', last_content)
+        if is_less_than_output_prp:
+            int(matches[0])
+        return int(matches[-1])
+
+def get_output_dims(dataset):
+    dims = 10
+    if dataset == cifar100_dataset:
+        dims = 100
+    elif dataset == tsr_dataset:
+        dims = 43
+
+    return dims
 
 
-def setup_on_vnncomp_prop(dataset, confs, timeout, epsilons, preprocessing_dir, vnncomp_benchmarks_dir, tolerance_param):
-    print(dataset, confs, timeout, epsilons, preprocessing_dir, vnncomp_benchmarks_dir, tolerance_param)
-    setup_dir = os.path.join(preprocessing_dir, 'benchmarks')
-    clean_directory(setup_dir)
-    net_dir = os.path.join(setup_dir, 'nets')
-    prop_dir = os.path.join(setup_dir, 'props')
-    instances_file = os.path.join(setup_dir, 'instances.csv')
+
+def setup_on_vnncomp_prop(dataset, confs, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir, tolerance_param, is_less_than_output_prp):
+    print(dataset, confs, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir, tolerance_param)
+    clean_directory(target_benchmarks_dir)
+    os.makedirs(target_benchmarks_dir, exist_ok=True)
+    # net_dir = os.path.join(target_benchmarks_dir, 'nets')
+    # prop_dir = os.path.join(target_benchmarks_dir, 'props')
+    instances_file = os.path.join(target_benchmarks_dir, 'instances.csv')
     if os.path.isfile(instances_file):
         os.remove(instances_file)
-    create_empty_dirs(net_dir, prop_dir)
+    # create_empty_dirs(net_dir, prop_dir)
 
     vnncomp_instance_file = os.path.join(vnncomp_benchmarks_dir, 'instances.csv')
 
     with open(vnncomp_instance_file, 'r') as vnncomp_instance_f:
-        idx = 0
-        ep = epsilons[0]
-        output_dims = 10
+        output_dims = get_output_dims(dataset)
         instance_lines = []
         for line in vnncomp_instance_f:
             # if 'CIFAR100' in line:
@@ -573,19 +594,26 @@ def setup_on_vnncomp_prop(dataset, confs, timeout, epsilons, preprocessing_dir, 
             #     output_dims=200
             line = line.strip()
             line_l = line.split(',')
+            timeout = float(line_l[2])
             vnncomp_net_path = os.path.join(vnncomp_benchmarks_dir,  line_l[0])
             vnncomp_prp_path = os.path.join(vnncomp_benchmarks_dir, line_l[1])
-            _, netname = os.path.split(vnncomp_net_path)
-            _, prpname = os.path.split(vnncomp_prp_path)
-            label = get_label_vnncomp_prp(vnncomp_prp_path)
+            sub_net_dir, netname = os.path.split(line_l[0])
+            sub_prp_dir, prpname = os.path.split(line_l[1])
+            target_net_dir = os.path.join(target_benchmarks_dir, sub_net_dir)
+            target_prp_dir = os.path.join(target_benchmarks_dir, sub_prp_dir)
+            os.makedirs(target_net_dir, exist_ok=True)
+            os.makedirs(target_prp_dir, exist_ok=True)
+            label = get_label_vnncomp_prp(vnncomp_prp_path, is_less_than_output_prp)
             for conf in confs:
-                target_net_path = os.path.join(net_dir, f"{netname[:-5]}_{idx}_{ep}_{conf}.onnx")
-                target_prp_path = os.path.join(prop_dir, f"{prpname[:-7]}_{idx}_{ep}_{conf}.vnnlib")
+                new_net_name = f"{netname[:-5]}_{conf}.onnx"
+                new_prp_name =  f"{prpname[:-7]}_{conf}.vnnlib"
+                target_net_path = os.path.join(target_net_dir, new_net_name)
+                target_prp_path = os.path.join(target_prp_dir, new_prp_name)
+                print(target_net_path, target_prp_path, timeout)
                 append_layers_vnncomp_prop(input_net_path=vnncomp_net_path, target_net_path=target_net_path, conf=conf, orig_label=label, existing_output_dim=output_dims)
                 save_vnnlib_from_vnncomp(vnncomp_prp_path, target_prp_path, conf=conf, total_output_class=output_dims-1, tolerance_param=tolerance_param)
-                ins_line = f"{target_net_path},{target_prp_path},{timeout}\n"
+                ins_line = f"{os.path.join(sub_net_dir, new_net_name)},{os.path.join(sub_prp_dir, new_prp_name)},{timeout}\n"
                 instance_lines.append(ins_line)
-            idx += 1
 
         with open(instances_file, 'w') as f:
             f.writelines(instance_lines)
@@ -631,9 +659,11 @@ if __name__ == '__main__':
     tolerance_param = config.get('tolerance_param', None)
     preprocessing_dir = config.get('preprocessing_dir', None)
     vnncomp_benchmarks_dir = config.get('vnncomp_benchmarks_dir', None)
+    target_benchmarks_dir = config.get('target_benchmarks_dir', None)
     property_type = config.get('property', None)
     is_cnn = config.get('is_cnn', None)
     log_dir = config.get('log_dir', None)
+    is_less_than_output_prp = config.get('is_less_than_output_prp', False)
     
     assert dataset in potential_datasets, "Invalid dataset"
     if is_gans_input:
@@ -663,9 +693,10 @@ if __name__ == '__main__':
                                      confs=confs,
                                      timeout=timeout,
                                      epsilons=epsilons, 
-                                     preprocessing_dir=preprocessing_dir, 
+                                     target_benchmarks_dir=target_benchmarks_dir, 
                                      vnncomp_benchmarks_dir=vnncomp_benchmarks_dir,
-                                     tolerance_param=tolerance_param
+                                     tolerance_param=tolerance_param, 
+                                     is_less_than_output_prp= is_less_than_output_prp
                                     )
     elif property_type == 'mod_prop':
         if not is_gans_input:

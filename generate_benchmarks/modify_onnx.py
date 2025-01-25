@@ -232,8 +232,6 @@ def get_fc_layer_weights(label, output_dims=10):
                     l[j] = 1.0
                     weights += l
 
-    # print(len(weights))
-    # print(np.array(weights).reshape((output_dims-1)*(output_dims-1),output_dims)[:198])
     return weights
 
 def get_fc_layer_weights_inverse(label, output_dims=10):

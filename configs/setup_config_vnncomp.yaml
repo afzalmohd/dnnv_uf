@@ -1,14 +1,14 @@
 property: 'vnncomp' # mod_prop
 # property: 'mod_prop'
-dataset: 'MNIST' #'CIFAR100' 
-vnncomp_benchmarks_dir: '/home/afzal/tools/networks/vnncomp2022_benchmarks/benchmarks/mnist_fc'
-preprocessing_dir: '/home/afzal/tools/my_scripts'
-confs: [0, 60, 80, 90, 95]
+dataset: 'CIFAR10' #'CIFAR100' 
+vnncomp_benchmarks_dir: '/home/u1411251/tools/vnncomp_benchmarks/cifar10/cifar10_resnet'
+target_benchmarks_dir: '/home/u1411251/temp/benchmarks'
+confs: [0, 60, 80]
 timeout: 500
 is_softmax: True
 epsilons: [0.0039]
 tolerance_param: -0.001
 is_nilgiri: False
 abcrown_config: 'mnist.yaml'
-is_gans_input: False
+is_less_than_output_prp: False
 

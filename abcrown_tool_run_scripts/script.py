@@ -214,7 +214,8 @@ if __name__ == '__main__':
     else:
         tool_main = '/home/afzal/tools/vnncomp23/alpha-beta-CROWN/complete_verifier/abcrown.py'
         total_cores = 60
-
+    total_cores = 16
+    tool_main = '/home/u1411251/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
     num_cores_per_benchmarks = int(total_cores/num_cpu)
     config_path = config['abcrown_config']
     preprocessing_dir = config['preprocessing_dir']

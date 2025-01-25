@@ -313,6 +313,20 @@ def get_net_im_conf_ep_1(file_path, is_top_k = False):
 
     return netname, im, conf, ep
 
+def get_net_prop_conf_vnncomp(file_path):
+    im = None
+    filename = os.path.basename(file_path)
+    # print(filename)
+    filename_l = filename.split('+')
+    prop_l = filename_l[1].split('_')
+    # im = int(prop_l[-2])
+    conf = float(prop_l[-1])
+    netname = "_".join(filename_l[:-2])+".onnx"
+    prp_name = "_".join(prop_l[:-2])+".vnnlib"
+
+
+    return netname, prp_name, im, conf
+
 
 
 def create_dir(out_dir, file_path, is_top_k=False):
@@ -404,6 +418,15 @@ def res_count_conf(log_file):
         tab1[res] = count
         RES_TABLE[conf] = tab1
 
+def res_count_conf_vnncomp(log_file):
+    netname, prpname, im, conf = get_net_prop_conf_vnncomp(log_file)
+    res = get_result(log_file)
+    tab1 = RES_TABLE.get(conf, {})
+    count = tab1.get(res, 0)
+    count += 1
+    tab1[res] = count
+    RES_TABLE[conf] = tab1
+
 
 
 
@@ -413,7 +436,8 @@ def analyse_dir(log_dir):
     for filename in file_list:
         log_file =  os.path.join(log_dir, filename)
         if os.path.isfile(log_file) and not filename.startswith('res_') and not filename.startswith('script'):
-            res_count_conf(log_file)
+            # res_count_conf(log_file)
+            res_count_conf_vnncomp(log_file)
             count += 1
             print(f"Processed file: {count}")
 
@@ -426,7 +450,7 @@ if __name__ == '__main__':
         IMAGES, LABELS = get_mnist_test_data()
     IS_CONF_ANALYSIS = True
     if IS_CONF_ANALYSIS:
-        log_dir = '/home/ruhy/tools/result_dir/low_conf/mnist/logs_all'
+        log_dir = '/home/u1411251/tools/result_dir/welkin/relaxed/mnist'
     else:
         log_dir = '/home/u1411251/Documents/tools/result_dir/with_venky/logs_simple_selected_idx'
 

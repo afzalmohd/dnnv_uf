@@ -6,17 +6,17 @@ mean: [0.49140000, 0.48219999, 0.44650000]
 std: [0.20229999, 0.19939999, 0.20100000]
 preprocessing_dir: '/home/u1411251/tools/my_scripts'
 net_dir: '/home/u1411251/tools/networks/conf_final/cifar10/vnncomp'
-nets: ['cifar_deep_kw.onnx']
+nets: ['cifar10_2_255_simplified.onnx', 'cifar10_8_255_simplified.onnx', 'convBigRELU__PGD.onnx']
 dataset_idxs_file: '/home/u1411251/tools/networks/conf_final/cifar10/selected_idxs_cifar10.txt'
-confs: [60]
-timeout: 3000
-image_indexes_range: [0, 200]
+confs: [0, 60]
+timeout: 300
+image_indexes_range: [0, 3]
 is_softmax: True
 epsilons: [0.007]
 is_cnn: True
 is_nilgiri: True
 tolerance_param: -0.001
-abcrown_config: '/home/u1411251/tools/alpha-beta-CROWN/complete_verifier/exp_configs/vnncomp22/resnet_A.yaml'
+abcrown_config: '/home/u1411251/tools/alpha-beta-CROWN/complete_verifier/exp_configs/vnncomp22/cifar2020_2_255.yaml'
 
 orcale_net_dir: '/home/u1411251/tools/networks_old/networks/onnx/mnist'
 orcale_nets: ['mnist_relu_5_100.onnx', 'ffnnRELU__Point_6_500.onnx', 'ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx', 'convSmallRELU__Point.onnx', 'convSmallRELU__PGDK.onnx', 'convSmallRELU__DiffAI.onnx', 'convMedGRELU__Point.onnx', 'convBigRELU__DiffAI.onnx']
