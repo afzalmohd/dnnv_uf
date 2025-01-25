@@ -1,24 +1,25 @@
 #!/usr/bin/bash
 
 # Check if at least two arguments are passed (num_cpu and config_file)
-if [ $# -lt 3 ]; then
-    echo "Usage: $0 <num_cpu> <config_file> <root_dir>"
+if [ $# -lt 2 ]; then
+    echo "Usage: $0 <num_cpu> <config_file>"
     exit 1
 fi
 
 # Assign command-line arguments to variables
 num_cpu=$1
 config_file=$2
-root_dir=$3
+log_dir='/workspace/data/relaxed/logs'
+script_file='abcrown_tool_run_scripts/script.py'
 
-if [ -z "$4" ]; then
-    script_dir=$(pwd)
-else
-    script_dir=$4
-fi
+# if [ -z "$3" ]; then
+#     script_dir=$(pwd)
+# else
+#     script_dir=$3
+# fi
 # root_dir=`pwd`
-echo $root_dir
-log_dir=$root_dir/logs
+# echo $root_dir
+# log_dir=$root_dir/logs
 
 # Remove existing logs and create new log directory
 rm -rf $log_dir
@@ -30,13 +31,13 @@ mkdir -p $log_dir
 
 # Run Python script with provided arguments
 
-python $script_dir/script.py $num_cpu $log_dir $config_file
+python $script_file $num_cpu $log_dir $config_file
 
 # Set permissions for the log directory
 chmod -R u+x $log_dir/
 
 # Launch script instances for each CPU
-for ((i=0; i<$num_cpu; i++))
-do
-    $log_dir"/script_$i.sh" &
-done
+# for ((i=0; i<$num_cpu; i++))
+# do
+#     $log_dir"/script_$i.sh" &
+# done

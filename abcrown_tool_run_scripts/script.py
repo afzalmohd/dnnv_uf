@@ -13,6 +13,10 @@ import sys
 import subprocess
 import shlex
 import yaml
+import shutil
+import torch
+
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
 
 
 NUM_CPU = 7
@@ -75,44 +79,44 @@ def get_all_tasks():
 
 
 
-def print_cmnds_all(num_cpu, log_dir):
-    tasks = get_all_tasks()
-    # tasks = get_fixed_tasks()
-    # tasks = get_task_from_file_random()
-    net_dir = '/home/afzal/tools/networks/tf/mnist'
-    # random.shuffle(tasks)
+# def print_cmnds_all(num_cpu, log_dir):
+#     tasks = get_all_tasks()
+#     # tasks = get_fixed_tasks()
+#     # tasks = get_task_from_file_random()
+#     net_dir = '/home/afzal/tools/networks/tf/mnist'
+#     # random.shuffle(tasks)
 
-    num_tasks = len(tasks)
-    print(f"Total number of task: {num_tasks}")
+#     num_tasks = len(tasks)
+#     print(f"Total number of task: {num_tasks}")
 
-    if num_cpu >= num_tasks:
-        load_per_cpu = [1]*num_tasks
-    else:
-        load_per_cpu = [0]*num_cpu
-        for i in range(0,num_tasks):
-            j = i % num_cpu
-            load_per_cpu[j] += 1
+#     if num_cpu >= num_tasks:
+#         load_per_cpu = [1]*num_tasks
+#     else:
+#         load_per_cpu = [0]*num_cpu
+#         for i in range(0,num_tasks):
+#             j = i % num_cpu
+#             load_per_cpu[j] += 1
 
-    print("Load per cpu: {}".format(load_per_cpu))
+#     print("Load per cpu: {}".format(load_per_cpu))
 
-    prev_load = 0
-    for idx, load in enumerate(load_per_cpu):
-        ld = tasks[prev_load:prev_load+load]
-        prev_load += load
-        cmds = []
-        for l in ld:
-            net_name = l[0]
-            image_index = l[1]
-            ep = l[2]
-            conf = l[3]
-            is_conf_rb = l[4]
-            log_file = net_name+"+"+str(image_index)+"+"+str(ep)+"+"+str(conf)
-            log_file = os.path.join(log_dir, log_file)
-            result_file = os.path.join(result_dir, f"file_{idx}.txt")
-            command = f"taskset --cpu-list {num_cores*idx}-{(num_cores*idx)+(num_cores -1)} timeout -k 2s {TIMEOUT} python {TOOL} {net_name} {image_index} {ep} {conf} {is_conf_rb} {result_file} >> {log_file}"
-            cmds.append(command)
-        file_name = os.path.join(log_dir, f"script_{idx}.sh")
-        write_script_file(file_name, cmds)
+#     prev_load = 0
+#     for idx, load in enumerate(load_per_cpu):
+#         ld = tasks[prev_load:prev_load+load]
+#         prev_load += load
+#         cmds = []
+#         for l in ld:
+#             net_name = l[0]
+#             image_index = l[1]
+#             ep = l[2]
+#             conf = l[3]
+#             is_conf_rb = l[4]
+#             log_file = net_name+"+"+str(image_index)+"+"+str(ep)+"+"+str(conf)
+#             log_file = os.path.join(log_dir, log_file)
+#             result_file = os.path.join(result_dir, f"file_{idx}.txt")
+#             command = f"taskset --cpu-list {num_cores*idx}-{(num_cores*idx)+(num_cores -1)} timeout -k 2s {TIMEOUT} python {TOOL} {net_name} {image_index} {ep} {conf} {is_conf_rb} {result_file} >> {log_file}"
+#             cmds.append(command)
+#         file_name = os.path.join(log_dir, f"script_{idx}.sh")
+#         write_script_file(file_name, cmds)
 
 
 def get_tasks(instance_file):
@@ -138,7 +142,8 @@ def get_tasks_mnistfc_modified():
 
     return tasks
 
-def get_confg_path_cifar100(net_path):
+def get_confg_path_cifar100(net_path, existing_config_path):
+    config_path1 , _  = os.path.split(existing_config_path)
     config_file = ''
     if 'CIFAR100_resnet_small' in net_path:
         config_file = 'cifar100_small_2022.yaml'
@@ -151,10 +156,11 @@ def get_confg_path_cifar100(net_path):
     elif 'TinyImageNet_resnet_medium' in net_path:
         config_file = 'tinyimagenet_2022.yaml'
 
-    return config_file
+    return os.path.join(config_path1, config_file)
 
 
-def print_cmnds_abcrowns(num_cpu, log_dir, tool_main, config_path, num_cores, instance_file, dataset):
+def print_cmnds_abcrowns(log_dir, tool_main, config_path, dataset, target_benchmarks_dir, device, num_cpu=1):
+    instance_file = os.path.join(target_benchmarks_dir, 'instances.csv')
     tasks = get_tasks(instance_file=instance_file)
     random.shuffle(tasks)
     # tasks = get_tasks_mnistfc_modified()
@@ -175,30 +181,55 @@ def print_cmnds_abcrowns(num_cpu, log_dir, tool_main, config_path, num_cores, in
     prev_load = 0
     for idx, load in enumerate(load_per_cpu):
         ld = tasks[prev_load:prev_load+load]
-        prev_load += load
+        prev_load += load   
         cmds = []
         for l in ld:
-            net_path = l[0]
-            prop_path = l[1]
-            timeout = int(l[2])
+            net_path = os.path.join(target_benchmarks_dir, l[0])
+            prop_path = os.path.join(target_benchmarks_dir, l[1])
+            timeout = float(l[2])
             if dataset == 'CIFAR100':
-                config_path = get_confg_path_cifar100(net_path)
+                config_path = get_confg_path_cifar100(net_path, config_path)
             log_file = os.path.basename(net_path)[:-5]+"+"+os.path.basename(prop_path)[:-7]
             log_file = os.path.join(log_dir, log_file)
             result_file = "res_"+os.path.basename(net_path)[:-5]+"+"+os.path.basename(prop_path)[:-7]
             result_file = os.path.join(log_dir, result_file)
-            command = f"taskset --cpu-list {num_cores*idx}-{(num_cores*idx)+(num_cores -1)} timeout -k 2s {timeout+200} python {tool_main} --config {config_path} --device cpu --show_adv_example --onnx_path {net_path} --vnnlib_path {prop_path} --results_file {result_file} --timeout {timeout} >> {log_file}"
-            cmds.append(command)
-        file_name = os.path.join(log_dir, f"script_{idx}.sh")
-        write_script_file(file_name, cmds)
+            command = [
+                "timeout", "-k", "2s", str(timeout + 100), "python", tool_main,
+                "--config", config_path,
+                "--device", device,
+                "--show_adv_example",
+                "--onnx_path", net_path,
+                "--vnnlib_path", prop_path,
+                "--results_file", result_file,
+                "--timeout", str(timeout)
+            ]
+            print(command)
+            with open(log_file, "a") as log:
+                try:
+                    subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=True)
+                except subprocess.CalledProcessError as e:
+                    print(f"Command failed for {log_file}: {e}")
+        # file_name = os.path.join(log_dir, f"script_{idx}.sh")
+        # write_script_file(file_name, cmds)
 
+def print_server_info():
+    # Check PyTorch version
+    print("PyTorch version:", torch.__version__)
+
+    # Check if CUDA is available
+    print("CUDA available:", torch.cuda.is_available())
+
+    # Check the CUDA version
+    print("CUDA version:", torch.version.cuda)
+
+    # Check the GPU name
+    if torch.cuda.is_available():
+        print("GPU name:", torch.cuda.get_device_name(0))
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 4:
-        num_cpu = int(sys.argv[1])
-        log_dir = sys.argv[2]
-        config_file = sys.argv[3]
+    if len(sys.argv) == 2:
+        config_file = sys.argv[1]
     else:
         print("Error: ")
         sys.exit(1)
@@ -207,24 +238,32 @@ if __name__ == '__main__':
         config = yaml.safe_load(file)
     
     dataset = config['dataset']
-    is_nilgiri = config['is_nilgiri']
-    if is_nilgiri:
-        tool_main = '/home/afzal/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
-        total_cores = 16
-    else:
-        tool_main = '/home/afzal/tools/vnncomp23/alpha-beta-CROWN/complete_verifier/abcrown.py'
-        total_cores = 60
-    total_cores = 16
-    tool_main = '/home/u1411251/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
-    num_cores_per_benchmarks = int(total_cores/num_cpu)
+    # is_nilgiri = config['is_nilgiri']
+    # if is_nilgiri:
+    #     tool_main = '/home/afzal/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
+    #     total_cores = 16
+    # else:
+    #     tool_main = '/home/afzal/tools/vnncomp23/alpha-beta-CROWN/complete_verifier/abcrown.py'
+    #     total_cores = 60
+    # total_cores = 16
+    tool_main = config['abcrown_tool']
+    # num_cores_per_benchmarks = int(total_cores/num_cpu)
     config_path = config['abcrown_config']
-    preprocessing_dir = config['preprocessing_dir']
-    instance_file = os.path.join(preprocessing_dir, 'benchmarks', 'instances.csv')
+    target_benchmarks_dir = config['target_benchmarks_dir']
+    device = config.get('device', 'cpu')
+    log_dir = config['log_dir']
 
-    print_cmnds_abcrowns(num_cpu, log_dir, tool_main=tool_main, config_path=config_path, num_cores=num_cores_per_benchmarks, instance_file=instance_file, dataset=dataset)
+    try:
+        shutil.rmtree(log_dir)
+        print(f"Directory '{log_dir}' and its contents were removed successfully.")
+    except FileNotFoundError:
+        print(f"Directory '{log_dir}' does not exist.")
+    except Exception as e:
+        print(f"Error: {e}")
 
+    os.makedirs(log_dir, exist_ok=True)
 
-
+    print_cmnds_abcrowns(log_dir, tool_main=tool_main, config_path=config_path, dataset=dataset, target_benchmarks_dir=target_benchmarks_dir, device=device)
 
 
 
