@@ -25,6 +25,7 @@ from simulate_network import get_cifar10_train_data
 from simulate_network import run_network_cifar10, run_model
 from modify_onnx_top_k import append_layers_top_k
 from generate_benchmarks.strong.modify_nn_strong import setup_on_vnncomp_prop_strong
+from generate_benchmarks.smoothness.modify_nn_smooth import setup_on_vnncomp_prop_smoothness
 
 mnist_dataset = 'MNIST'
 cifar10_dataset = 'CIFAR10'
@@ -743,6 +744,17 @@ if __name__ == '__main__':
                                          is_less_than_output_prp = is_less_than_output_prp, 
                                          conf_file=conf_file,
                                          orig_image_conf_th=orig_image_conf_th,
+                                         is_target_prop=is_target_prop)
+        elif sub_property == 'smoothness':
+            setup_on_vnncomp_prop_smoothness(dataset=dataset,
+                                         confs = confs,
+                                         timeout = timeout,
+                                         epsilons=epsilons, 
+                                         target_benchmarks_dir = target_benchmarks_dir, 
+                                         vnncomp_benchmarks_dir = vnncomp_benchmarks_dir, 
+                                         tolerance_param = tolerance_param, 
+                                         is_less_than_output_prp = is_less_than_output_prp, 
+                                         conf_file=conf_file,
                                          is_target_prop=is_target_prop)
     elif property_type == 'mod_prop':
         if not is_gans_input:
