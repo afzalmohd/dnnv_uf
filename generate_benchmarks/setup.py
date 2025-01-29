@@ -1,5 +1,7 @@
 import os
 import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
+print(sys.path)
 import yaml
 import shutil
 from PIL import Image
@@ -22,6 +24,7 @@ from simulate_network import get_cifar10_test_data
 from simulate_network import get_cifar10_train_data
 from simulate_network import run_network_cifar10, run_model
 from modify_onnx_top_k import append_layers_top_k
+from generate_benchmarks.strong.modify_nn_strong import setup_on_vnncomp_prop_strong
 
 mnist_dataset = 'MNIST'
 cifar10_dataset = 'CIFAR10'
@@ -681,6 +684,9 @@ if __name__ == '__main__':
     log_dir = config.get('log_dir', None)
     is_less_than_output_prp = config.get('is_less_than_output_prp', False)
     is_target_prop = config.get('is_target_prop', False)
+    sub_property = config.get('sub_property', None) 
+    orig_image_conf_th = config.get('orig_image_th', 0) 
+    conf_file = config.get('conf_file', None)
     
     try:
         shutil.rmtree(target_benchmarks_dir)
@@ -715,16 +721,29 @@ if __name__ == '__main__':
                                      tolerance_param=tolerance_param
                                     )
     elif property_type == 'vnncomp':
-         setup_on_vnncomp_prop(dataset=dataset, 
-                                     confs=confs,
-                                     timeout=timeout,
-                                     epsilons=epsilons, 
-                                     target_benchmarks_dir=target_benchmarks_dir, 
-                                     vnncomp_benchmarks_dir=vnncomp_benchmarks_dir,
-                                     tolerance_param=tolerance_param, 
-                                     is_less_than_output_prp= is_less_than_output_prp, 
-                                     is_target_prop=is_target_prop
+        if sub_property == 'relaxed':
+            setup_on_vnncomp_prop(dataset=dataset, 
+                                        confs=confs,
+                                        timeout=timeout,
+                                        epsilons=epsilons, 
+                                        target_benchmarks_dir=target_benchmarks_dir, 
+                                        vnncomp_benchmarks_dir=vnncomp_benchmarks_dir,
+                                        tolerance_param=tolerance_param, 
+                                        is_less_than_output_prp= is_less_than_output_prp, 
+                                        is_target_prop=is_target_prop
                                     )
+        elif sub_property == 'strong':
+            setup_on_vnncomp_prop_strong(dataset=dataset,
+                                         confs = confs,
+                                         timeout = timeout,
+                                         epsilons=epsilons, 
+                                         target_benchmarks_dir = target_benchmarks_dir, 
+                                         vnncomp_benchmarks_dir = vnncomp_benchmarks_dir, 
+                                         tolerance_param = tolerance_param, 
+                                         is_less_than_output_prp = is_less_than_output_prp, 
+                                         conf_file=conf_file,
+                                         orig_image_conf_th=orig_image_conf_th,
+                                         is_target_prop=is_target_prop)
     elif property_type == 'mod_prop':
         if not is_gans_input:
             print(f"Please enable the Gans input in config file: {config_file}")

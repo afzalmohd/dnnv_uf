@@ -1,0 +1,20 @@
+property: 'vnncomp' # mod_prop
+sub_property: 'strong'
+# property: 'mod_prop'
+dataset: 'MNIST' #'CIFAR100' 
+vnncomp_benchmarks_dir: '/home/u1411251/tools/vnncomp_benchmarks/mnist_fc'
+target_benchmarks_dir: '/home/u1411251/tools/benchmarks/strong/mnist_fc'
+log_dir: '/home/u1411251/tools/logs/strong/mnist_fc'
+conf_file: '/home/u1411251/tools/vnncomp_benchmarks/mnist_fc/conf_mnist.csv'
+confs: [0, 15, 17, 20]
+orig_image_th: 22
+timeout: 500
+is_softmax: True
+epsilons: [0.0039]
+tolerance_param: 0.00001
+is_nilgiri: False
+abcrown_config: 'abcrown_tool_run_scripts/ab_crown_configs/mnist.yaml'
+abcrown_tool: 'external_tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
+is_less_than_output_prp: False
+is_target_prop: False
+device: 'cpu'
