@@ -32,7 +32,7 @@ def get_fc1_layer_weights_smooth(label, output_dims):
             l[label] = -1.0
             weights.append(l)
 
-
+    # print(np.array(weights).reshape(18,10))
     return weights
 
 def get_fc_layer_weights_smooth_single_cond(label, output_dims):
@@ -274,7 +274,7 @@ def update_fc_relu_smooth_both_conds(model_path, output_model_path, label = 0, d
     output_layer_weight, output_layer_bias = get_output_layers_w_b(graph, w_weight_name, b_weight_name)
     fc1_output_dim = 2*(existing_model_out_dims - 1)
     fc2_output_dim = 2
-    final_out_dim = 1
+    final_out_dim = 2
         
     new_w = get_fc1_layer_weights_smooth(label, output_dims=existing_model_out_dims)
     new_fc_weight = np.reshape(new_w, (fc1_output_dim, existing_model_out_dims))
@@ -316,35 +316,37 @@ def update_fc_relu_smooth_both_conds(model_path, output_model_path, label = 0, d
     weight = [-1.0]*(existing_model_out_dims-1) + [0.0]*fc1_output_dim + [1.0]*(existing_model_out_dims-1)
     fc_weight1 = helper.make_tensor(name=weight_name_1, data_type=TensorProto.FLOAT, dims=[fc2_output_dim, fc1_output_dim],vals=weight)
 
-    fc_bias1 = helper.make_tensor(name=bias_name_1, data_type=TensorProto.FLOAT, dims=[fc2_output_dim], vals=[input_tolerance, -input_tolerance])
+    bias_vals = [input_tolerance, -input_tolerance]
+    bias_vals = [0.0, 0.0]
+    fc_bias1 = helper.make_tensor(name=bias_name_1, data_type=TensorProto.FLOAT, dims=[fc2_output_dim], vals=bias_vals)
 
-    relu_2_output_name = 'appnded.relu2'
-    relu_node_2 = helper.make_node('Relu', inputs=[output_fc_layer_1_name], outputs=[str(relu_2_output_name)], 
-                                 name=str(relu_2_output_name)
-                                 )
+    # relu_2_output_name = 'appnded.relu2'
+    # relu_node_2 = helper.make_node('Relu', inputs=[output_fc_layer_1_name], outputs=[str(relu_2_output_name)], 
+    #                              name=str(relu_2_output_name)
+    #                              )
     
 
-    output_fc_layer_2_name = 'appended_fc2'
-    weight_name_2 = f"layer.appended.weight2"
-    bias_name_2 = f"layer.appended.bias2"
-    fc_node_2 = helper.make_node('Gemm', inputs=[str(relu_2_output_name), weight_name_2, bias_name_2], 
-                               outputs=[str(output_fc_layer_2_name)], alpha=1.0, beta=1.0, transB=1,
-                               name=str(output_fc_layer_2_name)
-                               )
+    # output_fc_layer_2_name = 'appended_fc2'
+    # weight_name_2 = f"layer.appended.weight2"
+    # bias_name_2 = f"layer.appended.bias2"
+    # fc_node_2 = helper.make_node('Gemm', inputs=[str(relu_2_output_name), weight_name_2, bias_name_2], 
+    #                            outputs=[str(output_fc_layer_2_name)], alpha=1.0, beta=1.0, transB=1,
+    #                            name=str(output_fc_layer_2_name)
+    #                            )
     
-    fc_weight2 = helper.make_tensor(name=weight_name_2, data_type=TensorProto.FLOAT, dims=[final_out_dim, fc2_output_dim],vals=[1.0,1.0])
+    # fc_weight2 = helper.make_tensor(name=weight_name_2, data_type=TensorProto.FLOAT, dims=[final_out_dim, fc2_output_dim],vals=[1.0,1.0])
 
-    fc_bias2 = helper.make_tensor(name=bias_name_2, data_type=TensorProto.FLOAT, dims=[final_out_dim], vals=[0]*final_out_dim)
+    # fc_bias2 = helper.make_tensor(name=bias_name_2, data_type=TensorProto.FLOAT, dims=[final_out_dim], vals=[0]*final_out_dim)
 
     graph.node.append(relu_node_1)
     graph.node.append(fc_node_1)
-    graph.node.append(relu_node_2)
-    graph.node.append(fc_node_2)
+    # graph.node.append(relu_node_2)
+    # graph.node.append(fc_node_2)
     graph.initializer.append(fc_weight1)
     graph.initializer.append(fc_bias1)
-    graph.initializer.append(fc_weight2)
-    graph.initializer.append(fc_bias2)
-    graph.output[0].name = str(output_fc_layer_2_name)
+    # graph.initializer.append(fc_weight2)
+    # graph.initializer.append(fc_bias2)
+    graph.output[0].name = str(output_fc_layer_1_name)
 
     for output in graph.output:
         # Assuming there is only one output tensor, if there are multiple, you may need to specify the exact one
@@ -365,10 +367,11 @@ def are_conds_false(net_prp, file_path, th):
             for line in Lines:
                 line = line.strip()
                 line_l = line.split(',')
-                if net_prp in line:
-                    conf1 = float(line_l[-1])
+                if net_prp[0] == line_l[0] and net_prp[1] == line_l[1]:
+                    conf1 = float(line_l[2])
                     conf1 = conf1*100
                     conf = conf1
+                    # print(conf, th)
     except:
         pass
     
@@ -378,6 +381,33 @@ def are_conds_false(net_prp, file_path, th):
     
     # print(f"Check....{net_prp}")
     return cond1, cond2
+
+def save_vnnlib_from_vnncomp_both_cond(vnncomp_spec_path, target_spec_path: str, conf, total_output_class: int = 9, tolerance_param_1 = -1e-3, tolerance_param_2 = 1e-3, orignal_out_classes = 10):
+    if conf == 0:
+        shutil.copy2(vnncomp_spec_path, target_spec_path)
+    else:
+        output_constrnt_lines = []
+        output_constrnt_lines.append("(assert (or\n")
+        output_constrnt_lines.append(f"    (and (>= Y_{0} {tolerance_param_1}))\n")
+        output_constrnt_lines.append(f"    (and (>= Y_{1} {tolerance_param_2}))\n")
+        output_constrnt_lines.append("))")
+
+        with open(vnncomp_spec_path, 'r') as file:
+            lines = file.readlines()
+        
+        output_constraints_start = None
+        remove_line = None
+        for i, line in enumerate(lines):
+            if f"declare-const Y_{total_output_class} Real" in line:
+                remove_line = i                
+            if "; Output constraint" in line or "output constraints" in line:
+                output_constraints_start = i
+                break
+        removed_lines_gap = orignal_out_classes - total_output_class
+        lines = lines[:remove_line] + lines[remove_line+removed_lines_gap:output_constraints_start + 1] + output_constrnt_lines
+
+        with open(target_spec_path, 'w') as file:
+            file.writelines(lines)
 
 def setup_on_vnncomp_prop_smoothness(dataset, confs, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir, tolerance_param, is_less_than_output_prp, conf_file, is_target_prop=False):
     input_tolerance = 1e-4
@@ -421,7 +451,7 @@ def setup_on_vnncomp_prop_smoothness(dataset, confs, timeout, epsilons, target_b
                     new_prp_name =  f"{prpname[:-7]}_{idx}_{conf}.vnnlib"
                     target_net_path = os.path.join(target_net_dir, new_net_name)
                     target_prp_path = os.path.join(target_prp_dir, new_prp_name)
-                    is_cond1_false, is_cond2_false = are_conds_false(line, file_path=conf_file, th=conf)
+                    is_cond1_false, is_cond2_false = are_conds_false(line_l, file_path=conf_file, th=conf)
                     if is_cond1_false and is_cond2_false:
                         print(f"Both conds are false: {new_net_name},{new_prp_name}")
                         continue
@@ -429,18 +459,20 @@ def setup_on_vnncomp_prop_smoothness(dataset, confs, timeout, epsilons, target_b
                         delta2 = get_delta_2(conf, output_dims)
                         print(f"Cond1 is false: {new_net_name},{new_prp_name}")
                         update_fc_relu_smooth_cond2(model_path=vnncomp_net_path, output_model_path=target_net_path, label=label, delta=delta2, existing_model_out_dims=output_dims)
+                        save_vnnlib_from_vnncomp(vnncomp_prp_path, target_prp_path, conf=conf, total_output_class=new_out_dims, tolerance_param=tolerance_param_temp, orignal_out_classes=output_dims)
                     elif is_cond2_false:
                         delta1 = get_delta_1(conf)
                         print(f"Cond2 is false: {new_net_name},{new_prp_name}")
                         update_fc_relu_smooth_cond1(model_path=vnncomp_net_path, output_model_path=target_net_path, label=label, delta=delta1, existing_model_out_dims=output_dims)
                         tolerance_param_temp = -tolerance_param
+                        save_vnnlib_from_vnncomp(vnncomp_prp_path, target_prp_path, conf=conf, total_output_class=new_out_dims, tolerance_param=tolerance_param_temp, orignal_out_classes=output_dims)
                     else:
                         print(f"Both conds are true: {new_net_name},{new_prp_name}")
                         delta1 = get_delta_1(conf)
                         delta2 = get_delta_2(conf, output_dims)
                         update_fc_relu_smooth_both_conds(model_path=vnncomp_net_path, output_model_path=target_net_path, label=label, delta_1=delta1, delta_2=delta2, existing_model_out_dims=output_dims, input_tolerance=input_tolerance)
+                        save_vnnlib_from_vnncomp_both_cond(vnncomp_prp_path, target_prp_path, conf=conf, total_output_class=2, tolerance_param_1=-tolerance_param_temp, tolerance_param_2=tolerance_param_temp, orignal_out_classes=output_dims)
 
-                    save_vnnlib_from_vnncomp(vnncomp_prp_path, target_prp_path, conf=conf, total_output_class=new_out_dims, tolerance_param=tolerance_param_temp, orignal_out_classes=output_dims)
                     ins_line = f"{os.path.join(sub_net_dir, new_net_name)},{os.path.join(sub_prp_dir, new_prp_name)},{timeout}\n"
                     instance_lines.append(ins_line)
             idx += 1
@@ -455,5 +487,6 @@ if __name__ == '__main__':
     input_model_path = '/home/u1411251/tools/vnncomp_benchmarks/mnist_fc/onnx/mnist-net_256x4.onnx'
     output_model_path = "temp.onnx"
     # update_fc_relu_smooth_both_conds(input_model_path, output_model_path, label = 0, delta_1 = 1.98, delta_2 = 2.02, existing_model_out_dims = 10, input_tolerance = 1e-5)
-    update_fc_relu_smooth_cond1(input_model_path, output_model_path, label = 0, delta=1.98, existing_model_out_dims = 10)
+    # update_fc_relu_smooth_cond1(input_model_path, output_model_path, label = 0, delta=1.98, existing_model_out_dims = 10)
     # get_delta_strong(15, 10)
+    get_fc1_layer_weights_smooth(label=3, output_dims=10)
