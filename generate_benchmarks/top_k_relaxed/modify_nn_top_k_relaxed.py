@@ -9,6 +9,7 @@ import re
 from onnx import helper, shape_inference, TensorProto, numpy_helper
 from generate_benchmarks.modify_onnx import get_output_affine_layers_weights
 from generate_benchmarks.generate_properties import save_vnnlib_from_vnncomp
+from generate_benchmarks.generate_properties import save_vnnlib_from_vnncomp_conj
 
 mnist_dataset = 'MNIST'
 cifar10_dataset = 'CIFAR10'
@@ -126,7 +127,7 @@ def get_delta_strong(conf, output_dims):
 
     
 
-def update_fc_relu_top_k_relaxed(model_path, output_model_path, top_k_labels = [0,8], existing_model_out_dims = 10, k=2):
+def update_fc_relu_top_k_relaxed(model_path, output_model_path, top_k_labels = [0,8], existing_model_out_dims = 10, k=2, input_error=-0.001):
     w_weight_name, b_weight_name  = get_output_affine_layers_weights(model_path)
     model = onnx.load(model_path)
     graph = model.graph
@@ -135,7 +136,8 @@ def update_fc_relu_top_k_relaxed(model_path, output_model_path, top_k_labels = [
     for i in range(1,k+1):
         fc_output_dim += i * (existing_model_out_dims-i)
 
-    final_out_dim = 2
+    fc_output_dim_2 = 2
+    final_out_dim = 1
         
     new_w = get_fc_layer_weights_top_k_relaxed (top_k_labels=top_k_labels, output_dims=existing_model_out_dims)
     new_fc_weight = np.reshape(new_w, (fc_output_dim, existing_model_out_dims))
@@ -174,17 +176,42 @@ def update_fc_relu_top_k_relaxed(model_path, output_model_path, top_k_labels = [
                                name=str(output_fc_layer_name)
                                )
 
-    weight = [1.0]*(existing_model_out_dims-1) + [0.0]*(2*(existing_model_out_dims-2)) + [1.0]*fc_output_dim
+    weight = [-1.0]*(existing_model_out_dims-1) + [0.0]*(2*(existing_model_out_dims-2)) + [-1.0]*fc_output_dim
     
-    fc_weight = helper.make_tensor(name=weight_name, data_type=TensorProto.FLOAT, dims=[final_out_dim, fc_output_dim],vals=weight)
+    fc_weight = helper.make_tensor(name=weight_name, data_type=TensorProto.FLOAT, dims=[fc_output_dim_2, fc_output_dim],vals=weight)
 
-    fc_bias = helper.make_tensor(name=bias_name, data_type=TensorProto.FLOAT, dims=[final_out_dim], vals=[0.0] * (final_out_dim))
+    fc_bias = helper.make_tensor(name=bias_name, data_type=TensorProto.FLOAT, dims=[fc_output_dim_2], vals=[input_error] * (fc_output_dim_2))
+
+    relu_output_name = 'appnded.relu2'
+
+    relu_node2 = helper.make_node('Relu', inputs=[output_fc_layer_name], outputs=[str(relu_output_name)], 
+                                 name=str(relu_output_name)
+                                 )
+    
+    output_fc_layer_name = 'appended_fc2'
+
+    weight_name = f"layer.appended.weight2"
+    bias_name = f"layer.appended.bias2"
+
+    fc_node2 = helper.make_node('Gemm', inputs=[str(relu_output_name), weight_name, bias_name], 
+                               outputs=[str(output_fc_layer_name)], alpha=1.0, beta=1.0, transB=1,
+                               name=str(output_fc_layer_name)
+                               )
+    
+    fc_weight2 = helper.make_tensor(name=weight_name, data_type=TensorProto.FLOAT, dims=[final_out_dim, fc_output_dim_2],vals=[-1.0, -1.0])
+
+    fc_bias2 = helper.make_tensor(name=bias_name, data_type=TensorProto.FLOAT, dims=[final_out_dim], vals=[0.0] * (final_out_dim))
+
 
 
     graph.node.append(relu_node)
     graph.node.append(fc_node)
+    graph.node.append(relu_node2)
+    graph.node.append(fc_node2)
     graph.initializer.append(fc_weight)
     graph.initializer.append(fc_bias)
+    graph.initializer.append(fc_weight2)
+    graph.initializer.append(fc_bias2)
     graph.output[0].name = str(output_fc_layer_name)
 
     for output in graph.output:
@@ -227,7 +254,7 @@ def setup_on_vnncomp_prop_top_k_relaxed(dataset, timeout, epsilons, target_bench
         output_dims = get_output_dims(dataset)
         instance_lines = []
         idx=0
-        new_out_dims = 2
+        new_out_dims = 1
         for line in vnncomp_instance_f:
             line = line.strip()
             line_l = line.split(',')

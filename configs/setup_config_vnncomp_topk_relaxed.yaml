@@ -9,7 +9,7 @@ conf_file: '/home/afzal/tools/vnncomp_benchmarks/mnist_fc/conf_mnist.csv'
 timeout: 500
 is_softmax: True
 epsilons: [0.0039]
-tolerance_param: 0.001
+tolerance_param: -0.000001
 is_nilgiri: False
 abcrown_config: 'abcrown_tool_run_scripts/ab_crown_configs/mnist.yaml'
 abcrown_tool: 'external_tools/alpha-beta-CROWN/complete_verifier/abcrown.py'

@@ -6,7 +6,7 @@ vnncomp_benchmarks_dir: '/home/afzal/tools/vnncomp_benchmarks/mnist_fc'
 target_benchmarks_dir: '/home/afzal/tools/benchmarks/smoothness/mnist_fc'
 log_dir: '/home/afzal/tools/logs/smoothness/mnist_fc'
 conf_file: '/home/afzal/tools/vnncomp_benchmarks/mnist_fc/conf_mnist.csv'
-confs: [10, 20, 30, 40, 50, 60]
+confs: [10, 25, 40]
 timeout: 500
 is_softmax: True
 epsilons: [0.0039]

@@ -3,8 +3,7 @@ import os
 import sys
 from typing import List
 import shutil
-from simulate_network import read_images_from_dataset
-from simulate_network import get_selected_images
+from generate_benchmarks.simulate_network import get_selected_images
 
 
 # import torch
@@ -294,8 +293,6 @@ def save_vnnlib_tf_1(lb, ub, label: int, spec_path: str, dataset = 'MNIST', tota
         f.write("))")
 
 def save_vnnlib_from_vnncomp(vnncomp_spec_path, target_spec_path: str, conf, total_output_class: int = 9, tolerance_param = -1e-3, orignal_out_classes = 10):
-    if tolerance_param > 0.0:
-        tolerance_param = -tolerance_param
     if conf == 0:
         shutil.copy2(vnncomp_spec_path, target_spec_path)
     else:
@@ -303,6 +300,33 @@ def save_vnnlib_from_vnncomp(vnncomp_spec_path, target_spec_path: str, conf, tot
         output_constrnt_lines.append("(assert (or\n")
         for i in range(total_output_class):
             output_constrnt_lines.append(f"    (and (>= Y_{i} {tolerance_param}))\n")
+        output_constrnt_lines.append("))")
+
+        with open(vnncomp_spec_path, 'r') as file:
+            lines = file.readlines()
+        
+        output_constraints_start = None
+        remove_line = None
+        for i, line in enumerate(lines):
+            if f"declare-const Y_{total_output_class} Real" in line:
+                remove_line = i                
+            if "; Output constraint" in line or "output constraints" in line:
+                output_constraints_start = i
+                break
+        removed_lines_gap = orignal_out_classes - total_output_class
+        lines = lines[:remove_line] + lines[remove_line+removed_lines_gap:output_constraints_start + 1] + output_constrnt_lines
+
+        with open(target_spec_path, 'w') as file:
+            file.writelines(lines)
+
+def save_vnnlib_from_vnncomp_conj(vnncomp_spec_path, target_spec_path: str, conf, total_output_class: int = 9, tolerance_param = -1e-3, orignal_out_classes = 10):
+    if conf == 0:
+        shutil.copy2(vnncomp_spec_path, target_spec_path)
+    else:
+        output_constrnt_lines = []
+        output_constrnt_lines.append("(assert (and\n")
+        for i in range(total_output_class):
+            output_constrnt_lines.append(f"    (>= Y_{i} {tolerance_param})\n")
         output_constrnt_lines.append("))")
 
         with open(vnncomp_spec_path, 'r') as file:
