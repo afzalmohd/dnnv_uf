@@ -26,6 +26,7 @@ from simulate_network import run_network_cifar10, run_model
 from modify_onnx_top_k import append_layers_top_k
 from generate_benchmarks.strong.modify_nn_strong import setup_on_vnncomp_prop_strong
 from generate_benchmarks.smoothness.modify_nn_smooth import setup_on_vnncomp_prop_smoothness
+from generate_benchmarks.top_k_relaxed.modify_nn_top_k_relaxed import setup_on_vnncomp_prop_top_k_relaxed
 
 mnist_dataset = 'MNIST'
 cifar10_dataset = 'CIFAR10'
@@ -756,6 +757,15 @@ if __name__ == '__main__':
                                          is_less_than_output_prp = is_less_than_output_prp, 
                                          conf_file=conf_file,
                                          is_target_prop=is_target_prop)
+        elif sub_property == 'top_k_relaxed':
+            setup_on_vnncomp_prop_top_k_relaxed(dataset=dataset,
+                                                timeout=timeout,
+                                                epsilons=epsilons,
+                                                target_benchmarks_dir=target_benchmarks_dir,
+                                                vnncomp_benchmarks_dir=vnncomp_benchmarks_dir,
+                                                tolerance_param=tolerance_param,
+                                                conf_file=conf_file
+            )
     elif property_type == 'mod_prop':
         if not is_gans_input:
             print(f"Please enable the Gans input in config file: {config_file}")
