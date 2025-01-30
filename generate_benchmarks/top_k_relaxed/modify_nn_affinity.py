@@ -144,6 +144,8 @@ def setup_on_vnncomp_prop_affinity(dataset, timeout, epsilons, target_benchmarks
                 shutil.copy2(vnncomp_net_path, target_net_path)
                 shutil.copy2(vnncomp_prp_path, target_prp_path)
                 print(f"Affinity cond failed: {netname} , {prpname}")
+                ins_line = f"{os.path.join(sub_net_dir, netname)},{os.path.join(sub_prp_dir, prpname)},{timeout}\n"
+                instance_lines.append(ins_line)
                 count += 1
             else:
                 new_net_name = f"{netname[:-5]}_{idx}_1.onnx"
@@ -153,8 +155,8 @@ def setup_on_vnncomp_prop_affinity(dataset, timeout, epsilons, target_benchmarks
                 update_fc_relu_top_k_relaxed(model_path=vnncomp_net_path, output_model_path=target_net_path, top_k_labels=top_pred_label, existing_model_out_dims=output_dims, k=k, input_error=0.001)
                 save_vnnlib_from_vnncomp(vnncomp_prp_path, target_prp_path, conf=1, total_output_class=new_out_dims, tolerance_param=tolerance_param, orignal_out_classes=output_dims)
                 print(f"Affinity cond hold: {new_net_name} , {new_prp_name}")
-            ins_line = f"{os.path.join(sub_net_dir, new_net_name)},{os.path.join(sub_prp_dir, new_prp_name)},{timeout}\n"
-            instance_lines.append(ins_line)
+                ins_line = f"{os.path.join(sub_net_dir, new_net_name)},{os.path.join(sub_prp_dir, new_prp_name)},{timeout}\n"
+                instance_lines.append(ins_line)
             idx += 1
         with open(instances_file, 'w') as f:
             f.writelines(instance_lines)
