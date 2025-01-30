@@ -1,0 +1,20 @@
+property: 'vnncomp' # mod_prop
+sub_property: 'affinity'
+# property: 'mod_prop'
+dataset: 'CIFAR10' #'CIFAR100' 
+vnncomp_benchmarks_dir: '/home/afzal/tools/vnncomp_benchmarks/mnist_fc'
+target_benchmarks_dir: '/home/afzal/tools/benchmarks/affinity/mnist_fc'
+log_dir: '/home/afzal/tools/logs/affinity/mnist_fc'
+conf_file: '/home/afzal/tools/vnncomp_benchmarks/mnist_fc/conf_mnist.csv'
+timeout: 500
+mnist_knowledge: [[0,8], [6,8], [4,9], [2,7], [1,9], [1,7], [3], [5]]
+cifar10_knowledge: [[0,2], [0,1,8,9], [4, 5, 7], [3,5], [6]]
+is_softmax: True
+epsilons: [0.0039]
+tolerance_param: -0.00001
+is_nilgiri: False
+abcrown_config: 'abcrown_tool_run_scripts/ab_crown_configs/mnist.yaml'
+abcrown_tool: 'external_tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
+is_less_than_output_prp: False
+is_target_prop: False
+device: 'cpu'
