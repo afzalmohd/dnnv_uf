@@ -72,15 +72,46 @@ def mnist_encoding_relax(net_path, prp_path, conf, num_workers):
     options._numWorkers = num_workers
     exitCode1, vals1, stats1 = net1.solve(options=options)
     print(f"my_result:{exitCode1}")
+
+
+def mnist_encoding_relax_append_net(net_path, prp_path, num_workers):
+    net1 = Marabou.read_onnx(net_path)
+    input_vars = net1.inputVars[0].flatten()
+    num_input_vars = input_vars.size
+    outputVars = net1.outputVars[0].flatten()
+    num_output_vars = outputVars.size
+    lbs, ubs = extract_bounds_from_file(prp_path)
+    print(f"Check: {input_vars.size} , {len(lbs)}")
+
+    idx = 0
+    for var in input_vars:
+      net1.setLowerBound(var, lbs[idx])
+      net1.setUpperBound(var, ubs[idx])
+      idx += 1
+
+    eq = MarabouUtils.Equation(MarabouCore.Equation.GE)
+    eq.addAddend(1, outputVars[0])
+    eq.setScalar(-0.001)
+    
+    net1.addEquation(eq)
+      
+    options = MarabouCore.Options()
+    options._numWorkers = num_workers
+    exitCode1, vals1, stats1 = net1.solve(options=options)
+    print(f"my_result:{exitCode1}")
         
 if __name__ == '__main__':
-    if len(sys.argv) == 5:
+    if len(sys.argv) == 6:
         net_path = str(sys.argv[1])
         prp_path = str(sys.argv[2])
         conf = int(sys.argv[3])
         num_workers = int(sys.argv[4])
-    	
-    mnist_encoding_relax(net_path, prp_path, conf=conf, num_workers=num_workers)
+        prp_type = sys.argv[5]
+    
+    if prp_type == 'relaxed':
+        mnist_encoding_relax_append_net(net_path, prp_path, num_workers=num_workers)
+    else:
+        mnist_encoding_relax(net_path, prp_path, conf = conf, num_workers=num_workers)
 
 
 
