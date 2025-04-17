@@ -275,14 +275,17 @@ def merge_fc_layers_in_branch(nodes, inits, external_fc_w, external_fc_b, extern
     Then we create a new Gemm node that replaces nodes[0] and nodes[1].
     """
     # Get the original Flatten and fc_node from the branch.
-    flatten_node = nodes[0]
-    fc_node = nodes[1]
-    
+    # flatten_node = nodes[0]
+    fc_node = nodes[0]
+    # print(fc_node)
+    # print(fc_node)
     # fc_node is a Gemm node. Its inputs are: [flattened_input, fc_weight, fc_bias].
     fc_weight_name = fc_node.input[1]
     fc_bias_name = fc_node.input[2]
     W_fc = get_initializer_array(inits, fc_weight_name)  # Assume shape: (N, M) when transB=1.
     b_fc = get_initializer_array(inits, fc_bias_name)      # Shape: (N,)
+    # print(W_fc.shape)
+    # print(external_fc_w.shape)
     merged_weight = np.dot(W_fc, external_fc_w)  # Shape: (N, k) where k is the external fc output dim.
     merged_bias = np.dot(external_fc_b, W_fc.T) + b_fc  # Shape: (N,)
     
@@ -301,12 +304,12 @@ def merge_fc_layers_in_branch(nodes, inits, external_fc_w, external_fc_b, extern
          name=merged_node_name
     )
     # Remove the first two nodes (Flatten and fc_node) and replace them with new_node.
-    new_nodes = [new_node] + nodes[2:]
+    new_nodes = [new_node] + nodes[1:]
     new_inits = inits + [merged_w_init, merged_b_init]
     return new_nodes, new_inits
 
 
-def add_third_branch(model, input_dim, ep=0.01, is_shape_inference=True):
+def add_third_branch(model, input_dim, ep=0.04, is_shape_inference=True):
     """
     Adds a third branch from the input node with the sequence:
        Flatten3 -> Gemm (1568,1568) -> Relu -> Gemm (1,1568)
@@ -394,20 +397,22 @@ def merge_two_models_in_parallel_fc(original_model, input_dim, output_dim, is_sh
     # --- External FC parameters for branch 1 and branch 2 ---
     # For branch 1:
     fc1_w_pre = []
-    for i in range(784):
-        vec = [0.0] * 1568
+    for i in range(input_dim):
+        vec = [0.0] * 2*input_dim
         vec[i] = 1.0
         fc1_w_pre.append(vec)
     fc1_w_pre = np.array(fc1_w_pre, dtype=np.float32)
-    fc1_b_pre = np.array([0.0]*784, dtype=np.float32)
+    fc1_b_pre = np.array([0.0]*input_dim, dtype=np.float32)
+    # print(fc1_w_pre)
     # For branch 2:
     fc2_w_pre = []
-    for i in range(784):
-        vec = [0.0] * 1568
-        vec[784 + i] = 1.0
+    for i in range(input_dim):
+        vec = [0.0] * 2*input_dim
+        vec[input_dim + i] = 1.0
         fc2_w_pre.append(vec)
     fc2_w_pre = np.array(fc2_w_pre, dtype=np.float32)
-    fc2_b_pre = np.array([0.0]*784, dtype=np.float32)
+    # print(fc2_w_pre)
+    fc2_b_pre = np.array([0.0]*input_dim, dtype=np.float32)
 
     # --- Add Flatten nodes to produce branch inputs ---
     flatten1_node = onnx.helper.make_node("Flatten", inputs=["input"], outputs=["flatten1"], name="Flatten1")
@@ -417,6 +422,7 @@ def merge_two_models_in_parallel_fc(original_model, input_dim, output_dim, is_sh
     mapping1 = {orig_input_name: "flatten1"}
     copy1_nodes, copy1_inits, _, tensor_mapping1 = clone_subgraph(original_graph, mapping1, "copy1_")
     # Merge external FC with the branch's first FC layer in branch 1.
+    # print(copy1_nodes)
     copy1_nodes, copy1_inits = merge_fc_layers_in_branch(copy1_nodes, copy1_inits,
                                                          fc1_w_pre, fc1_b_pre,
                                                          "flatten1", "merged_FC1")
@@ -459,7 +465,7 @@ def merge_two_models_in_parallel_fc(original_model, input_dim, output_dim, is_sh
 
 
 
-def aappend_fc_layers(model, orig_net_out_dims, fixed_idx, is_shape_inference=True, delta=0.40, intermediate_eta = 1e-4):
+def aappend_fc_layers(model, orig_net_out_dims, fixed_idx, is_shape_inference=True, delta=0.1001, intermediate_eta = 1e-4):
     # Load the existing ONNX model
     # model = onnx.load(onnx_model_path)
     graph = model.graph
@@ -519,7 +525,7 @@ def merge_third_branch(model, input_dim, orig_net_out_dims, is_shape_inference=T
 
     fc3_node = onnx.helper.make_node("Gemm", inputs=["relu_ater_concat_out", "fc3_w", "fc3_b"], outputs=["fc3_out"], alpha=1.0, beta=1.0, transB=1)
 
-    new_output = onnx.helper.make_tensor_value_info("fc3_out", onnx.TensorProto.FLOAT, [1, 9])
+    new_output = onnx.helper.make_tensor_value_info("fc3_out", onnx.TensorProto.FLOAT, [1, orig_net_out_dims-1])
 
     graph.node.extend([concat_final_node, fc_concat_node, relu2_node ,fc3_node])
     graph.initializer.extend([fc_concat_w_init, fc_concat_b_init, fc3_w_init, fc3_b_init])
@@ -560,10 +566,12 @@ if __name__ == "__main__":
     # exit(0)
     original_model_path = "/home/u1411251/tools/vnncomp_benchmarks/mnist_fc/onnx/mnist-net_256x2.onnx"
     merged_model_path = "merged_model.onnx"
+    original_model_path = "toy_neural_network.onnx"
+    merged_model_path = "merged_model_toy.onnx"
     
     # For MNIST: the original input dimension is 28*28 and output dimension is 10.
-    m = 28 * 28
-    n = 10
+    m = 2
+    n = 2
 
     merge_and_add_layers(original_model_path, merged_model_path, m,n, is_shape_inference=True)
 

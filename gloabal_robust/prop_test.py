@@ -72,7 +72,7 @@ def write_vnnlib(lb, ub, label1=0, label2=0, spec_path='prp.vnnlib', dataset='MN
 
 def generate_prop():
     # mnist = load_mnist_data()
-    input_dim = 784
+    input_dim = 2
 
     # Select two random images
     # idx1, idx2 = random.sample(range(len(mnist)), 2)
@@ -90,7 +90,7 @@ def generate_prop():
     # lb, ub = create_input_bounds_tf(input_data, ep=0.03)
     lb = [0.0]*2*input_dim
     ub = [1.0]*2*input_dim
-    write_vnnlib(lb, ub, eta=-1e-4) # eta < 1e-4
+    write_vnnlib(lb, ub, eta=0.0, total_output_class=2) # eta < 1e-4
 
 if __name__ == '__main__':
     generate_prop()

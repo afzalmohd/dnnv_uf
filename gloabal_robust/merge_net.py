@@ -393,20 +393,20 @@ def merge_two_models_in_parallel_fc(original_model, input_dim, output_dim, is_sh
     # --- External FC parameters for branch 1 and branch 2 ---
     # For branch 1:
     fc1_w_pre = []
-    for i in range(784):
-        vec = [0.0] * 1568
+    for i in range(input_dim):
+        vec = [0.0] * 2*input_dim
         vec[i] = 1.0
         fc1_w_pre.append(vec)
     fc1_w_pre = np.array(fc1_w_pre, dtype=np.float32)
-    fc1_b_pre = np.array([0.0]*784, dtype=np.float32)
+    fc1_b_pre = np.array([0.0]*input_dim, dtype=np.float32)
     # For branch 2:
     fc2_w_pre = []
-    for i in range(784):
-        vec = [0.0] * 1568
-        vec[784 + i] = 1.0
+    for i in range(input_dim):
+        vec = [0.0] * 2 * input_dim
+        vec[input_dim + i] = 1.0
         fc2_w_pre.append(vec)
     fc2_w_pre = np.array(fc2_w_pre, dtype=np.float32)
-    fc2_b_pre = np.array([0.0]*784, dtype=np.float32)
+    fc2_b_pre = np.array([0.0]*input_dim, dtype=np.float32)
 
     # --- Add Flatten nodes to produce branch inputs ---
     flatten1_node = onnx.helper.make_node("Flatten", inputs=["input"], outputs=["flatten1"], name="Flatten1")
@@ -575,12 +575,15 @@ if __name__ == "__main__":
     # print(w[3].tolist())
     # print(w.shape)
     # exit(0)
-    original_model_path = "/home/u1411251/tools/vnncomp_benchmarks/mnist_fc/onnx/mnist-net_256x2.onnx"
-    merged_model_path = "merged_model.onnx"
+    # original_model_path = "/home/u1411251/tools/vnncomp_benchmarks/mnist_fc/onnx/mnist-net_256x2.onnx"
+    # merged_model_path = "merged_model.onnx"
+
+    original_model_path = "toy_neural_network.onnx"
+    merged_model_path = "merged_model1.onnx"
     
     # For MNIST: the original input dimension is 28*28 and output dimension is 10.
-    m = 28 * 28
-    n = 10
+    m = 2
+    n = 2
 
     merge_and_add_layers(original_model_path, merged_model_path, m,n, is_shape_inference=True)
 
