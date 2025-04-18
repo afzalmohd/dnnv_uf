@@ -4,10 +4,10 @@ dataset: 'MNIST'
 is_test_data: False
 mean: [0.0]
 std: [1.0]
-vnncomp_benchmarks_dir: '/home/u1411251/tools/vnncomp_benchmarks/mnist_fc'
-target_benchmarks_dir: '/home/u1411251/tools/fp'
+vnncomp_benchmarks_dir: '/home/afzal/tools/vnncomp_benchmarks/mnist_fc'
+target_benchmarks_dir: '/home/afzal/tools/benchmarks/fp'
 nets: ['mnist-net_256x2.onnx']
-dataset_idxs_file: '/home/u1411251/tools/my_scripts/oracle/indices.txt'
+dataset_idxs_file: '/home/afzal/tools/my_scripts/oracle/indices.txt'
 timeout: 120
 epsilons: [0.06]
 abcrown_config: 'mnist.yaml'
