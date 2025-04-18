@@ -231,9 +231,11 @@ def print_cmnds_abcrowns(log_dir, tool_main, config_path, dataset, target_benchm
             if dataset == 'CIFAR100':
                 config_path = get_confg_path_cifar100(net_path, config_path)
             log_file = os.path.basename(net_path)[:-5]+"+"+os.path.basename(prop_path)[:-7]
+            im_log_file = f"im_{log_file}"
             log_file = os.path.join(log_dir, log_file)
-            result_file = "res_"+os.path.basename(net_path)[:-5]+"+"+os.path.basename(prop_path)[:-7]
-            result_file = os.path.join(log_dir, result_file)
+            os.environ['im_log_file'] = os.path.join(log_dir, im_log_file)
+            # result_file = "res_"+os.path.basename(net_path)[:-5]+"+"+os.path.basename(prop_path)[:-7]
+            # result_file = os.path.join(log_dir, result_file)
             command = [
                 "timeout", "-k", "2s", str(timeout + 200), "python", tool_main,
                 "--config", config_path,
@@ -241,7 +243,7 @@ def print_cmnds_abcrowns(log_dir, tool_main, config_path, dataset, target_benchm
                 "--show_adv_example",
                 "--onnx_path", net_path,
                 "--vnnlib_path", prop_path,
-                "--results_file", result_file,
+                # "--results_file", result_file,
                 "--timeout", str(timeout)
             ]
             print(command)

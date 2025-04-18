@@ -6,10 +6,13 @@ mean: [0.0]
 std: [1.0]
 vnncomp_benchmarks_dir: '/home/afzal/tools/vnncomp_benchmarks/mnist_fc'
 target_benchmarks_dir: '/home/afzal/tools/benchmarks/fp'
+log_dir: '/home/afzal/tools/logs/fp'
+abcrown_tool: '/home/afzal/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
 nets: ['mnist-net_256x2.onnx']
 dataset_idxs_file: '/home/afzal/tools/my_scripts/oracle/indices.txt'
 timeout: 120
 epsilons: [0.06]
-abcrown_config: 'mnist.yaml'
+abcrown_config: 'ab_crown_configs/mnist.yaml'
 image_shape: [1,784,1]
 is_gans_input: False
+
