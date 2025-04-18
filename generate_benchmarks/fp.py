@@ -1,4 +1,6 @@
 import os
+import sys
+import yaml
 import numpy as np
 import shutil
 from torchvision import transforms
@@ -75,14 +77,37 @@ def setup_on_standard(netnames, im_idxs_file, dataset, timeout, epsilons, target
 
 
 if __name__ == '__main__':
-    is_test_dataset = False
-    netnames = ['mnist-net_256x2.onnx']
-    im_idxs_file = '/home/u1411251/tools/my_scripts/oracle/indices.txt'
-    dataset = 'MNIST'
-    timeout = 120
-    epsilons = [0.06]
-    target_benchmarks_dir = '/home/u1411251/tools/fp'
-    vnncomp_benchmarks_dir = '/home/u1411251/tools/vnncomp_benchmarks/mnist_fc'
-    set_images_labels(dataset=dataset, is_test_data=is_test_dataset)
+    if len(sys.argv) > 1:
+        config_file = sys.argv[1]
+    else:
+        assert False, "Please provide the config file"
 
-    setup_on_standard(netnames, im_idxs_file, dataset, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir)
+    with open(config_file, 'r') as file:
+        config = yaml.safe_load(file)
+    
+    property_type = config.get('property', None)
+    dataset = config.get('dataset', None)
+    is_test_data = config.get('is_test_data', False)
+    mean = config.get('mean')
+    std = config.get('std')
+    vnncomp_benchmarks_dir = config.get('vnncomp_benchmarks_dir', None)
+    target_benchmarks_dir = config.get('target_benchmarks_dir', None)
+    netnames = config.get('nets')
+    dataset_idxs_file = config.get('dataset_idxs_file', None)
+    timeout = config.get('timeout', None)
+    epsilons = config.get('epsilons', None)
+    image_shape = tuple(config.get('image_shape', [1,784,1]))
+    is_gans_input = config.get('is_gans_input', None)
+    
+
+    try:
+        shutil.rmtree(target_benchmarks_dir)
+        print(f"Directory '{target_benchmarks_dir}' and its contents were removed successfully.")
+    except FileNotFoundError:
+        print(f"Directory '{target_benchmarks_dir}' does not exist.")
+    except Exception as e:
+        print(f"Error: {e}")
+
+    set_images_labels(dataset=dataset, is_test_data=is_test_data)
+
+    setup_on_standard(netnames, dataset_idxs_file, dataset, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir)
