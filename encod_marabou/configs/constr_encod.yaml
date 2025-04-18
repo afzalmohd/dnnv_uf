@@ -1,9 +1,9 @@
 dataset: 'MNIST'
 prp_type: 'standard'
-num_parallel: 3
+num_parallel: 1
 num_workers: 4
-benchmarks_dir: '/home/u1411251/tools/vnncomp_benchmarks/mnist_fc'
-log_dir: '/home/u1411251/tools/marabou/logs/standard/mnist_fc'
-main_file: '/home/u1411251/tools/my_scripts/encod_marabou/constr_encod.py'
-confs: [60, 80, 90, 95]
+benchmarks_dir: '/home/afzal/tools/vnncomp_benchmarks/mnist_fc'
+log_dir: '/home/afzal/tools/marabou/logs/standard/mnist_fc'
+main_file: '/home/afzal/tools/my_scripts/encod_marabou/constr_encod.py'
+confs: [0, 60, 80, 90, 95]
 
