@@ -89,12 +89,12 @@ def get_accuracy(net_path):
         print(pred, pred_conf1)
         if pred == label.item():
             correct_label += 1
+            if pred_conf1 <= 20.0:
+                counter += 1
+                indeces.append(index)
         
         total += 1
 
-        if pred_conf1 <= 19.3:
-            counter += 1
-            indeces.append(index)
 
         if max_conf < pred_conf1:
             max_conf = pred_conf1
