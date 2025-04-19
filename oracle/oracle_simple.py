@@ -162,7 +162,7 @@ if __name__ == '__main__':
     orig_net_dir = os.path.join(vnncomp_benchmarks_dir, 'onnx')
     oracle_net_dir = config['oracle_net_dir']
     oracle_nets = config['oracle_nets']
-    log_dir = config['log_dir']
+    log_dir = config['res_log_dir']
     is_print_images = config['is_print_images']
     result_csv = config['result_csv']
     if os.path.exists(result_csv):
