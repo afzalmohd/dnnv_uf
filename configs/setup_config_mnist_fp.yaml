@@ -11,8 +11,21 @@ abcrown_tool: '/home/afzal/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
 nets: ['mnist-net_256x2.onnx']
 dataset_idxs_file: '/home/afzal/tools/my_scripts/oracle/indices.txt'
 timeout: 120
+<<<<<<< HEAD
+epsilons: [0.03, 0,04, 0,05, 0.06]
+abcrown_config: 'mnist.yaml'
+image_shape: [1,784,1]
+is_gans_input: False
+
+oracle_net_dir: '/home/u1411251/tools/networks/oracle_nets'
+oracle_nets: ['mnist_relu_5_100.onnx', 'ffnnRELU__Point_6_500.onnx', 'ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx', 'convSmallRELU__Point.onnx', 'convSmallRELU__PGDK.onnx', 'convSmallRELU__DiffAI.onnx', 'convMedGRELU__Point.onnx', 'convBigRELU__DiffAI.onnx']
+log_dir: '/home/u1411251/tools/result_dir/saiv/mnist/net1'
+is_print_images: True
+result_csv: 'res_fp.csv'
+=======
 epsilons: [0.06]
 abcrown_config: 'ab_crown_configs/mnist.yaml'
 image_shape: [1,784,1]
 is_gans_input: False
 
+>>>>>>> aed696b2ada3c1fbd87e768fbf12f91974c9ed04
