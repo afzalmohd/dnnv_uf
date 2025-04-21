@@ -8,6 +8,7 @@ from torchvision.datasets import MNIST
 import matplotlib.pyplot as plt
 from torchvision.utils import make_grid
 import torch
+import random
 
 transform = transforms.Compose([
     transforms.ToTensor(), 
@@ -119,8 +120,10 @@ net_dir = '/home/u1411251/tools/vnncomp_benchmarks/mnist_fc/onnx'
 net_name = 'mnist-net_256x2.onnx'
 
 net_path = os.path.join(net_dir, net_name)
-indeces =  get_accuracy(net_path)
+# indeces =  get_accuracy(net_path)
 # print_as_grid(indeces=indeces[:1000])
+indeces = random.sample(range(0,60000), 1000)
+indeces.sort()
 
 with open("indices.txt", "w") as f:
     f.write(",".join(map(str, indeces[:1000])))
