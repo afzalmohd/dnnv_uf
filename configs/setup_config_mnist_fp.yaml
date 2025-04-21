@@ -11,7 +11,7 @@ abcrown_tool: '/home/afzal/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
 nets: ['mnist-net_256x2.onnx']
 dataset_idxs_file: '/home/afzal/tools/my_scripts/oracle/indices.txt'
 timeout: 120
-epsilons: [0.03, 0.04, 0.05, 0.06]
+epsilons: [0.01, 0.03, 0.05]
 abcrown_config: '/home/afzal/tools/my_scripts/abcrown_tool_run_scripts/ab_crown_configs/mnist.yaml'
 image_shape: [1,784,1]
 is_gans_input: False
