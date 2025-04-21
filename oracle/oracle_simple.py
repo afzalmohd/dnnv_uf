@@ -77,30 +77,73 @@ def get_cex_info(net_path, cex_im):
     indeces_top, conf_top, max_val, max_ind, smax_val, smax_ind, min_val, min_ind = get_im_label(cex_im, net_path, top_k=3)
     return indeces_top[0], conf_top[0]
 
+def print_cex_with_oracle_labels(output_file, orig_im, orig_label, orig_oracle_labels, cex_im, cex_label, cex_oracle_labels):
+    orig_im = orig_im.reshape(28,28)
+    cex_im = cex_im.reshape(28,28)
+    fig, axes = plt.subplots(1, 2, figsize=(4, 4))
+    top_k = 3
+    # titled_str = f"orig label: {orig_label}\norig oracle: {orig_oracle_labels}"
+    titled_str = f"orig label: {orig_label}"
+    axes[0].imshow(orig_im, cmap='gray_r')
+    axes[0].set_title(titled_str)
+    axes[0].axis('off')
 
-def analyse_log_file_count(log_file):
-    netname, im, ep = get_net_im_ep(log_file)
+
+    titled_str = f"cex label: {cex_label}\ncex oracle: {cex_oracle_labels}"
+    axes[1].imshow(cex_im, cmap='gray_r')
+    axes[1].set_title(titled_str)
+    axes[1].axis('off')
+
+    plt.tight_layout()
+    # plt.show()
+    # return
+    plt.savefig(output_file)
+    plt.close(fig)
+    plt.clf()
+
+def get_cex_im_filepath(log_file_path, res1):
+    log_dir = os.path.dirname(log_file_path)
+    filename = os.path.basename(log_file_path)
+    cex_dir = os.path.join(log_dir, res1)
+    os.makedirs(cex_dir, exist_ok=True)
+    cex_file_path = os.path.join(cex_dir, f"{filename}.png")
+    return cex_file_path
+
+
+
+def analyse_log_file_count(log_file_path):
+    netname, im, ep = get_net_im_ep(log_file_path)
     net_path = os.path.join(orig_net_dir, netname)
     orig_indeces_top, orig_conf_top, max_val, max_ind, smax_val, smax_ind, min_val, min_ind = get_im_label(IMAGES[im], net_path, top_k=3)
     orig_oracle_preds, orig_oracle_logs =  get_oracle_output(im=IMAGES[im], net_dir = oracle_net_dir, nets= oracle_nets)
-    res = get_result(log_file)
+    orig_oracle_preds = [int(pred) for pred in orig_oracle_preds]
+    res = get_result(log_file_path)
     cex_label, cex_conf = None, None
     res1 = None
     cex_oracle_preds, cex_oracle_logs = None, None
     if res == 'sat':
         res1 = 'tp'
-        log_dir = os.path.dirname(log_file)
-        log_file = os.path.basename(log_file)
-        im_log_file = "im_"+log_file+".npy"
+        log_dir = os.path.dirname(log_file_path)
+        log_file1 = os.path.basename(log_file_path)
+        im_log_file = "im_"+log_file1+".npy"
         im_log_file_path = os.path.join(log_dir, im_log_file)
         cex_im = np.load(im_log_file_path)
         cex_label, cex_conf = get_cex_info(net_path, cex_im)
         cex_oracle_preds, cex_oracle_logs =  get_oracle_output(im=IMAGES[im], net_dir = oracle_net_dir, nets= oracle_nets)
+        cex_oracle_preds = [int(pred) for pred in cex_oracle_preds]
         if cex_label in cex_oracle_preds:
             res1 = 'fp'
         update_res_table(netname, ep, res1)
+
+        cex_im_path = get_cex_im_filepath(log_file_path=log_file_path, res1=res1)
         
-    data_dict['log_file'] = os.path.basename(log_file)
+        if is_print_images:
+            print_cex_with_oracle_labels(output_file=cex_im_path, orig_im=IMAGES[im], orig_label=orig_indeces_top[0], 
+                                     orig_oracle_labels=orig_oracle_preds, cex_im=cex_im, cex_label=cex_label,
+                                     cex_oracle_labels=cex_oracle_preds)
+
+        
+    data_dict['log_file'] = os.path.basename(log_file_path)
     data_dict['netname'] = netname
     data_dict['image_index'] = im
     data_dict['epsilon'] = ep
@@ -116,7 +159,7 @@ def analyse_log_file_count(log_file):
     data_dict['cex_label_oracle'] = cex_oracle_preds
     data_dict['cex_im_oracle_log'] = cex_oracle_logs
 
-    res_row = [os.path.basename(log_file), netname, im, ep, data_dict['dataset_label'], data_dict['orig_net_label'], data_dict['orig_net_conf'], res, cex_label, cex_conf, 
+    res_row = [os.path.basename(log_file_path), netname, im, ep, data_dict['dataset_label'], data_dict['orig_net_label'], data_dict['orig_net_conf'], res, cex_label, cex_conf, 
                res1, orig_oracle_preds, orig_oracle_logs, cex_oracle_preds, cex_oracle_logs]
     
     write_to_csv_file(res_row)
@@ -170,6 +213,6 @@ if __name__ == '__main__':
     assert dataset in potential_datasets, "Invalid dataset"
     set_images_labels(dataset, is_test_data) 
 
-    analyse_dir()
+    analyse_dir(log_dir=log_dir)
 
     print(RES_TABLE)
