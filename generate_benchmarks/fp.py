@@ -3,10 +3,11 @@ import sys
 import yaml
 import numpy as np
 import shutil
+import onnxruntime as ort
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from torchvision.datasets import MNIST
-from setup import clean_directory, get_output_dims, set_images_labels, select_images_with_labels
+from setup import clean_directory, get_output_dims, set_images_labels, select_images_with_labels, get_image_with_label
 from generate_properties import create_input_bounds_tf, save_vnnlib_tf_standard
 
 # transform = transforms.Compose([
@@ -35,6 +36,18 @@ def gen_props_standard(spec_dir, selected_images, selected_labels, selected_idxs
             counter += 1
 
     print(f"Total number of props: {counter}")
+
+def is_classified_correctly(net_path, im_idx):
+    im, label = get_image_with_label(im_idx)
+    im = im.reshape(1,784,1).astype(np.float32)
+    session = ort.InferenceSession(net_path)
+    input_name = session.get_inputs()[0].name
+    output = session.run(None, {input_name: im})
+    predicted_class = np.argmax(output[0][0])
+
+    return predicted_class == label
+
+
 
 def setup_on_standard(netnames, im_idxs_file, dataset, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir):
     print(dataset, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir)
@@ -65,12 +78,13 @@ def setup_on_standard(netnames, im_idxs_file, dataset, timeout, epsilons, target
     instance_lines = []
     for net in netnames:
         for idx in indexes:
-            for ep in epsilons:
-                net_path1 = os.path.join(net_path, net)
-                prp_name = f"prop_{idx}_{ep}.vnnlib"
-                prp_path1 = os.path.join(prp_path, prp_name)
-                ins_line = f"{net_path1},{prp_path1},{timeout}\n"
-                instance_lines.append(ins_line)
+            net_path1 = os.path.join(net_path, net)
+            if is_classified_correctly(net_path1, idx):
+                for ep in epsilons:
+                    prp_name = f"prop_{idx}_{ep}.vnnlib"
+                    prp_path1 = os.path.join(prp_path, prp_name)
+                    ins_line = f"{net_path1},{prp_path1},{timeout}\n"
+                    instance_lines.append(ins_line)
 
     with open(instances_file, 'w') as f:
         f.writelines(instance_lines)
