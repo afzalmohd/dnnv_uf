@@ -4,28 +4,20 @@ dataset: 'MNIST'
 is_test_data: False
 mean: [0.0]
 std: [1.0]
-vnncomp_benchmarks_dir: '/home/afzal/tools/vnncomp_benchmarks/mnist_fc'
-target_benchmarks_dir: '/home/afzal/tools/benchmarks/fp'
-log_dir: '/home/afzal/tools/logs/fp'
-abcrown_tool: '/home/afzal/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
+vnncomp_benchmarks_dir: '/home/u1411251/tools/vnncomp_benchmarks/mnist_fc'
+target_benchmarks_dir: '/home/u1411251/tools/benchmarks/fp'
+log_dir: '/home/u1411251/tools/logs/fp'
+abcrown_tool: '/home/u1411251/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
 nets: ['mnist-net_256x2.onnx']
-dataset_idxs_file: '/home/afzal/tools/my_scripts/oracle/indices.txt'
+dataset_idxs_file: '/home/u1411251/tools/my_scripts/oracle/indices.txt'
 timeout: 120
-<<<<<<< HEAD
-epsilons: [0.03, 0,04, 0,05, 0.06]
+epsilons: [0.03, 0.05]
 abcrown_config: 'mnist.yaml'
 image_shape: [1,784,1]
 is_gans_input: False
 
 oracle_net_dir: '/home/u1411251/tools/networks/oracle_nets'
 oracle_nets: ['mnist_relu_5_100.onnx', 'ffnnRELU__Point_6_500.onnx', 'ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx', 'convSmallRELU__Point.onnx', 'convSmallRELU__PGDK.onnx', 'convSmallRELU__DiffAI.onnx', 'convMedGRELU__Point.onnx', 'convBigRELU__DiffAI.onnx']
-log_dir: '/home/u1411251/tools/result_dir/saiv/mnist/net1'
+res_log_dir: '/home/u1411251/tools/result_dir/saiv/mnist/net_m'
 is_print_images: True
 result_csv: 'res_fp.csv'
-=======
-epsilons: [0.06]
-abcrown_config: 'ab_crown_configs/mnist.yaml'
-image_shape: [1,784,1]
-is_gans_input: False
-
->>>>>>> aed696b2ada3c1fbd87e768fbf12f91974c9ed04
