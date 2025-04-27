@@ -290,11 +290,17 @@ if __name__ == '__main__':
     #     total_cores = 60
     # total_cores = 16
     tool_main = config['abcrown_tool']
+    property_type = config['property']
     # num_cores_per_benchmarks = int(total_cores/num_cpu)
     config_path = config['abcrown_config']
     target_benchmarks_dir = config['target_benchmarks_dir']
     device = config.get('device', 'cpu')
     log_dir = config['log_dir']
+
+    if property_type == 'fp':
+        target_benchmarks_dir = os.path.join(target_benchmarks_dir, 'fp')
+    else:
+        target_benchmarks_dir = os.path.join(target_benchmarks_dir, 'standard')
 
     try:
         shutil.rmtree(log_dir)
