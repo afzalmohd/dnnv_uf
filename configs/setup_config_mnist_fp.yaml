@@ -18,6 +18,6 @@ is_gans_input: False
 
 oracle_net_dir: '/home/u1411251/tools/networks/oracle_nets'
 oracle_nets: ['mnist_relu_5_100.onnx', 'ffnnRELU__Point_6_500.onnx', 'ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx', 'convSmallRELU__Point.onnx', 'convSmallRELU__PGDK.onnx', 'convSmallRELU__DiffAI.onnx', 'convMedGRELU__Point.onnx', 'convBigRELU__DiffAI.onnx']
-res_log_dir: '/home/u1411251/tools/result_dir/saiv/mnist/net_m'
-is_print_images: True
+res_log_dir: '/home/u1411251/tools/result_dir/saiv/mnist/net_all'
+is_print_images: False
 result_csv: 'res_fp.csv'
