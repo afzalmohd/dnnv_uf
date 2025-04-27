@@ -138,32 +138,42 @@ def setup_on_oracle_guided_prop(netnames, idx_with_oracles_labels, dataset, time
             line_l = line.split(',')
             idx = int(line_l[0])
             labels = [int(val) for val in line_l[1:]]
-            indexes_vs_labels[idx] = labels
+            indexes_vs_labels[idx] = labels[:2]
 
     instance_lines = []
     for net in netnames:
         orig_net_path = os.path.join(vnncomp_benchmarks_dir, 'onnx', net)
         indexes = select_idxs_net_oracle(indexes_vs_oracles=indexes_vs_labels, net_path=orig_net_path)
+        indexes = [idx for idx in indexes if len(indexes_vs_labels[idx]) != 1]
         print(f"{netnames} : num of selected images: {len(indexes)}")
         for idx in indexes:
-            im,lb = get_image_with_label(idx)
             oracle_labels = indexes_vs_labels[idx]
-            netname = f"{net[:-5]}_{idx}.onnx"
-            target_net_path = os.path.join(net_path, netname)
-            if len(oracle_labels) == 1:
-                shutil.copy(orig_net_path, target_net_path)
-            else:
+            if len(oracle_labels) != 1:
+                im,lb = get_image_with_label(idx)
+                netname = f"{net[:-5]}_{idx}.onnx"
+                target_net_path = os.path.join(net_path, netname)
                 update_fc_relu_oracle(orig_net_path, target_net_path, oracle_labels=oracle_labels, existing_model_out_dims=10)
-            for ep in epsilons:
-                prp_name = f"prop_{idx}_{ep}.vnnlib"
-                prp_path1 = os.path.join(prp_path, prp_name)
-                if len(oracle_labels) == 1:
-                    gen_single_props_standard(spec_path=prp_path1, im=im, label=lb, ep=ep)
-                else:
+                for ep in epsilons:
+                    prp_name = f"prop_{idx}_{ep}.vnnlib"
+                    prp_path1 = os.path.join(prp_path, prp_name)
                     gen_single_props_oracle_guided(spec_path=prp_path1, im=im, label=lb, ep=ep)
+                    ins_line = f"{target_net_path},{prp_path1},{timeout}\n"
+                    instance_lines.append(ins_line)
+
+            # if len(oracle_labels) == 1:
+            #     shutil.copy(orig_net_path, target_net_path)
+            # else:
+            #     update_fc_relu_oracle(orig_net_path, target_net_path, oracle_labels=oracle_labels, existing_model_out_dims=10)
+            # for ep in epsilons:
+            #     prp_name = f"prop_{idx}_{ep}.vnnlib"
+            #     prp_path1 = os.path.join(prp_path, prp_name)
+            #     if len(oracle_labels) == 1:
+            #         gen_single_props_standard(spec_path=prp_path1, im=im, label=lb, ep=ep)
+            #     else:
+            #         gen_single_props_oracle_guided(spec_path=prp_path1, im=im, label=lb, ep=ep)
                 
-                ins_line = f"{target_net_path},{prp_path1},{timeout}\n"
-                instance_lines.append(ins_line)
+            #     ins_line = f"{target_net_path},{prp_path1},{timeout}\n"
+            #     instance_lines.append(ins_line)
 
     with open(instances_file, 'w') as f:
         f.writelines(instance_lines)
