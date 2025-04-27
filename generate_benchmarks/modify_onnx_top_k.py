@@ -4,7 +4,7 @@ import numpy as np
 import os
 import sys
 import shutil
-from modify_onnx import is_output_layer_activation_fn
+from generate_benchmarks.modify_onnx import is_output_layer_activation_fn
 
 
 def get_weights_top_k_1(top_labels, existing_out_dims = 10):

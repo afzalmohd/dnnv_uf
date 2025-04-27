@@ -1,7 +1,6 @@
 import csv
 import os
-from simulate_network import read_images_from_dataset
-from simulate_network import get_selected_images
+from generate_benchmarks.simulate_network import read_images_from_dataset, get_selected_images
 
     
 def write_to_file(net_path, prop_path, timeout, file_path):

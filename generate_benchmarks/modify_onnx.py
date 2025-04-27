@@ -5,12 +5,7 @@ import math
 import os
 import sys
 import shutil
-from simulate_network import read_images_from_dataset
-from simulate_network import get_selected_images
-from simulate_network import run_network_mnist_test
-from simulate_network import get_mnist_test_data
-from simulate_network import get_mnist_train_data
-
+from generate_benchmarks.simulate_network import read_images_from_dataset, get_selected_images, run_network_mnist_test, get_mnist_test_data, get_mnist_train_data
 
 
 def is_output_layer_activation_fn(model_path):

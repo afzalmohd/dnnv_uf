@@ -7,8 +7,8 @@ import onnxruntime as ort
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from torchvision.datasets import MNIST
-from setup import clean_directory, get_output_dims, set_images_labels, select_images_with_labels, get_image_with_label
-from generate_properties import create_input_bounds_tf, save_vnnlib_tf_standard, save_vnnlib_oracle_guided
+from generate_benchmarks.setup import clean_directory, get_output_dims, set_images_labels, select_images_with_labels, get_image_with_label
+from generate_benchmarks.generate_properties import create_input_bounds_tf, save_vnnlib_tf_standard, save_vnnlib_oracle_guided
 from generate_benchmarks.modify_onnx_fp import update_fc_relu_oracle
 
 # transform = transforms.Compose([

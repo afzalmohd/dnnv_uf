@@ -49,6 +49,22 @@ def set_images_labels(dataset, is_test_data):
     print(LABELS.shape)
 
 
+def select_idxs_net_oracle(indexes_vs_oracles, net_path):
+    selected_idxs = []
+    session = ort.InferenceSession(net_path)
+    input_name = session.get_inputs()[0].name
+    for idx in indexes_vs_oracles.keys():
+        oracle_labels = indexes_vs_oracles[idx]
+        im = IMAGES[idx]
+        input_name = session.get_inputs()[0].name
+        output = session.run(None, {input_name: im})
+        predicted_class = np.argmax(output[0][0])
+        print(f"{predicted_class},{idx}: {indexes_vs_oracles[idx]}")
+        if predicted_class in oracle_labels:
+            selected_idxs.append(idx)
+
+    return selected_idxs
+
 def write_to_csv_file(row):
     # return
     with open(result_csv, 'a') as csv_file:
@@ -65,13 +81,18 @@ def update_res_table(netname, ep, res):
     res_table[ep] = res_table_ep
     RES_TABLE[netname] = res_table
 
-def get_net_im_ep(file_path):
+def get_net_im_ep(file_path, is_standard=True):
     filename = os.path.basename(file_path)
     filename_l = filename.split('+')
-    netname = filename_l[0]+".onnx"
     prop_l = filename_l[1].split('_')
     im = int(prop_l[1])
     ep = float(prop_l[2])
+    if is_standard:
+        netname = filename_l[0]+".onnx"
+    else:
+        netname_l = filename_l[0].split('_')
+        netname = "_".join(netname_l[:-1])+".onnx"
+
     return netname, im, ep
 
 def get_cex_info(net_path, cex_im):
@@ -137,15 +158,26 @@ def get_oracles_labels_on_orig_images(index_files='/home/u1411251/tools/my_scrip
     return images, labels, indexes
 
 
+def is_false_negative(netname, idx, ep):
+    filtered_df = df[(df['netname'] == netname) & (df['image_index'] == idx) & (df['epsilon'] == ep)]
+    res = filtered_df['result'].values[0]
+    if res == 'sat':
+        res1 = filtered_df['result1'].values[0]
+        return res1 == 'tp'
+    else:
+        return False
 
 
-def analyse_log_file_count(log_file_path):
-    netname, im, ep = get_net_im_ep(log_file_path)
+
+def analyse_log_file_count(log_file_path, is_analyse_standard = True):
+    netname, im, ep = get_net_im_ep(log_file_path, is_standard=is_analyse_standard)
     net_path = os.path.join(orig_net_dir, netname)
     orig_indeces_top, orig_conf_top, max_val, max_ind, smax_val, smax_ind, min_val, min_ind = get_im_label(IMAGES[im], net_path, top_k=3)
     orig_oracle_preds, orig_oracle_logs =  get_oracle_output(im=IMAGES[im], net_dir = oracle_net_dir, nets= oracle_nets)
     orig_oracle_preds = [int(pred) for pred in orig_oracle_preds]
     res = get_result(log_file_path)
+    if res is None:
+        res = 'timeout'
     cex_label, cex_conf = None, None
     res1 = None
     cex_oracle_preds, cex_oracle_logs = None, None
@@ -170,7 +202,20 @@ def analyse_log_file_count(log_file_path):
                                      orig_oracle_labels=orig_oracle_preds, cex_im=cex_im, cex_label=cex_label,
                                      cex_oracle_labels=cex_oracle_preds)
     else:
-        update_res_table(netname, ep, res)
+        if is_analyse_standard:
+            update_res_table(netname, ep, res)
+        else:
+            if res == 'unsat':
+                is_fn = is_false_negative(netname, im, ep)
+                if is_fn:
+                    res1 = 'fn'
+                else:
+                    res1 = 'tn'
+                update_res_table(netname, ep, res1)
+            else:
+                update_res_table(netname, ep, res)
+            
+
 
 
     data_dict['log_file'] = os.path.basename(log_file_path)
@@ -213,6 +258,60 @@ def analyse_dir(log_dir='/home/u1411251/tools/result_dir/saiv/mnist/net1'):
             print(f"Processed file: {count}")
 
 
+def analyse_standard_logfile_oracle(netname, idx, ep, is_already_analysed=True):
+    if is_already_analysed:
+        filtered_df = df[(df['netname'] == netname) & (df['image_index'] == idx) & (df['epsilon'] == ep)]
+        res = filtered_df['result'].values[0]
+        if res == 'sat':
+            res1 = filtered_df['result1'].values[0]
+            update_res_table(netname, ep, res1)
+        elif res == 'unsat':
+            res1 = 'tn'
+            filtered_df['result1'] = res1
+            update_res_table(netname, ep, res1)
+        else:
+            update_res_table(netname, ep, res)
+
+        filtered_df.to_csv(result_csv, index=False)
+
+
+
+
+def analyse_oracle_result(vnncomp_benchmarks_dir, netnames, epsilons, oracle_labels_file, log_dir='/home/u1411251/tools/result_dir/saiv/mnist/oracle_all', standard_res_csv='/home/u1411251/tools/my_scripts/res_standard.csv'):
+    res_csv_header = ['logfile_name', 'netname', 'image_index', 'epsilon', 'dataset_label', 'orig_net_label', 'orig_net_conf', 'result', 'cex_label', 'cex_conf', 
+                      'result1', 'orig_im_oracle', 'orig_im_oracle_log', 'cex_im_oracle', 'cex_im_oracle_log']
+    global data_dict, df
+    df = pd.read_csv(standard_res_csv)
+    write_to_csv_file(res_csv_header)
+    indexes_vs_oracles = {}
+    with open(oracle_labels_file, 'r') as f:
+        Lines = f.readlines()
+        for line in Lines:
+            line = line.strip()
+            line_l = line.split(',')
+            idx = int(line_l[0])
+            labels = [int(val) for val in line_l[1:]]
+            indexes_vs_oracles[idx] = labels
+    
+    net_vs_indices = {}
+    count = 0
+    for net in netnames:
+        net_path = os.path.join(vnncomp_benchmarks_dir, 'onnx', net)
+        indices = select_idxs_net_oracle(indexes_vs_oracles, net_path)
+        net_vs_indices[net] = indices
+        for idx in indices:
+            for ep in epsilons:
+                log_file = f"{net[:-5]}_{idx}+prop_{idx}_{ep}"
+                if len(indexes_vs_oracles[idx]) == 1:
+                    analyse_standard_logfile_oracle(net, idx, ep)
+                else:
+                    data_dict = {}
+                    log_file_path = os.path.join(log_dir, log_file)
+                    analyse_log_file_count(log_file_path, is_analyse_standard=False)
+                
+                print(f"Counter: {count}")
+                count += 1
+
 
 
 if __name__ == '__main__':
@@ -227,6 +326,9 @@ if __name__ == '__main__':
     with open(config_file, 'r') as file:
         config = yaml.safe_load(file)
 
+    netnames=['mnist-net_256x2.onnx']
+    epsilons = [0.03, 0.05]
+
     is_test_data = config['is_test_data']
     dataset = config['dataset']
     is_gans_input = config['is_gans_input']
@@ -235,6 +337,7 @@ if __name__ == '__main__':
     orig_net_dir = os.path.join(vnncomp_benchmarks_dir, 'onnx')
     oracle_net_dir = config['oracle_net_dir']
     oracle_nets = config['oracle_nets']
+    oracle_labels_file = config['oracle_labels']
     log_dir = config['res_log_dir']
     is_print_images = config['is_print_images']
     result_csv = config['result_csv']
@@ -244,10 +347,11 @@ if __name__ == '__main__':
     set_images_labels(dataset, is_test_data) 
 
     # analyse_dir(log_dir=log_dir)
+    analyse_oracle_result(vnncomp_benchmarks_dir, netnames, epsilons, oracle_labels_file, log_dir)
 
-    # print(RES_TABLE)
+    print(RES_TABLE)
 
     # with open("res.json", 'w') as f:
     #     json.dump(RES_TABLE, f, indent=4)
 
-    get_oracles_labels_on_orig_images()
+    # get_oracles_labels_on_orig_images()
