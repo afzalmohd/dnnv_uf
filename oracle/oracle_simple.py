@@ -16,6 +16,7 @@ from generate_benchmarks.simulate_network import get_mnist_test_data, get_mnist_
 from oracle import get_im_label, get_oracle_output
 from extract_logs.logs_extract_abcrown import get_result
 import pandas as pd
+import json
 
 
 
@@ -109,6 +110,33 @@ def get_cex_im_filepath(log_file_path, res1):
     cex_file_path = os.path.join(cex_dir, f"{filename}.png")
     return cex_file_path
 
+def get_oracles_labels_on_orig_images(index_files='/home/u1411251/tools/my_scripts/oracle/indices.txt'):
+    with open(index_files) as f:
+        line = f.readline()
+        indexes = np.fromstring(line, dtype=int, sep=',')
+        images = IMAGES[indexes]
+        labels = LABELS[indexes] 
+    Lines = []
+    counter = 0
+    for idx in indexes:
+        preds, _ =  get_oracle_output(im=IMAGES[idx], net_dir = oracle_net_dir, nets= oracle_nets)
+        preds = preds[:2]
+        preds = [str(int(val)) for val in preds]
+        preds = ",".join(preds)
+        line = f"{idx},{preds}\n"
+        # print(line)
+        Lines.append(line)
+        print(f"processed: {counter}")
+        counter += 1
+
+    with open('oracles_lables_mnist.txt', 'w') as f:
+        f.writelines(Lines)
+
+
+    
+    return images, labels, indexes
+
+
 
 
 def analyse_log_file_count(log_file_path):
@@ -141,8 +169,10 @@ def analyse_log_file_count(log_file_path):
             print_cex_with_oracle_labels(output_file=cex_im_path, orig_im=IMAGES[im], orig_label=orig_indeces_top[0], 
                                      orig_oracle_labels=orig_oracle_preds, cex_im=cex_im, cex_label=cex_label,
                                      cex_oracle_labels=cex_oracle_preds)
+    else:
+        update_res_table(netname, ep, res)
 
-        
+
     data_dict['log_file'] = os.path.basename(log_file_path)
     data_dict['netname'] = netname
     data_dict['image_index'] = im
@@ -213,6 +243,11 @@ if __name__ == '__main__':
     assert dataset in potential_datasets, "Invalid dataset"
     set_images_labels(dataset, is_test_data) 
 
-    analyse_dir(log_dir=log_dir)
+    # analyse_dir(log_dir=log_dir)
 
-    print(RES_TABLE)
+    # print(RES_TABLE)
+
+    # with open("res.json", 'w') as f:
+    #     json.dump(RES_TABLE, f, indent=4)
+
+    get_oracles_labels_on_orig_images()
