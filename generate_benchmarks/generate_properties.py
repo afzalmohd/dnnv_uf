@@ -168,6 +168,48 @@ def create_input_bounds_tf(img, ep, mean = np.array([0.0]), std = np.array([1.0]
     ub = ((ub-mean)/std).reshape(-1)
     return list(lb), list(ub)
 
+def save_vnnlib_oracle_guided(lb, ub, label, spec_path: str,  threshold=1e-4, dataset='MNIST', total_output_class: int = 8):
+     with open(spec_path, "w") as f:
+        if dataset == 'MNIST':
+            f.write(f"; Mnist property with label: {label}.\n")
+        else:
+            f.write(f"; Cifar10 property with label: {label}.\n")
+
+        # Declare input variables.
+        f.write("\n")
+        for i in range(0, len(lb)):
+            f.write(f"(declare-const X_{i} Real)\n")
+        f.write("\n")
+
+        # Declare output variables.
+        f.write("\n")
+        for i in range(total_output_class):
+            f.write(f"(declare-const Y_{i} Real)\n")
+        f.write("\n")
+
+        # Define input constraints.
+        f.write(f"; Input constraints:\n")
+        for i in range(0,len(lb)):
+            f.write(f"(assert (<= X_{i} {ub[i]}))\n")
+            f.write(f"(assert (>= X_{i} {lb[i]}))\n")
+            f.write("\n")
+        f.write("\n")
+
+        # Define output constraints.
+        f.write(f"; Output constraints:\n")
+        f.write("(assert (or\n")
+        for i in range(total_output_class):
+            # if i != label:
+            f.write(f"    (and (<= Y_{i} {threshold}))\n")
+
+        # for i in range(9):
+        #     and_str = "     (and "
+        #     for j in range(9):
+        #         and_str = f"{and_str} (>= Y_{9*i+j} 0.0)"
+        #     and_str = f"{and_str})\n"
+        #     f.write(and_str)
+
+        f.write("))")
 
 def save_vnnlib_tf_standard(lb, ub, label: int, spec_path: str, dataset='MNIST', total_output_class: int = 10):
      with open(spec_path, "w") as f:
