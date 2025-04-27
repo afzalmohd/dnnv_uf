@@ -485,6 +485,8 @@ def get_deeppoly_images(num_images = 21):
 
 
 
+def get_image_with_label(im_idx):
+    return IMAGES[im_idx], LABELS[im_idx]
 
 def select_images_with_labels(dataset_idxs_file, max_num_indexs=50):
     with open(dataset_idxs_file) as f:
