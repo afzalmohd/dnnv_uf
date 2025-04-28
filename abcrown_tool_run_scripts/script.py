@@ -247,11 +247,11 @@ def print_cmnds_abcrowns(log_dir, tool_main, config_path, dataset, target_benchm
                 "--timeout", str(timeout)
             ]
             print(command)
-            with open(log_file, "a") as log:
-                try:
-                    subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=True)
-                except subprocess.CalledProcessError as e:
-                    print(f"Command failed for {log_file}: {e}")
+            # with open(log_file, "a") as log:
+            #     try:
+            #         subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=True)
+            #     except subprocess.CalledProcessError as e:
+            #         print(f"Command failed for {log_file}: {e}")
         # file_name = os.path.join(log_dir, f"script_{idx}.sh")
         # write_script_file(file_name, cmds)
 
