@@ -100,6 +100,11 @@ selected_idxs = selected_idxs[:1000]
 
 print(selected_idxs)
 
+selected_idxs.sort()
+
+with open("indices_cifar10.txt", "w") as f:
+    f.write(",".join(map(str, selected_idxs[:1000])))
+
 # # Pick up to NUM_TO_DISPLAY images
 # to_show = low_conf_images[:NUM_TO_DISPLAY]
 # scores_to_show = low_conf_scores[:NUM_TO_DISPLAY]

@@ -17,6 +17,7 @@ from oracle import get_im_label, get_oracle_output
 from extract_logs.logs_extract_abcrown import get_result
 import pandas as pd
 import json
+import shutil
 
 
 
@@ -125,6 +126,7 @@ def print_cex_with_oracle_labels(output_file, orig_im, orig_label, orig_oracle_l
 
 def get_cex_im_filepath(netname, ep, log_file_path, res1):
     log_dir = os.path.dirname(log_file_path)
+    log_dir = '/home/u1411251/temp/temp'
     filename = os.path.basename(log_file_path)
     cex_dir = os.path.join(log_dir, netname[:-5], str(ep), res1)
     os.makedirs(cex_dir, exist_ok=True)
@@ -287,13 +289,21 @@ def analyse_dir(vnncomp_benchmarks_dir, netnames, epsilons, oracle_labels_file, 
                     count += 1
 
 
+
+
 def analyse_standard_logfile_oracle(netname, idx, ep, is_already_analysed=True):
+    standard_log_dir = '/home/u1411251/tools/result_dir/saiv/mnist/net_all'
     if is_already_analysed:
         filtered_df = df[(df['netname'] == netname) & (df['image_index'] == idx) & (df['epsilon'] == ep)]
         res = filtered_df['result'].values[0]
         if res == 'sat':
             res1 = filtered_df['result1'].values[0]
             update_res_table(netname, ep, res1)
+            standard_log_file_path = os.path.join(standard_log_dir, f"{netname[:-5]}+prop_{idx}_{ep}")
+            std_im_path = get_cex_im_filepath(netname, ep, standard_log_file_path, res1)
+            curr_log_file_path= os.path.join(log_dir, f"{netname[:-5]}_{idx}+prop_{idx}_{ep}")
+            curr_im_path = get_cex_im_filepath(netname, ep, curr_log_file_path, res1)
+            shutil.copy2(std_im_path, curr_im_path)
         elif res == 'unsat':
             res1 = 'tn'
             filtered_df['result1'] = res1
@@ -330,11 +340,12 @@ def analyse_oracle_result(vnncomp_benchmarks_dir, netnames, epsilons, oracle_lab
             for ep in epsilons:
                 log_file = f"{net[:-5]}_{idx}+prop_{idx}_{ep}"
                 if len(indexes_vs_oracles[idx]) == 1:
-                    filtered_df = df[(df['netname'] == net) & (df['image_index'] == idx) & (df['epsilon'] == ep)]
-                    if filtered_df.empty:
-                        analyse_log_file_count(log_file_path, is_analyse_standard=False)
-                    else:
-                        analyse_standard_logfile_oracle(net, idx, ep)
+                    # filtered_df = df[(df['netname'] == net) & (df['image_index'] == idx) & (df['epsilon'] == ep)]
+                    # if filtered_df.empty:
+                    #     analyse_log_file_count(log_file_path, is_analyse_standard=False)
+                    # else:
+                    #     analyse_standard_logfile_oracle(net, idx, ep)
+                    pass
                 else:
                     data_dict = {}
                     log_file_path = os.path.join(log_dir, log_file)

@@ -1,5 +1,7 @@
 import os
 import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
+print(sys.path)
 import yaml
 import numpy as np
 import shutil
@@ -122,16 +124,15 @@ def select_idxs_net_oracle(indexes_vs_oracles, net_path):
 
 
 
-def setup_on_standard(netnames, im_idxs_file, dataset, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir):
+def setup_on_standard(netnames, im_idxs_file, dataset, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir, is_clean_old):
     print(dataset, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir)
-    clean_directory(target_benchmarks_dir)
-    os.makedirs(target_benchmarks_dir, exist_ok=True)
-    # net_dir = os.path.join(target_benchmarks_dir, 'nets')
-    # prop_dir = os.path.join(target_benchmarks_dir, 'props')
     instances_file = os.path.join(target_benchmarks_dir, 'instances.csv')
-    if os.path.isfile(instances_file):
-        os.remove(instances_file)
-    # create_empty_dirs(net_dir, prop_dir)
+    if is_clean_old:
+        clean_directory(target_benchmarks_dir)
+        if os.path.isfile(instances_file):
+            os.remove(instances_file)
+    
+    os.makedirs(target_benchmarks_dir, exist_ok=True)
 
     net_path = os.path.join(target_benchmarks_dir, 'onnx')
     prp_path = os.path.join(target_benchmarks_dir, 'vnnlib')
@@ -162,16 +163,18 @@ def setup_on_standard(netnames, im_idxs_file, dataset, timeout, epsilons, target
                     ins_line = f"{net_path1},{prp_path1},{timeout}\n"
                     instance_lines.append(ins_line)
 
-    with open(instances_file, 'w') as f:
+    with open(instances_file, 'a') as f:
         f.writelines(instance_lines)
 
-def setup_on_oracle_guided_prop(netnames, idx_with_oracles_labels, dataset, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir):
+def setup_on_oracle_guided_prop(netnames, idx_with_oracles_labels, dataset, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir, is_clean_old):
     print(dataset, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir)
-    clean_directory(target_benchmarks_dir)
-    os.makedirs(target_benchmarks_dir, exist_ok=True)
     instances_file = os.path.join(target_benchmarks_dir, 'instances.csv')
-    if os.path.isfile(instances_file):
-        os.remove(instances_file)
+    if is_clean_old:
+        clean_directory(target_benchmarks_dir)
+        if os.path.isfile(instances_file):
+            os.remove(instances_file)
+
+    os.makedirs(target_benchmarks_dir, exist_ok=True)
 
     net_path = os.path.join(target_benchmarks_dir, 'onnx')
     prp_path = os.path.join(target_benchmarks_dir, 'vnnlib')
@@ -223,7 +226,7 @@ def setup_on_oracle_guided_prop(netnames, idx_with_oracles_labels, dataset, time
             #     ins_line = f"{target_net_path},{prp_path1},{timeout}\n"
             #     instance_lines.append(ins_line)
 
-    with open(instances_file, 'w') as f:
+    with open(instances_file, 'a') as f:
         f.writelines(instance_lines)
 
 
@@ -250,23 +253,25 @@ if __name__ == '__main__':
     epsilons = config.get('epsilons', None)
     image_shape = tuple(config.get('image_shape', [1,784,1]))
     is_gans_input = config.get('is_gans_input', None)
+    is_clean_old = config.get('is_clean_old_benchmarks', True)
     if property_type == 'fp':
         target_benchmarks_dir = os.path.join(target_benchmarks_dir, 'fp')
     else:
         target_benchmarks_dir = os.path.join(target_benchmarks_dir, 'standard')
 
-    try:
-        shutil.rmtree(target_benchmarks_dir)
-        print(f"Directory '{target_benchmarks_dir}' and its contents were removed successfully.")
-    except FileNotFoundError:
-        print(f"Directory '{target_benchmarks_dir}' does not exist.")
-    except Exception as e:
-        print(f"Error: {e}")
+    if is_clean_old:
+        try:
+            shutil.rmtree(target_benchmarks_dir)
+            print(f"Directory '{target_benchmarks_dir}' and its contents were removed successfully.")
+        except FileNotFoundError:
+            print(f"Directory '{target_benchmarks_dir}' does not exist.")
+        except Exception as e:
+            print(f"Error: {e}")
 
     set_images_labels(dataset=dataset, is_test_data=is_test_data)
 
     if property_type == 'fp':
-        setup_on_oracle_guided_prop(netnames, oracle_labels_file, dataset, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir)
+        setup_on_oracle_guided_prop(netnames, oracle_labels_file, dataset, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir, is_clean_old)
     else:
-        setup_on_standard(netnames, dataset_idxs_file, dataset, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir)
+        setup_on_standard(netnames, dataset_idxs_file, dataset, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir, is_clean_old)
     

@@ -10,8 +10,12 @@ from multiprocessing import Pool
 import random
 import os
 import sys
+import subprocess
+import shlex
 import yaml
 import shutil
+
+
 
 
 def write_script_file(file_name, cmds):
@@ -21,21 +25,7 @@ def write_script_file(file_name, cmds):
         file.close()
 
 
-
-
-def get_tasks(instance_file, confs=[60]):
-    tasks = []
-    with open(instance_file, 'r') as f:
-        Lines = f.readlines()
-        for line in Lines:
-            line = line.strip()
-            line = line.split(',')
-            for conf in confs:
-                tasks.append([line[0], line[1], line[2], conf])
-
-    return tasks
-
-def get_task_relaxed_append(instance_file):
+def get_tasks(instance_file):
     tasks = []
     with open(instance_file, 'r') as f:
         Lines = f.readlines()
@@ -47,25 +37,21 @@ def get_task_relaxed_append(instance_file):
     return tasks
 
 
-
-def print_cmnds_marabou(num_cpus, log_dir, tool_main, num_workers, instance_file, dataset, confs, prp_type, conf_file):
-    if prp_type == 'relaxed':
-        tasks = get_task_relaxed_append(instance_file)
-    else:
-        tasks = get_tasks(instance_file, confs)
-    benchmarks_dir, _ = os.path.split(instance_file)
+def print_cmnds_marabou_terminal(num_cpu, log_dir, tool_main, num_cores, instance_file):
+    instance_file = os.path.join(target_benchmarks_dir, 'instances.csv')
+    tasks = get_tasks(instance_file=instance_file)
     # random.shuffle(tasks)
     # tasks = get_tasks_mnistfc_modified()
     # print(tasks)
     num_tasks = len(tasks)
     print(f"Total number of task: {num_tasks}")
 
-    if num_cpus >= num_tasks:
+    if num_cpu >= num_tasks:
         load_per_cpu = [1]*num_tasks
     else:
-        load_per_cpu = [0]*num_cpus
+        load_per_cpu = [0]*num_cpu
         for i in range(0,num_tasks):
-            j = i % num_cpus
+            j = i % num_cpu
             load_per_cpu[j] += 1
 
     print("Load per cpu: {}".format(load_per_cpu))
@@ -77,64 +63,48 @@ def print_cmnds_marabou(num_cpus, log_dir, tool_main, num_workers, instance_file
         cmds = []
         for l in ld:
             net_path = l[0]
-            net_path = os.path.join(benchmarks_dir, net_path)
             prop_path = l[1]
-            prop_path = os.path.join(benchmarks_dir, prop_path)
-            timeout = float(l[2])
-            if prp_type != 'relaxed':
-                conf = int(l[3])
-            else:
-                conf=0
-            log_file = os.path.basename(net_path)[:-5]+"+"+os.path.basename(prop_path)[:-7]+"_"+str(conf)
+            timeout = int(l[2])
+            log_file = os.path.basename(net_path)[:-5]+"+"+os.path.basename(prop_path)[:-7]
             log_file = os.path.join(log_dir, log_file)
-            # command = f"taskset --cpu-list {num_cores*idx}-{(num_cores*idx)+(num_cores -1)} timeout -k 2s {timeout+200} python {tool_main} --config {config_path} --device cpu --show_adv_example --onnx_path {net_path} --vnnlib_path {prop_path} --results_file {result_file} --timeout {timeout} >> {log_file}"
-            command = f"timeout -k 2s {timeout} python {tool_main} {net_path} {prop_path} {conf} {num_workers} {prp_type} {conf_file} >> {log_file}"
+            command = f"taskset --cpu-list {num_cores*idx}-{(num_cores*idx)+(num_cores -1)} timeout -k 2s {timeout+200} python {tool_main} --config {config_path} --device cpu --show_adv_example --onnx_path {net_path} --vnnlib_path {prop_path} --results_file {result_file} --timeout {timeout} >> {log_file}"
+            # command = f"timeout -k 2s {timeout+200} python {tool_main} --config {config_path} --device cpu --show_adv_example --onnx_path {net_path} --vnnlib_path {prop_path} --results_file {result_file} --timeout {timeout} >> {log_file}"
             cmds.append(command)
         file_name = os.path.join(log_dir, f"script_{idx}.sh")
         write_script_file(file_name, cmds)
 
-def print_cmnds_marabou_topk(num_cpus, log_dir, tool_main, num_workers, instance_file, dataset, confs, prp_type, conf_file):
-    tasks = get_task_relaxed_append(instance_file)
-    benchmarks_dir, _ = os.path.split(instance_file)
-    # random.shuffle(tasks)
-    # tasks = get_tasks_mnistfc_modified()
+def print_cmnds_marabou(log_dir, tool_main, target_benchmarks_dir, prp_type='standard', start_idx=-1, end_idx=-1):
+    instance_file = os.path.join(target_benchmarks_dir, 'instances.csv')
+    tasks = get_tasks(instance_file=instance_file)
+    if start_idx != -1 and end_idx != -1:
+        tasks = tasks[start_idx:end_idx]
     # print(tasks)
     num_tasks = len(tasks)
     print(f"Total number of task: {num_tasks}")
 
-    if num_cpus >= num_tasks:
-        load_per_cpu = [1]*num_tasks
-    else:
-        load_per_cpu = [0]*num_cpus
-        for i in range(0,num_tasks):
-            j = i % num_cpus
-            load_per_cpu[j] += 1
+    for ts in tasks:
+        net_path = os.path.join(target_benchmarks_dir, ts[0])
+        prop_path = os.path.join(target_benchmarks_dir, ts[1])
+        timeout = float(ts[2])
+        log_file = os.path.basename(net_path)[:-5]+"+"+os.path.basename(prop_path)[:-7]
+        log_file = os.path.join(log_dir, log_file)
+        command = [
+                "timeout", "-k", "2s", str(timeout + 20), "python", tool_main, net_path, prop_path, prp_type
+            ]
+        
+        print(command)
+        with open(log_file, "a") as log:
+            try:
+                subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=True)
+            except subprocess.CalledProcessError as e:
+                print(f"Command failed for {log_file}: {e}")
 
-    print("Load per cpu: {}".format(load_per_cpu))
-
-    prev_load = 0
-    for idx, load in enumerate(load_per_cpu):
-        ld = tasks[prev_load:prev_load+load]
-        prev_load += load
-        cmds = []
-        for l in ld:
-            net_path = l[0]
-            net_path = os.path.join(benchmarks_dir, net_path)
-            prop_path = l[1]
-            prop_path = os.path.join(benchmarks_dir, prop_path)
-            timeout = float(l[2])
-            conf = 0
-            log_file = os.path.basename(net_path)[:-5]+"+"+os.path.basename(prop_path)[:-7]+"_k"
-            log_file = os.path.join(log_dir, log_file)
-            # command = f"taskset --cpu-list {num_cores*idx}-{(num_cores*idx)+(num_cores -1)} timeout -k 2s {timeout+200} python {tool_main} --config {config_path} --device cpu --show_adv_example --onnx_path {net_path} --vnnlib_path {prop_path} --results_file {result_file} --timeout {timeout} >> {log_file}"
-            command = f"timeout -k 2s {timeout} python {tool_main} {net_path} {prop_path} {conf} {num_workers} {prp_type} {conf_file} >> {log_file}"
-            cmds.append(command)
-        file_name = os.path.join(log_dir, f"script_{idx}.sh")
-        write_script_file(file_name, cmds)
 
 if __name__ == '__main__':
-    if len(sys.argv) == 2:
+    if len(sys.argv) == 4:
         config_file = sys.argv[1]
+        start_idx = int(sys.argv[2])
+        end_idx = int(sys.argv[3])
     else:
         print("Error: ")
         sys.exit(1)
@@ -142,32 +112,31 @@ if __name__ == '__main__':
     with open(config_file, 'r') as file:
         config = yaml.safe_load(file)
     
-    dataset = config['dataset']
-    num_parallel = config.get('num_parallel', 3)
-    num_workers = config.get('num_workers', 1)
-    benchmarks_dir = config['benchmarks_dir']
+    tool_main = config['marabou_tool']
+    target_benchmarks_dir = config['target_benchmarks_dir']
     log_dir = config['log_dir']
-    main_file = config['main_file']
-    confs = config['confs']
-    prp_type=config['prp_type']
-    config_file = config.get('conf_file', None)
-    instances_file = os.path.join(benchmarks_dir, 'instances.csv')
-    print(instances_file)
-    try:
-        shutil.rmtree(log_dir)
-        print(f"Directory '{log_dir}' and its contents were removed successfully.")
-    except FileNotFoundError:
-        print(f"Directory '{log_dir}' does not exist.")
-    except Exception as e:
-        print(f"Error: {e}")
+    property_type = 'standard'
+    is_clean_old = False
+
+    if property_type == 'fp':
+        target_benchmarks_dir = os.path.join(target_benchmarks_dir, 'fp')
+        log_dir = os.path.join(log_dir, 'fp')
+    else:
+        target_benchmarks_dir = os.path.join(target_benchmarks_dir, 'standard')
+        log_dir = os.path.join(log_dir, 'standard')
+
+    if is_clean_old:
+        try:
+            shutil.rmtree(log_dir)
+            print(f"Directory '{log_dir}' and its contents were removed successfully.")
+        except FileNotFoundError:
+            print(f"Directory '{log_dir}' does not exist.")
+        except Exception as e:
+            print(f"Error: {e}")
 
     os.makedirs(log_dir, exist_ok=True)
 
-    print_cmnds_marabou(num_cpus=1, log_dir=log_dir, tool_main=main_file, num_workers=num_workers, instance_file=instances_file, dataset=dataset, confs=confs, prp_type = prp_type, conf_file=config_file)
-    # print_cmnds_marabou_topk(num_parallel, log_dir, tool_main=main_file, num_workers=num_workers, instance_file=instances_file, dataset=dataset, confs=confs, prp_type=prp_type, conf_file=config_file)
-
-
-
+    print_cmnds_marabou(log_dir, tool_main=tool_main, target_benchmarks_dir=target_benchmarks_dir, prp_type=property_type, start_idx=start_idx, end_idx=end_idx)
 
 
 
