@@ -1,11 +1,14 @@
 import os
 import numpy as np
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 import torch
 import torchvision
 import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 import onnxruntime as ort
 import random
+from generate_benchmarks.simulate_network import get_cifar10_train_data
 
 # 1) Configuration
 MODEL_PATH = "/home/u1411251/tools/vnncomp_benchmarks/cifar10/oval21/nets/cifar_deep_kw.onnx"  # path to your ONNX model
@@ -23,7 +26,7 @@ transform = transforms.Compose([
     transforms.ToTensor(),  # convert to [0,1]
     # add Normalize if your model was trained with it:
     transforms.Normalize((0.4914,0.4822,0.4465),
-                         (0.2470,0.2435,0.2616))
+                         (0.2023,0.1994,0.2010))
 ])
 testset = torchvision.datasets.CIFAR10(
     root="../datasets/data_cifar10", train=True, download=True, transform=transform
@@ -42,24 +45,25 @@ correct = 0
 total = 0
 high_thr = 80.0
 high_conf_images = []
-high_conf_limit = 500
+high_conf_limit = 400
 index = 0
 for images, labels in testloader:
     for img, label in zip(images, labels):
         inp = img.unsqueeze(0).numpy()
+        print(inp.shape)
         out = session.run(None, {input_name: inp})[0]  # shape [1,10]
         logits = torch.from_numpy(out)
         probs = softmax(logits)
         score, pred = torch.max(probs, dim=1)  # Get predicted class index
         correct += (pred.item() == label.item())
         total += 1
-
-        if score.item() < THRESHOLD:
-            low_conf_images.append(index)
-            low_conf_scores.append(score.item())
-            low_conf_preds.append(pred.item())
-        elif score.item() >= high_thr and len(high_conf_images) < high_conf_limit:
-            high_conf_images.append(index)
+        if pred.item() == label.item():
+            if score.item() < THRESHOLD:
+                low_conf_images.append(index)
+                low_conf_scores.append(score.item())
+                low_conf_preds.append(pred.item())
+            elif score.item() >= high_thr and len(high_conf_images) < high_conf_limit:
+                high_conf_images.append(index)
         
         index += 1
 
@@ -68,35 +72,35 @@ accuracy = 100 * correct / total
 print(f"Test Accuracy: {accuracy:.2f}%")
 
 
-# for images, _ in testloader:
-#     # images: [BATCH_SIZE, 3, 32, 32]
-#     for img in images:
-#         # make it a batch of 1
-#         inp = img.unsqueeze(0).numpy()
-#         out = session.run(None, {input_name: inp})[0]  # shape [1,10]
-#         logits = torch.from_numpy(out)
-#         probs = softmax(logits)
-#         score, pred = torch.max(probs, dim=1)  # each is shape [1]
-#         if score.item() < THRESHOLD:
-#             low_conf_images.append(img)
-#             low_conf_scores.append(score.item())
-#             low_conf_preds.append(pred.item())
-
-# 5) If any low-conf images were found, stack and display first few
-# if not low_conf_images:
-#     print(f"No images with confidence below {THRESHOLD}")
-#     exit()
-
-# # Stack images into a single tensor: shape [N, 3, 32, 32]
-# low_conf_images = torch.stack(low_conf_images, dim=0)
-# N = low_conf_images.size(0)
-# print(f"Found {N} low-confidence images (confidence < {THRESHOLD})")
 print(f"Selected low conf: {len(low_conf_images)}")
 selected_idxs = low_conf_images+high_conf_images
 
 random.shuffle(selected_idxs)
 
 selected_idxs = selected_idxs[:1000]
+# count = 0
+# images, labels = get_cifar10_train_data()
+# images = np.transpose(images, (0, 3, 1, 2))
+# softmax = torch.nn.Softmax(dim=1)
+# for idx in selected_idxs:
+#     im = images[idx]
+#     lb = labels[idx]
+#     mean = np.array([0.4914, 0.4822, 0.4465], dtype=np.float32)
+#     std = np.array([0.2023, 0.1994, 0.2010], dtype=np.float32)
+#     mean = mean.reshape(1,-1,1,1)
+#     std = std.reshape(1,-1,1,1)
+#     inp = np.expand_dims(im, axis=0)
+#     inp = (inp-mean)/std
+#     out = session.run(None, {input_name: inp})[0]  # shape [1,10]
+#     logits = torch.from_numpy(out)
+#     probs = softmax(logits)
+#     _, pred = torch.max(probs, dim=1)  # Get predicted class index
+#     print(pred.item(), int(lb))
+#     if  (pred.item() != int(lb)):
+#         print(f"something wrong")
+#         count += 1
+
+# print(f"wrong classification: {count}")
 
 print(selected_idxs)
 

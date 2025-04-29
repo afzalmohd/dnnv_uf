@@ -95,15 +95,20 @@ def is_classified_correctly(net_path, im_idx, dataset='MNIST'):
         return predicted_class == label
 
 def is_classified_correctly_cifar10(net_path, im_idx):
+    mean = np.array([0.4914, 0.4822, 0.4465], dtype=np.float32)
+    std = np.array([0.2023, 0.1994, 0.2010], dtype=np.float32)
+    mean = mean.reshape(1,-1,1,1)
+    std = std.reshape(1,-1,1,1)
     im, label = get_image_with_label(im_idx)
-    inp = im.unsqueeze(0).numpy()
+    inp = np.expand_dims(im, axis=0)
+    inp = (inp-mean)/std
     session = ort.InferenceSession(net_path)
     input_name = session.get_inputs()[0].name
     out = session.run(None, {input_name: inp})[0]  # shape [1,10]
     logits = torch.from_numpy(out)
     probs = softmax(logits)
     _, pred = torch.max(probs, dim=1)  # Get predicted class index
-    return (pred.item() == label.item())
+    return (pred.item() == label)
 
 def select_idxs_net_oracle(indexes_vs_oracles, net_path):
     selected_idxs = []
@@ -162,6 +167,9 @@ def setup_on_standard(netnames, im_idxs_file, dataset, timeout, epsilons, target
                     prp_path1 = os.path.join(prp_path, prp_name)
                     ins_line = f"{net_path1},{prp_path1},{timeout}\n"
                     instance_lines.append(ins_line)
+            else:
+                # print(f"Something is wrong....")
+                pass
 
     with open(instances_file, 'a') as f:
         f.writelines(instance_lines)

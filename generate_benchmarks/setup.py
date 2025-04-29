@@ -39,8 +39,10 @@ def set_images_labels(dataset, is_test_data):
             IMAGES, LABELS = get_cifar10_test_data()
         else:
             IMAGES, LABELS = get_cifar10_train_data()
+            # print(IMAGES[0].shape)
         
         IMAGES = np.transpose(IMAGES, (0, 3, 1, 2))
+        # print(IMAGES[0].shape)
         LABELS = LABELS.reshape(-1)
     
     print(IMAGES.shape)

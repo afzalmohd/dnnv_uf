@@ -46,7 +46,7 @@ def get_cifar10_train_data():
     (x_train, y_train), (_, _) = cifar10.load_data()
 
     # Normalize the test images to the range [0, 1]
-    x_train = x_train.astype("float32") / 255.0
+    x_train = x_train.astype(np.float32) / 255.0
 
     # Flatten the images to match the input shape (1, 784) of the model
     # x_train = x_train.reshape(x_train.shape[0], 1, 784, 1)

@@ -200,7 +200,7 @@ def print_cmnds_abcrowns_terminal(num_cpu, log_dir, tool_main, config_path, num_
         write_script_file(file_name, cmds)
 
 
-def print_cmnds_abcrowns(log_dir, tool_main, config_path, dataset, target_benchmarks_dir, device, num_cpu=1):
+def print_cmnds_abcrowns_old(log_dir, tool_main, config_path, dataset, target_benchmarks_dir, device, num_cpu=1):
     instance_file = os.path.join(target_benchmarks_dir, 'instances.csv')
     tasks = get_tasks(instance_file=instance_file)
     random.shuffle(tasks)
@@ -255,11 +255,37 @@ def print_cmnds_abcrowns(log_dir, tool_main, config_path, dataset, target_benchm
         # file_name = os.path.join(log_dir, f"script_{idx}.sh")
         # write_script_file(file_name, cmds)
 
-def print_cmnds_marabou(log_dir, tool_main, target_benchmarks_dir, prp_type='standard', start_idx=-1, end_idx=-1):
+# def print_cmnds_marabou(log_dir, tool_main, target_benchmarks_dir, prp_type='standard', start_idx=-1, end_idx=-1):
+#     instance_file = os.path.join(target_benchmarks_dir, 'instances.csv')
+#     tasks = get_tasks(instance_file=instance_file)
+#     if start_idx != -1 and end_idx != -1:
+#         tasks = tasks[start_idx:end_idx]
+#     # print(tasks)
+#     num_tasks = len(tasks)
+#     print(f"Total number of task: {num_tasks}")
+
+#     for ts in tasks:
+#         net_path = os.path.join(target_benchmarks_dir, ts[0])
+#         prop_path = os.path.join(target_benchmarks_dir, ts[1])
+#         timeout = float(ts[2])
+#         log_file = os.path.basename(net_path)[:-5]+"+"+os.path.basename(prop_path)[:-7]
+#         log_file = os.path.join(log_dir, log_file)
+#         command = [
+#                 "timeout", "-k", "2s", str(timeout + 20), "python", tool_main, net_path, prop_path, prp_type
+#             ]
+        
+#         print(command)
+#         with open(log_file, "a") as log:
+#             try:
+#                 subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=True)
+#             except subprocess.CalledProcessError as e:
+#                 print(f"Command failed for {log_file}: {e}")
+
+def print_cmnds_abcrown(log_dir, tool_main, target_benchmarks_dir, config_path, device, start_idx=-1, end_idx=-1):
     instance_file = os.path.join(target_benchmarks_dir, 'instances.csv')
     tasks = get_tasks(instance_file=instance_file)
     if start_idx != -1 and end_idx != -1:
-        tasks = tasks[start_idx, end_idx]
+        tasks = tasks[start_idx:end_idx]
     # print(tasks)
     num_tasks = len(tasks)
     print(f"Total number of task: {num_tasks}")
@@ -269,9 +295,18 @@ def print_cmnds_marabou(log_dir, tool_main, target_benchmarks_dir, prp_type='sta
         prop_path = os.path.join(target_benchmarks_dir, ts[1])
         timeout = float(ts[2])
         log_file = os.path.basename(net_path)[:-5]+"+"+os.path.basename(prop_path)[:-7]
+        im_log_file = f"im_{log_file}"
         log_file = os.path.join(log_dir, log_file)
+        os.environ['im_log_file'] = os.path.join(log_dir, im_log_file)
         command = [
-                "timeout", "-k", "2s", str(timeout + 20), "python", tool_main, net_path, prop_path, prp_type
+                "timeout", "-k", "2s", str(timeout + 50), "python", tool_main,
+                "--config", config_path,
+                "--device", device,
+                "--show_adv_example",
+                "--onnx_path", net_path,
+                "--vnnlib_path", prop_path,
+                # "--results_file", result_file,
+                "--timeout", str(timeout)
             ]
         
         print(command)
@@ -297,8 +332,10 @@ def print_server_info():
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 2:
+    if len(sys.argv) == 4:
         config_file = sys.argv[1]
+        start_idx = int(sys.argv[2])
+        end_idx = int(sys.argv[3])
     else:
         print("Error: ")
         sys.exit(1)
@@ -314,7 +351,7 @@ if __name__ == '__main__':
     target_benchmarks_dir = config['target_benchmarks_dir']
     device = config.get('device', 'cpu')
     log_dir = config['log_dir']
-    is_clean_old = config('is_clean_old_benchmarks', True)
+    is_clean_old = config.get('is_clean_old_benchmarks', True)
 
     if property_type == 'fp':
         target_benchmarks_dir = os.path.join(target_benchmarks_dir, 'fp')
@@ -332,8 +369,7 @@ if __name__ == '__main__':
 
     os.makedirs(log_dir, exist_ok=True)
 
-    print_cmnds_abcrowns(log_dir, tool_main=tool_main, config_path=config_path, dataset=dataset, target_benchmarks_dir=target_benchmarks_dir, device=device)
-
+    print_cmnds_abcrown(log_dir, tool_main=tool_main, target_benchmarks_dir=target_benchmarks_dir, config_path=config_path, device=device, start_idx=start_idx, end_idx=end_idx)
 
 
 
