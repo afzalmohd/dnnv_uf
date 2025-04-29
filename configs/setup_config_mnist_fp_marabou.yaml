@@ -5,10 +5,9 @@ is_test_data: False
 mean: [0.0]
 std: [1.0]
 vnncomp_benchmarks_dir: '/home/IITB/cfdvs/194057001/tools/vnncomp_benchmarks/mnist_fc'
-target_benchmarks_dir: '/scratch/IITB/cfdvs/194057001/tools/benchmarks'
-log_dir: '/scratch/IITB/cfdvs/194057001/tools/logs'
+target_benchmarks_dir: '/scratch/IITB/cfdvs/194057001/tools/benchmarks/fp'
+log_dir: '/scratch/IITB/cfdvs/194057001/tools/logs/fp'
 abcrown_tool: '/home/IITB/cfdvs/194057001/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
-marabou_tool: '/home/IITB/cfdvs/194057001/tools/my_scripts/encod_marabou/run_marabou.py'
 nets: ['mnist-net_256x4.onnx', 'mnist-net_256x6.onnx']
 dataset_idxs_file: '/home/IITB/cfdvs/194057001/tools/my_scripts/oracle/indices.txt'
 timeout: 300

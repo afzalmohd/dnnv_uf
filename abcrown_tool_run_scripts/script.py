@@ -255,6 +255,32 @@ def print_cmnds_abcrowns(log_dir, tool_main, config_path, dataset, target_benchm
         # file_name = os.path.join(log_dir, f"script_{idx}.sh")
         # write_script_file(file_name, cmds)
 
+def print_cmnds_marabou(log_dir, tool_main, target_benchmarks_dir, prp_type='standard', start_idx=-1, end_idx=-1):
+    instance_file = os.path.join(target_benchmarks_dir, 'instances.csv')
+    tasks = get_tasks(instance_file=instance_file)
+    if start_idx != -1 and end_idx != -1:
+        tasks = tasks[start_idx, end_idx]
+    # print(tasks)
+    num_tasks = len(tasks)
+    print(f"Total number of task: {num_tasks}")
+
+    for ts in tasks:
+        net_path = os.path.join(target_benchmarks_dir, ts[0])
+        prop_path = os.path.join(target_benchmarks_dir, ts[1])
+        timeout = float(ts[2])
+        log_file = os.path.basename(net_path)[:-5]+"+"+os.path.basename(prop_path)[:-7]
+        log_file = os.path.join(log_dir, log_file)
+        command = [
+                "timeout", "-k", "2s", str(timeout + 20), "python", tool_main, net_path, prop_path, prp_type
+            ]
+        
+        print(command)
+        with open(log_file, "a") as log:
+            try:
+                subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=True)
+            except subprocess.CalledProcessError as e:
+                print(f"Command failed for {log_file}: {e}")
+
 def print_server_info():
     # Check PyTorch version
     print("PyTorch version:", torch.__version__)
@@ -281,14 +307,6 @@ if __name__ == '__main__':
         config = yaml.safe_load(file)
     
     dataset = config['dataset']
-    # is_nilgiri = config['is_nilgiri']
-    # if is_nilgiri:
-    #     tool_main = '/home/afzal/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
-    #     total_cores = 16
-    # else:
-    #     tool_main = '/home/afzal/tools/vnncomp23/alpha-beta-CROWN/complete_verifier/abcrown.py'
-    #     total_cores = 60
-    # total_cores = 16
     tool_main = config['abcrown_tool']
     property_type = config['property']
     # num_cores_per_benchmarks = int(total_cores/num_cpu)
@@ -296,19 +314,21 @@ if __name__ == '__main__':
     target_benchmarks_dir = config['target_benchmarks_dir']
     device = config.get('device', 'cpu')
     log_dir = config['log_dir']
+    is_clean_old = config('is_clean_old_benchmarks', True)
 
     if property_type == 'fp':
         target_benchmarks_dir = os.path.join(target_benchmarks_dir, 'fp')
     else:
         target_benchmarks_dir = os.path.join(target_benchmarks_dir, 'standard')
 
-    try:
-        shutil.rmtree(log_dir)
-        print(f"Directory '{log_dir}' and its contents were removed successfully.")
-    except FileNotFoundError:
-        print(f"Directory '{log_dir}' does not exist.")
-    except Exception as e:
-        print(f"Error: {e}")
+    if is_clean_old:
+        try:
+            shutil.rmtree(log_dir)
+            print(f"Directory '{log_dir}' and its contents were removed successfully.")
+        except FileNotFoundError:
+            print(f"Directory '{log_dir}' does not exist.")
+        except Exception as e:
+            print(f"Error: {e}")
 
     os.makedirs(log_dir, exist_ok=True)
 
