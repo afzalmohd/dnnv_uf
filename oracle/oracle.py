@@ -68,9 +68,36 @@ def set_images_labels_gan_with_oracle(image_csv, image_shape):
     print(IMAGES.shape)
     print(LABELS.shape)
 
+def normalize_image(im, dataset='CIFAR10'):
+    if dataset == 'CIFAR10':
+        means = np.array([0.4914, 0.4822, 0.4465])
+        stds = np.array([0.2023, 0.1994, 0.2010])
+        means = means.reshape(1,-1,1,1)
+        stds = stds.reshape(1,-1,1,1)
+        im = (im-means)/stds
+        im = im.astype(np.float32)
+        return im
 
-def get_oracle_output(im:np.ndarray, net_dir, nets):
-    im = im.reshape(-1,1,28,28)
+def de_normalize_image(im, dataset='CIFAR10'):
+    if dataset == 'CIFAR10':
+        means = np.array([0.4914, 0.4822, 0.4465])
+        stds = np.array([0.2023, 0.1994, 0.2010])
+        means = means.reshape(1,-1,1,1)
+        stds = stds.reshape(1,-1,1,1)
+        im = (im*stds) + means
+        im = np.clip(im, 0.0, 1.0)
+        im = im.astype(np.float32)
+        return im
+
+
+def get_oracle_output(im:np.ndarray, net_dir, nets, dataset='MNIST', is_cex=True):
+    if dataset == 'MNIST':
+        im = im.reshape(-1,1,28,28)
+    else:
+        im = np.expand_dims(im, axis=0)
+        if not is_cex:
+            im = normalize_image(im)
+
     pred_labels = []
     confs = []
     label_dictionary = {}
@@ -99,7 +126,10 @@ def get_oracle_output(im:np.ndarray, net_dir, nets):
     
     sorted_labeled_dictionary = dict(sorted(label_dictionary.items(), key=lambda item: item[1], reverse=True))
     # print(sorted_labeled_dictionary)
-    multi_preds = [item[0] for item in sorted_labeled_dictionary.items() if item[1] >= 3]
+    if dataset == 'MNIST':
+        multi_preds = [item[0] for item in sorted_labeled_dictionary.items() if item[1] >= 3]
+    else:
+        multi_preds = [item[0] for item in sorted_labeled_dictionary.items() if item[1] >= 4]
     if len(multi_preds) == 0:
         # multi_preds.append([sorted_labeled_dictionary[0]])
         multi_preds.append(list(sorted_labeled_dictionary.keys())[0])
@@ -125,9 +155,14 @@ def get_oracle_output_for_logs(im:np.ndarray, net_dir, nets):
     
     return ret_str   
 
-def get_im_label(im, net_path, top_k = 3):
+def get_im_label(im, net_path, top_k = 3, dataset='MNIST', is_cex=True):
     # print(f"netpath: {net_path}")
-    im = im.reshape(1,784,1)
+    if dataset == 'MNIST':
+        im = im.reshape(1,784,1)
+    else:
+        im = np.expand_dims(im, axis=0)
+        if not is_cex:
+            im = normalize_image(im)
     session = ort.InferenceSession(net_path)
     input_name = session.get_inputs()[0].name
     output = session.run(None, {input_name: im})
