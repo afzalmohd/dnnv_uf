@@ -5,30 +5,32 @@ import numpy as np
 import copy
 from onnx import shape_inference, helper, TensorProto
 
-def get_weight_fc1(fixed_idx, net_out_dims=10):
+def get_weight_fc1(net_out_dims=10):
     weights = []
     for i in range(net_out_dims):
-        if i != fixed_idx:
+        for j in range(2*net_out_dims):
             l = [0.0]*2*net_out_dims
-            l[i] = 1.0
-            l[fixed_idx] = -1.0
-            weights.append(l)
-
-    for i in range(net_out_dims):
-        if i != fixed_idx:
-            l = [0.0]*2*net_out_dims
-            l[net_out_dims + i] = -1.0
-            l[net_out_dims + fixed_idx] = 1.0
-            weights.append(l)
-
+            if i != j and j < net_out_dims:
+                l[i] = -1.0
+                l[j] = 1.0
+                weights.append(l)
+            elif (net_out_dims+i) != j and j >= net_out_dims:
+                l[net_out_dims+i] = -1.0
+                l[j] = 1.0
+                weights.append(l)
+    
+    # weights = np.reshape(weights, (2*net_out_dims*(net_out_dims-1), 2*net_out_dims))
     weights = np.array(weights, dtype=np.float32)
+    # weights = np.asarray(weights, dtype=np.float32)
+    # print(np.array(weights).shape)
     return weights
 
 def get_bias_fc1(delta, net_out_dims=10):
-    weights = [0.0]*2*(net_out_dims-1)
+    weights = [0.0]*2*net_out_dims*(net_out_dims-1)
     for i in range(2*net_out_dims):
-        if i < net_out_dims-1:
-            weights[i] = delta
+        for j in range((net_out_dims-1)*i, (net_out_dims-1)*i + (net_out_dims-1)):
+            if i % 2 == 0:
+                weights[j] = delta
 
     weights = np.array(weights, dtype=np.float32)
     return weights
@@ -37,7 +39,7 @@ def get_weight_fc2(net_out_dims=10):
     weights = []
     for i in range(2*net_out_dims):
         l = [0.0]*2*net_out_dims*(net_out_dims-1)
-        for j in range(9*i, 9*i+9):
+        for j in range((net_out_dims-1)*i, (net_out_dims-1)*i + (net_out_dims-1)):
             if i % 2 == 0:
                 l[j] = 1.0
             else:
@@ -57,16 +59,13 @@ def get_bias_fc2(eta, net_out_dims=10):
     weights = np.array(weights, dtype=np.float32)
     return weights
 
-def get_weight_fc3(input_dim, net_out_dims=10):
+def get_weight_fc3(net_out_dims=10):
     weights = []
-    for i in range(net_out_dims-1):
-        l = [0.0]*(2*(net_out_dims-1)+1)
-        for j in range(net_out_dims-1):
+    for i in range(net_out_dims):
+        l = [0.0]*(2*net_out_dims+1)
+        for j in range(2*i, 2*i+2):
             l[j] = -1.0
-
-        l[net_out_dims-1+i] = -1.0
-
-        l[2*(net_out_dims-1)] = -1.0
+        l[2*net_out_dims] = -1.0
         
         weights.append(l)
     weights = np.array(weights, dtype=np.float32)
@@ -274,18 +273,17 @@ def merge_fc_layers_in_branch(nodes, inits, external_fc_w, external_fc_b, extern
       
     Then we create a new Gemm node that replaces nodes[0] and nodes[1].
     """
+    print("branch ops:", [n.op_type + "(" + ",".join(n.input) + ")" for n in nodes[:4]])
     # Get the original Flatten and fc_node from the branch.
-    # flatten_node = nodes[0]
-    fc_node = nodes[0]
-    # print(fc_node)
-    # print(fc_node)
+    fc_node_idx = 0
+    flatten_node = nodes[0]
+    fc_node = nodes[fc_node_idx]
+    
     # fc_node is a Gemm node. Its inputs are: [flattened_input, fc_weight, fc_bias].
     fc_weight_name = fc_node.input[1]
     fc_bias_name = fc_node.input[2]
     W_fc = get_initializer_array(inits, fc_weight_name)  # Assume shape: (N, M) when transB=1.
     b_fc = get_initializer_array(inits, fc_bias_name)      # Shape: (N,)
-    # print(W_fc.shape)
-    # print(external_fc_w.shape)
     merged_weight = np.dot(W_fc, external_fc_w)  # Shape: (N, k) where k is the external fc output dim.
     merged_bias = np.dot(external_fc_b, W_fc.T) + b_fc  # Shape: (N,)
     
@@ -304,12 +302,12 @@ def merge_fc_layers_in_branch(nodes, inits, external_fc_w, external_fc_b, extern
          name=merged_node_name
     )
     # Remove the first two nodes (Flatten and fc_node) and replace them with new_node.
-    new_nodes = [new_node] + nodes[1:]
+    new_nodes = [new_node] + nodes[fc_node_idx+1:]
     new_inits = inits + [merged_w_init, merged_b_init]
     return new_nodes, new_inits
 
 
-def add_third_branch(model, input_dim, ep=0.04, is_shape_inference=True):
+def add_third_branch(model, input_dim, ep=0.01, is_shape_inference=True):
     """
     Adds a third branch from the input node with the sequence:
        Flatten3 -> Gemm (1568,1568) -> Relu -> Gemm (1,1568)
@@ -403,15 +401,13 @@ def merge_two_models_in_parallel_fc(original_model, input_dim, output_dim, is_sh
         fc1_w_pre.append(vec)
     fc1_w_pre = np.array(fc1_w_pre, dtype=np.float32)
     fc1_b_pre = np.array([0.0]*input_dim, dtype=np.float32)
-    # print(fc1_w_pre)
     # For branch 2:
     fc2_w_pre = []
     for i in range(input_dim):
-        vec = [0.0] * 2*input_dim
+        vec = [0.0] * 2 * input_dim
         vec[input_dim + i] = 1.0
         fc2_w_pre.append(vec)
     fc2_w_pre = np.array(fc2_w_pre, dtype=np.float32)
-    # print(fc2_w_pre)
     fc2_b_pre = np.array([0.0]*input_dim, dtype=np.float32)
 
     # --- Add Flatten nodes to produce branch inputs ---
@@ -422,7 +418,6 @@ def merge_two_models_in_parallel_fc(original_model, input_dim, output_dim, is_sh
     mapping1 = {orig_input_name: "flatten1"}
     copy1_nodes, copy1_inits, _, tensor_mapping1 = clone_subgraph(original_graph, mapping1, "copy1_")
     # Merge external FC with the branch's first FC layer in branch 1.
-    # print(copy1_nodes)
     copy1_nodes, copy1_inits = merge_fc_layers_in_branch(copy1_nodes, copy1_inits,
                                                          fc1_w_pre, fc1_b_pre,
                                                          "flatten1", "merged_FC1")
@@ -465,26 +460,52 @@ def merge_two_models_in_parallel_fc(original_model, input_dim, output_dim, is_sh
 
 
 
-def aappend_fc_layers(model, orig_net_out_dims, fixed_idx, is_shape_inference=True, delta=0.1001, intermediate_eta = 1e-4):
+def aappend_fc_layers(model, orig_net_out_dims, is_shape_inference=True, delta=0.40, intermediate_eta = 1e-4):
     # Load the existing ONNX model
     # model = onnx.load(onnx_model_path)
     graph = model.graph
 
+    # Original output becomes the input to the new FC layers
+    original_output = graph.output[0].name
+
     # Define FC layer weights and biases
-    fc1_w = get_weight_fc1(fixed_idx=fixed_idx, net_out_dims=orig_net_out_dims)
+    fc1_w = get_weight_fc1(net_out_dims=orig_net_out_dims)
     fc1_b = get_bias_fc1(delta=delta, net_out_dims=orig_net_out_dims)
+
+    fc1_w = np.array([[-1,1,0,0],[0,0,1,-1]], dtype=np.float32)
+    fc1_b = np.array([0.40, 0], dtype=np.float32)
+
+    fc2_w = get_weight_fc2(net_out_dims=orig_net_out_dims)
+    fc2_b = get_bias_fc2(eta=intermediate_eta, net_out_dims=orig_net_out_dims)
+
+    fc2_w = np.array([[1,1]], dtype=np.float32)
+    fc2_b = np.array([0], dtype=np.float32)
 
     # Create ONNX initializers
     fc1_w_init = onnx.numpy_helper.from_array(fc1_w, name="fc1_w")
     fc1_b_init = onnx.numpy_helper.from_array(fc1_b, name="fc1_b")
+    fc2_w_init = onnx.numpy_helper.from_array(fc2_w, name="fc2_w")
+    fc2_b_init = onnx.numpy_helper.from_array(fc2_b, name="fc2_b")
     
+
+    # fc1_w_init = helper.make_tensor(name="fc1_w", data_type=TensorProto.FLOAT, dims=[2*orig_net_out_dims*(orig_net_out_dims-1), 2*orig_net_out_dims],vals=fc1_w)
+    # fc1_b_init = helper.make_tensor(name="fc1_b", data_type=TensorProto.FLOAT, dims=[2*orig_net_out_dims*(orig_net_out_dims-1)], vals=fc1_b)
+    # fc2_w_init = helper.make_tensor(name="fc2_w", data_type=TensorProto.FLOAT, dims=[2*orig_net_out_dims, 2*orig_net_out_dims*(orig_net_out_dims-1)],vals=fc2_w)
+    # fc2_b_init = helper.make_tensor(name="fc2_b", data_type=TensorProto.FLOAT, dims=[2*orig_net_out_dims], vals=fc2_b)
+
     # Define FC layers
     fc1_node = onnx.helper.make_node("Gemm", inputs=["concat1_output", "fc1_w", "fc1_b"], outputs=["fc1_out"], alpha=1.0, beta=1.0, transB=1)
-    # relu1_node = onnx.helper.make_node("Relu", inputs=["fc1_out"], outputs=["relu1_out"])
+    relu1_node = onnx.helper.make_node("Relu", inputs=["fc1_out"], outputs=["relu1_out"])
     
+    fc2_node = onnx.helper.make_node("Gemm", inputs=["relu1_out", "fc2_w", "fc2_b"], outputs=["fc2_out"], alpha=1.0, beta=1.0, transB=1)
+    # relu2_node = onnx.helper.make_node("Relu", inputs=["fc2_out"], outputs=["relu2_out"])
+    
+
+
+
     # Add everything to the graph
-    graph.node.extend([fc1_node])
-    graph.initializer.extend([fc1_w_init, fc1_b_init])
+    graph.node.extend([fc1_node, relu1_node, fc2_node])
+    graph.initializer.extend([fc1_w_init, fc1_b_init, fc2_w_init, fc2_b_init])
 
     if is_shape_inference:
         model = shape_inference.infer_shapes(model)
@@ -492,25 +513,24 @@ def aappend_fc_layers(model, orig_net_out_dims, fixed_idx, is_shape_inference=Tr
     return model
 
 
-def merge_third_branch(model, input_dim, orig_net_out_dims, is_shape_inference=True):
+def merge_third_branch(model, orig_net_out_dims, is_shape_inference=True):
     graph = model.graph
     concat_final_node = onnx.helper.make_node(
         "Concat",
-        inputs=["fc1_out", "branch3_out"],
+        inputs=["fc2_out", "branch3_out"],
         outputs=["concat2_output"],
         axis=1,
         name="concat2"
     )
 
     fc_concat_w = []
-    temp = 2*(orig_net_out_dims-1) + 1
-    for i in range(temp):
-        l = [0.0]*temp
+    for i in range(21):
+        l = [0.0]*21
         l[i] = 1.0
         fc_concat_w.append(l)
     
     fc_concat_w = np.array(fc_concat_w, dtype=np.float32)
-    fc_concat_b = np.array([0.0]*temp, dtype=np.float32)
+    fc_concat_b = np.array([0.0]*21, dtype=np.float32)
     fc_concat_w_init = onnx.numpy_helper.from_array(fc_concat_w, name="fc_concat_w")
     fc_concat_b_init = onnx.numpy_helper.from_array(fc_concat_b, name="fc_concat_b")
 
@@ -518,14 +538,14 @@ def merge_third_branch(model, input_dim, orig_net_out_dims, is_shape_inference=T
 
     relu2_node = onnx.helper.make_node("Relu", inputs=["fc_concat_output"], outputs=["relu_ater_concat_out"])
 
-    fc3_w = get_weight_fc3(input_dim=input_dim, net_out_dims=orig_net_out_dims)
-    fc3_b = np.array([0.0]*(orig_net_out_dims-1), dtype=np.float32)
+    fc3_w = get_weight_fc3(net_out_dims=orig_net_out_dims)
+    fc3_b = np.array([0.0]*orig_net_out_dims, dtype=np.float32)
     fc3_w_init = onnx.numpy_helper.from_array(fc3_w, name="fc3_w")
     fc3_b_init = onnx.numpy_helper.from_array(fc3_b, name="fc3_b")
 
     fc3_node = onnx.helper.make_node("Gemm", inputs=["relu_ater_concat_out", "fc3_w", "fc3_b"], outputs=["fc3_out"], alpha=1.0, beta=1.0, transB=1)
 
-    new_output = onnx.helper.make_tensor_value_info("fc3_out", onnx.TensorProto.FLOAT, [1, orig_net_out_dims-1])
+    new_output = onnx.helper.make_tensor_value_info("fc3_out", onnx.TensorProto.FLOAT, [1, 10])
 
     graph.node.extend([concat_final_node, fc_concat_node, relu2_node ,fc3_node])
     graph.initializer.extend([fc_concat_w_init, fc_concat_b_init, fc3_w_init, fc3_b_init])
@@ -540,18 +560,32 @@ def merge_third_branch(model, input_dim, orig_net_out_dims, is_shape_inference=T
     return model
 
 
+def merge_third_branch_toy(model, orig_net_out_dims, is_shape_inference=True):
+    graph = model.graph
+    new_output = onnx.helper.make_tensor_value_info("fc2_out", onnx.TensorProto.FLOAT, [1, 1])
+
+     # Update the graph output
+    graph.output.remove(graph.output[0])  # Remove old output
+    graph.output.append(new_output)  # Add new output
+
+    if is_shape_inference:
+        model = shape_inference.infer_shapes(model)
+
+    return model
+
+
 def merge_and_add_layers(orig_model_path, new_model_path, input_dim, output_dim, is_shape_inference=True):
     original_model = onnx.load(orig_model_path)
     # merged_model =  merge_two_models_in_parallel(original_model=original_model, input_dim=input_dim, output_dim=output_dim)
-    parallel_model = merge_two_models_in_parallel_fc(original_model=original_model, input_dim=input_dim, output_dim=output_dim,  is_shape_inference=is_shape_inference)
+    parallel_model = merge_two_models_in_parallel_fc(original_model=original_model, input_dim=input_dim, output_dim=output_dim, is_shape_inference=is_shape_inference)
 
-    model_with_misclassified_layers = aappend_fc_layers(parallel_model, output_dim, fixed_idx=0, is_shape_inference=is_shape_inference)
+    model_with_misclassified_layers = aappend_fc_layers(parallel_model, output_dim, is_shape_inference=is_shape_inference)
 
-    model_with_ep_bounds = add_third_branch(model_with_misclassified_layers, input_dim, is_shape_inference=is_shape_inference)
+    # model_with_ep_bounds = add_third_branch(model_with_misclassified_layers, input_dim, is_shape_inference=is_shape_inference)
 
-    final_model = merge_third_branch(model=model_with_ep_bounds, input_dim=input_dim, orig_net_out_dims=output_dim, is_shape_inference=is_shape_inference)
-
-    # final_model = model_with_ep_bounds
+    # final_model = merge_third_branch(model=model_with_misclassified_layers, orig_net_out_dims=output_dim, is_shape_inference=is_shape_inference)
+    final_model = merge_third_branch_toy(model=model_with_misclassified_layers, orig_net_out_dims=output_dim, is_shape_inference=is_shape_inference)
+    # final_model = model_with_misclassified_layers
     remove_unused_initializers(final_model)
 
     onnx.save(final_model, new_model_path)
@@ -560,14 +594,15 @@ def merge_and_add_layers(orig_model_path, new_model_path, input_dim, output_dim,
 
 
 if __name__ == "__main__":
-    # w = get_weight_fc3(input_dim=784, net_out_dims=10)
-    # print(w.tolist())
+    # w = get_weight_ep_bounds(input_dims=784)
+    # print(w[3].tolist())
     # print(w.shape)
     # exit(0)
-    original_model_path = "/home/u1411251/tools/vnncomp_benchmarks/mnist_fc/onnx/mnist-net_256x2.onnx"
-    merged_model_path = "merged_model.onnx"
+    # original_model_path = "/home/u1411251/tools/vnncomp_benchmarks/mnist_fc/onnx/mnist-net_256x2.onnx"
+    # merged_model_path = "merged_model.onnx"
+
     original_model_path = "toy_neural_network.onnx"
-    merged_model_path = "merged_model_toy.onnx"
+    merged_model_path = "merged_model1.onnx"
     
     # For MNIST: the original input dimension is 28*28 and output dimension is 10.
     m = 2
