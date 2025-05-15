@@ -81,6 +81,7 @@ def clean_directory(directory_path):
                 print(f'Failed to delete {file_path}. Reason: {e}')
 
     else:
+        print(f"directory_path: {directory_path}")
         os.makedirs(directory_path, exist_ok=True)
 
 def get_images_csv_gans(dataset_idxs_file, image_shape, start_idx, end_idx):
@@ -643,6 +644,27 @@ def conf_delta():
         conf1 = 100/(1+math.exp(-delta))
         print(conf, delta, conf1)
 
+def get_final_dirs(sub_property, dataset, vnncomp_dir, benchmarks_dir, log_dir): 
+    if dataset == imagenet_dataset:
+        new_vnncomp_dir = os.path.join(vnncomp_dir, 'imagenet', 'vggnet16')
+        new_benchmarks_dir = os.path.join(benchmarks_dir, sub_property, 'imagenet', 'vggnet16')
+        new_log_dir = os.path.join(log_dir, sub_property, 'imagenet', 'vggnet16')
+    elif dataset == mnist_dataset:
+        new_vnncomp_dir = os.path.join(vnncomp_dir, 'mnist_fc')
+        new_benchmarks_dir = os.path.join(benchmarks_dir, sub_property, 'mnist_fc')
+        new_log_dir = os.path.join(log_dir, sub_property, 'mnist_fc')
+    elif dataset == cifar100_dataset:
+        new_vnncomp_dir = os.path.join(vnncomp_dir, 'cifar100' , 'cifar100_tinyimagenet_resnet')
+        new_benchmarks_dir = os.path.join(benchmarks_dir, sub_property, 'cifar100', 'cifar100_tinyimagenet_resnet')
+        new_log_dir = os.path.join(log_dir, sub_property, 'cifar100', 'cifar100_tinyimagenet_resnet')
+    elif dataset == cifar10_dataset:
+        new_vnncomp_dir = vnncomp_dir
+        new_benchmarks_dir = benchmarks_dir
+        new_log_dir = log_dir
+
+    return new_vnncomp_dir, new_benchmarks_dir, new_log_dir
+    
+
 
 if __name__ == '__main__':
     # conf_delta()
@@ -685,6 +707,8 @@ if __name__ == '__main__':
     sub_property = config.get('sub_property', None) 
     orig_image_conf_th = config.get('orig_image_th', 0) 
     conf_file = config.get('conf_file', None)
+
+    vnncomp_benchmarks_dir, target_benchmarks_dir, log_dir = get_final_dirs(sub_property, dataset, vnncomp_benchmarks_dir, target_benchmarks_dir, log_dir)
     
     try:
         shutil.rmtree(target_benchmarks_dir)

@@ -16,6 +16,12 @@ import yaml
 import shutil
 import torch
 
+mnist_dataset = 'MNIST'
+cifar10_dataset = 'CIFAR10'
+cifar100_dataset='CIFAR100'
+imagenet_dataset = 'IMAGENET'
+tsr_dataset = 'TSR'
+
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
 
 
@@ -34,6 +40,27 @@ dataset_file = '/home/afzal/tools/VeriNN/deep_refine/benchmarks/dataset/mnist/mn
 
 # if not os.path.isdir(result_dir):
 #     os.mkdir(result_dir)
+
+
+def get_final_dirs(sub_property, dataset, vnncomp_dir, benchmarks_dir, log_dir): 
+    if dataset == imagenet_dataset:
+        new_vnncomp_dir = os.path.join(vnncomp_dir, 'imagenet', 'vggnet16')
+        new_benchmarks_dir = os.path.join(benchmarks_dir, sub_property, 'imagenet', 'vggnet16')
+        new_log_dir = os.path.join(log_dir, sub_property, 'imagenet', 'vggnet16')
+    elif dataset == mnist_dataset:
+        new_vnncomp_dir = os.path.join(vnncomp_dir, 'mnist_fc')
+        new_benchmarks_dir = os.path.join(benchmarks_dir, sub_property, 'mnist_fc')
+        new_log_dir = os.path.join(log_dir, sub_property, 'mnist_fc')
+    elif dataset == cifar100_dataset:
+        new_vnncomp_dir = os.path.join(vnncomp_dir, 'cifar100' , 'cifar100_tinyimagenet_resnet')
+        new_benchmarks_dir = os.path.join(benchmarks_dir, sub_property, 'cifar100', 'cifar100_tinyimagenet_resnet')
+        new_log_dir = os.path.join(log_dir, sub_property, 'cifar100', 'cifar100_tinyimagenet_resnet')
+    elif dataset == cifar10_dataset:
+        new_vnncomp_dir = vnncomp_dir
+        new_benchmarks_dir = benchmarks_dir
+        new_log_dir = log_dir
+
+    return new_vnncomp_dir, new_benchmarks_dir, new_log_dir
 
 
 def write_script_file(file_name, cmds):
@@ -348,6 +375,7 @@ if __name__ == '__main__':
     dataset = config['dataset']
     tool_main = config['abcrown_tool']
     property_type = config['property']
+    sub_prp_type = config['sub_property']
     # num_cores_per_benchmarks = int(total_cores/num_cpu)
     config_path = config['abcrown_config']
     target_benchmarks_dir = config['target_benchmarks_dir']
@@ -355,10 +383,12 @@ if __name__ == '__main__':
     log_dir = config['log_dir']
     is_clean_old = config.get('is_clean_old_benchmarks', True)
 
-    if property_type == 'fp':
-        target_benchmarks_dir = os.path.join(target_benchmarks_dir, 'fp')
-    else:
-        target_benchmarks_dir = os.path.join(target_benchmarks_dir, 'standard')
+    _, target_benchmarks_dir, log_dir = get_final_dirs(sub_prp_type, dataset, "", target_benchmarks_dir, log_dir)
+
+    # if property_type == 'fp':
+    #     target_benchmarks_dir = os.path.join(target_benchmarks_dir, 'fp')
+    # else:
+    #     target_benchmarks_dir = os.path.join(target_benchmarks_dir, 'standard')
 
     if is_clean_old:
         try:

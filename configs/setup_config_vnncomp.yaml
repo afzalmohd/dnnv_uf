@@ -1,17 +1,18 @@
 property: 'vnncomp' # mod_prop
 sub_property: 'relaxed'
-dataset: 'MNIST' #'CIFAR100' 
-vnncomp_benchmarks_dir: '/home/afzal/tools/vnncomp_benchmarks/mnist_fc'
-target_benchmarks_dir: '/home/afzal/tools/benchmarks/relaxed/mnist_fc'
-log_dir: '/home/afzal/tools/logs/relaxed/mnist_fc'
+dataset: 'IMAGENET' #'CIFAR100' 
+vnncomp_benchmarks_dir: '/home/u1411251/tools/vnncomp_benchmarks'
+target_benchmarks_dir: '/home/u1411251/tools/benchmarks'
+log_dir: '/home/u1411251/tools/logs'
 confs: [0, 60, 80, 90, 95]
 timeout: 500
 is_softmax: True
 epsilons: [0.0039]
 tolerance_param: -0.0001
 is_nilgiri: False
-abcrown_config: 'abcrown_tool_run_scripts/ab_crown_configs/mnist.yaml'
-abcrown_tool: 'external_tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
+abcrown_config: 'abcrown_tool_run_scripts/ab_crown_configs/vggnet16.yaml'
+abcrown_tool: '/home/u1411251/tools/welkin/dnnv_uf/external_tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
 is_less_than_output_prp: False
-is_target_prop: False
-device: 'cpu'
+is_target_prop: True
+is_clean_old_benchmarks: True
+device: 'cuda'
