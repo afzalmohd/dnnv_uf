@@ -76,9 +76,15 @@ def gen_single_props_standard(spec_path, im, label, ep):
     lb,ub = create_input_bounds_tf(im, ep)
     save_vnnlib_tf_standard(lb, ub, label, spec_path, dataset)
 
-def gen_single_props_oracle_guided(spec_path, im, label, ep):
-    im = im.reshape(784)
-    lb,ub = create_input_bounds_tf(im, ep)
+def gen_single_props_oracle_guided(spec_path, im, label, ep, dataset='MNIST'):
+    if dataset == 'MNIST':
+        im = im.reshape(784)
+        lb,ub = create_input_bounds_tf(im, ep)
+    else:
+        mean = np.array([0.4914,0.4822,0.4465])
+        std = np.array([0.2470,0.2435,0.2616])
+        lb,ub = create_input_bounds_tf(im, ep, mean=mean, std=std, dataset=dataset)
+    
     save_vnnlib_oracle_guided(lb, ub, label, spec_path)
 
 def is_classified_correctly(net_path, im_idx, dataset='MNIST'):
@@ -110,13 +116,15 @@ def is_classified_correctly_cifar10(net_path, im_idx):
     _, pred = torch.max(probs, dim=1)  # Get predicted class index
     return (pred.item() == label)
 
-def select_idxs_net_oracle(indexes_vs_oracles, net_path):
+def select_idxs_net_oracle(indexes_vs_oracles, net_path, dataset='MNIST'):
     selected_idxs = []
     session = ort.InferenceSession(net_path)
     input_name = session.get_inputs()[0].name
     for idx in indexes_vs_oracles.keys():
         oracle_labels = indexes_vs_oracles[idx]
         im, lb = get_image_with_label(idx)
+        if dataset == 'CIFAR10':
+            im = np.expand_dims(im, axis=0)
         input_name = session.get_inputs()[0].name
         output = session.run(None, {input_name: im})
         predicted_class = np.argmax(output[0][0])
@@ -201,8 +209,11 @@ def setup_on_oracle_guided_prop(netnames, idx_with_oracles_labels, dataset, time
 
     instance_lines = []
     for net in netnames:
-        orig_net_path = os.path.join(vnncomp_benchmarks_dir, 'onnx', net)
-        indexes = select_idxs_net_oracle(indexes_vs_oracles=indexes_vs_labels, net_path=orig_net_path)
+        if dataset == 'MNIST':
+            orig_net_path = os.path.join(vnncomp_benchmarks_dir, 'onnx', net)
+        else:
+            orig_net_path = os.path.join(vnncomp_benchmarks_dir, 'nets', net)
+        indexes = select_idxs_net_oracle(indexes_vs_oracles=indexes_vs_labels, net_path=orig_net_path, dataset=dataset)
         indexes = [idx for idx in indexes if len(indexes_vs_labels[idx]) != 1]
         print(f"{netnames} : num of selected images: {len(indexes)}")
         for idx in indexes:
@@ -215,7 +226,7 @@ def setup_on_oracle_guided_prop(netnames, idx_with_oracles_labels, dataset, time
                 for ep in epsilons:
                     prp_name = f"prop_{idx}_{ep}.vnnlib"
                     prp_path1 = os.path.join(prp_path, prp_name)
-                    gen_single_props_oracle_guided(spec_path=prp_path1, im=im, label=lb, ep=ep)
+                    gen_single_props_oracle_guided(spec_path=prp_path1, im=im, label=lb, ep=ep, dataset=dataset)
                     ins_line = f"{target_net_path},{prp_path1},{timeout}\n"
                     instance_lines.append(ins_line)
 

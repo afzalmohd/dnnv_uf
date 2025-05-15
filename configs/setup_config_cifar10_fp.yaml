@@ -1,23 +1,23 @@
-property: 'standard' # standard
+property: 'fp' # standard
 # property: 'mod_prop'
 dataset: 'CIFAR10' 
 is_test_data: False
 mean: [0.4914, 0.4822, 0.4465]
 std: [0.2023, 0.1994, 0.2010]
-vnncomp_benchmarks_dir: '/home/u1411251/tools/vnncomp_benchmarks/cifar10/oval21'
-target_benchmarks_dir: '/home/u1411251/tools/benchmarks/cifar10'
-log_dir: '/home/u1411251/tools/logs/cifar10'
-abcrown_tool: '/home/u1411251/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
+vnncomp_benchmarks_dir: '/home/IITB/cfdvs/194057001/tools/vnncomp_benchmarks/cifar10/oval21'
+target_benchmarks_dir: '/scratch/IITB/cfdvs/194057001/tools/benchmarks/cifar10'
+log_dir: '/scratch/IITB/cfdvs/194057001/tools/logs/cifar10_fp'
+abcrown_tool: '/home/IITB/cfdvs/194057001/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
 nets: ['cifar_base_kw.onnx', 'cifar_wide_kw.onnx', 'cifar_deep_kw.onnx']
-dataset_idxs_file: '/home/u1411251/tools/my_scripts/oracle/indices_cifar10.txt'
-oracle_labels: '/home/u1411251/tools/my_scripts/oracle/oracles_lables_cifar10.txt'
+dataset_idxs_file: '/home/IITB/cfdvs/194057001/tools/my_scripts/oracle/indices_cifar10.txt'
+oracle_labels: '/home/IITB/cfdvs/194057001/tools/my_scripts/oracle/oracles_lables_cifar10.txt'
 timeout: 210
 epsilons: [0.03]
-abcrown_config: '/home/u1411251/tools/my_scripts/abcrown_tool_run_scripts/ab_crown_configs/cifar2020.yaml'
+abcrown_config: '/home/IITB/cfdvs/194057001/tools/my_scripts/abcrown_tool_run_scripts/ab_crown_configs/cifar2020.yaml'
 image_shape: [1,3,32,32]
 is_gans_input: False
-is_clean_old_benchmarks: True
-device: 'cpu'
+is_clean_old_benchmarks: False
+device: 'cuda'
 
 oracle_net_dir: '/home/u1411251/tools/networks/oracle_nets/cifar10'
 oracle_nets: ['cifar_relu_9_200.onnx', 'ffnnRELU__PGDK_w_0.0078_6_500.onnx', 'convSmallRELU__Point.onnx', 'convSmallRELU__PGDK.onnx', 'convSmallRELU__DiffAI.onnx', 'convMedGRELU__Point.onnx', 'convMedGRELU__PGDK_w_0.0313.onnx', 'cifar_conv_maxpool.onnx', 'convBigRELU__DiffAI.onnx', 'ResNetTiny_PGD.onnx', 'ResNet18_PGD.onnx', 'ResNet34_DiffAI.onnx', 'SkipNet18_DiffAI.onnx']

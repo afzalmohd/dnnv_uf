@@ -332,6 +332,8 @@ def print_server_info():
 
 
 if __name__ == '__main__':
+    start_idx = -1
+    end_idx = -1
     if len(sys.argv) == 4:
         config_file = sys.argv[1]
         start_idx = int(sys.argv[2])
