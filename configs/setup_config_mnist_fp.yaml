@@ -12,7 +12,7 @@ nets: ['mnist-net_256x2.onnx']
 dataset_idxs_file: '/home/afzal/tools/my_scripts/oracle/indices.txt'
 oracle_labels: '/home/afzal/tools/my_scripts/oracle/oracles_lables_mnist.txt'
 timeout: 120
-epsilons: [0.03, 0.05]
+epsilons: [0.03]
 abcrown_config: '/home/afzal/tools/my_scripts/abcrown_tool_run_scripts/ab_crown_configs/mnist.yaml'
 image_shape: [1,784,1]
 is_gans_input: False
