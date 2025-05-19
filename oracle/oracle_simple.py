@@ -184,7 +184,7 @@ def get_cex_im_filepath(netname, ep, log_file_path, res1):
     cex_file_path = os.path.join(cex_dir, f"{filename}.png")
     return cex_file_path
 
-def get_oracles_labels_on_orig_images(index_files='/home/u1411251/tools/my_scripts/oracle/indices_cifar10.txt', dataset='MNIST'):
+def get_oracles_labels_on_orig_images(index_files, dataset, oracle_labels_file):
     with open(index_files) as f:
         line = f.readline()
         indexes = np.fromstring(line, dtype=int, sep=',')
@@ -203,7 +203,7 @@ def get_oracles_labels_on_orig_images(index_files='/home/u1411251/tools/my_scrip
         print(f"processed: {counter}")
         counter += 1
 
-    with open('oracles_lables_cifar10.txt', 'w') as f:
+    with open(oracle_labels_file, 'w') as f:
         f.writelines(Lines)
 
 
@@ -452,17 +452,19 @@ if __name__ == '__main__':
     result_csv = config['result_csv']
     netnames = config['nets']
     epsilons = config['epsilons']
+    dataset_idxs_file = config.get('dataset_idxs_file', None)
+    oracle_labels_files = config.get('oracle_labels', None)
     if os.path.exists(result_csv):
         os.remove(result_csv) 
     assert dataset in potential_datasets, "Invalid dataset"
     set_images_labels(dataset, is_test_data) 
 
-    analyse_dir(vnncomp_benchmarks_dir, netnames, epsilons, oracle_labels_file, log_dir=log_dir, dataset=dataset)
-    # analyse_oracle_result(vnncomp_benchmarks_dir, netnames, epsilons, oracle_labels_file, log_dir)
+    # analyse_dir(vnncomp_benchmarks_dir, netnames, epsilons, oracle_labels_file, log_dir=log_dir, dataset=dataset)
+    # # analyse_oracle_result(vnncomp_benchmarks_dir, netnames, epsilons, oracle_labels_file, log_dir)
 
-    print(RES_TABLE)
+    # print(RES_TABLE)
 
     # with open("res.json", 'w') as f:
     #     json.dump(RES_TABLE, f, indent=4)
 
-    # get_oracles_labels_on_orig_images(dataset='CIFAR10')
+    get_oracles_labels_on_orig_images(index_files=dataset_idxs_file, dataset=dataset, oracle_labels_file = oracle_labels_files)
