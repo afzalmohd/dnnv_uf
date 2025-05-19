@@ -1,0 +1,10 @@
+dataset: 'MNIST'
+prp_type: 'topk'
+num_parallel: 1
+num_workers: 4
+benchmarks_dir: '/home/afzal/tools/benchmarks/top_k_relaxed/mnist_fc'
+conf_file: '/home/afzal/tools/vnncomp_benchmarks/mnist_fc/conf_mnist.csv'
+log_dir: '/home/afzal/tools/marabou/logs/topk_relaxed_appended/mnist_fc'
+main_file: '/home/afzal/tools/my_scripts/encod_marabou/constr_encod.py'
+confs: [0, 60, 80, 90, 95]
+

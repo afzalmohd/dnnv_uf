@@ -160,7 +160,7 @@ def setup_on_standard(netnames, im_idxs_file, dataset, timeout, epsilons, target
         target_net_path = os.path.join(net_path, net)
         shutil.copy(orig_net_path, target_net_path)
 
-    images, labels, indexes = select_images_with_labels(dataset_idxs_file=im_idxs_file, max_num_indexs=1000)
+    images, labels, indexes = select_images_with_labels(dataset_idxs_file=im_idxs_file, max_num_indexs=10000)
     labels = labels.reshape(-1)
     
     gen_props_standard(prp_path, images, labels, indexes, epsilons, dataset=dataset)

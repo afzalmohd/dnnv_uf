@@ -4,13 +4,13 @@ dataset: 'MNIST'
 is_test_data: False
 mean: [0.0]
 std: [1.0]
-vnncomp_benchmarks_dir: '/home/u1411251/tools/vnncomp_benchmarks/mnist_fc'
-target_benchmarks_dir: '/home/u1411251/tools/benchmarks'
-log_dir: '/home/u1411251/tools/logs/fp'
-abcrown_tool: '/home/u1411251/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
+vnncomp_benchmarks_dir: '/home/afzal/tools/vnncomp_benchmarks/mnist_fc'
+target_benchmarks_dir: '/home/afzal/tools/benchmarks'
+log_dir: '/home/afzal/tools/logs/fp'
+abcrown_tool: '/home/afzal/tools/alpha-beta-CROWN/complete_verifier/abcrown.py'
 nets: ['mnist-net_256x2.onnx']
-dataset_idxs_file: '/home/u1411251/tools/my_scripts/oracle/indices.txt'
-oracle_labels: '/home/u1411251/tools/my_scripts/oracle/oracles_lables_mnist.txt'
+dataset_idxs_file: '/home/afzal/tools/my_scripts/oracle/indices.txt'
+oracle_labels: '/home/afzal/tools/my_scripts/oracle/oracles_lables_mnist.txt'
 timeout: 120
 epsilons: [0.03, 0.05]
 abcrown_config: '/home/afzal/tools/my_scripts/abcrown_tool_run_scripts/ab_crown_configs/mnist.yaml'
