@@ -13,7 +13,7 @@ from torchvision.datasets import MNIST
 from generate_benchmarks.setup import clean_directory, get_output_dims, set_images_labels, select_images_with_labels, get_image_with_label
 from generate_benchmarks.generate_properties import create_input_bounds_tf, save_vnnlib_tf_standard, save_vnnlib_oracle_guided
 from generate_benchmarks.modify_onnx_fp import update_fc_relu_oracle
-
+from generate_benchmarks.setup import get_final_dirs
 softmax = torch.nn.Softmax(dim=1)
 # transform = transforms.Compose([
 #     transforms.ToTensor(), 
@@ -258,39 +258,54 @@ if __name__ == '__main__':
     with open(config_file, 'r') as file:
         config = yaml.safe_load(file)
     
-    property_type = config.get('property', None)
+    is_test_data = config.get('is_test_data', None)
     dataset = config.get('dataset', None)
-    is_test_data = config.get('is_test_data', False)
-    mean = config.get('mean')
-    std = config.get('std')
+    is_gans_input = config.get('is_gans_input', None)
+    images_csv_file = config.get('images_csv_file', None)
+    image_shape = tuple(config.get('image_shape', [1,784,1]))
+    mean = np.array(config.get('mean', None), dtype=np.float32)
+    std = np.array(config.get('std', None), dtype=np.float32)
+    net_dir = config.get('net_dir', None)
+    nets = config.get('nets', None)
+    confs = config.get('confs', None)
+    timeout = config.get('timeout', None)
+    image_indexes_range = config.get('image_indexes_range', [0,100])
+    start_idx = image_indexes_range[0]
+    end_idx = image_indexes_range[1]
+    is_softmax = config.get('is_softmax',None)
+    epsilons = config.get('epsilons', None)
+    dataset_idxs_file = config.get('dataset_idxs_file', None)
+    tolerance_param = config.get('tolerance_param', None)
+    preprocessing_dir = config.get('preprocessing_dir', None)
     vnncomp_benchmarks_dir = config.get('vnncomp_benchmarks_dir', None)
     target_benchmarks_dir = config.get('target_benchmarks_dir', None)
-    netnames = config.get('nets')
-    dataset_idxs_file = config.get('dataset_idxs_file', None)
     oracle_labels_file = config.get('oracle_labels', None)
-    timeout = config.get('timeout', None)
-    epsilons = config.get('epsilons', None)
-    image_shape = tuple(config.get('image_shape', [1,784,1]))
-    is_gans_input = config.get('is_gans_input', None)
+    property_type = config.get('property', None)
+    is_cnn = config.get('is_cnn', None)
+    log_dir = config.get('log_dir', None)
+    is_less_than_output_prp = config.get('is_less_than_output_prp', False)
+    is_target_prop = config.get('is_target_prop', False)
+    sub_property = config.get('sub_property', None) 
+    orig_image_conf_th = config.get('orig_image_th', 0) 
+    conf_file = config.get('conf_file', None)
     is_clean_old = config.get('is_clean_old_benchmarks', True)
-    if property_type == 'fp':
-        target_benchmarks_dir = os.path.join(target_benchmarks_dir, 'fp')
-    else:
-        target_benchmarks_dir = os.path.join(target_benchmarks_dir, 'standard')
 
-    if is_clean_old:
-        try:
-            shutil.rmtree(target_benchmarks_dir)
-            print(f"Directory '{target_benchmarks_dir}' and its contents were removed successfully.")
-        except FileNotFoundError:
-            print(f"Directory '{target_benchmarks_dir}' does not exist.")
-        except Exception as e:
-            print(f"Error: {e}")
+    vnncomp_benchmarks_dir, target_benchmarks_dir, log_dir = get_final_dirs(sub_property, dataset, vnncomp_benchmarks_dir, target_benchmarks_dir, log_dir)
+    
+    try:
+        shutil.rmtree(target_benchmarks_dir)
+        print(f"Directory '{target_benchmarks_dir}' and its contents were removed successfully.")
+    except FileNotFoundError:
+        print(f"Directory '{target_benchmarks_dir}' does not exist.")
+    except Exception as e:
+        print(f"Error: {e}")
+
+
 
     set_images_labels(dataset=dataset, is_test_data=is_test_data)
 
     if property_type == 'fp':
-        setup_on_oracle_guided_prop(netnames, oracle_labels_file, dataset, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir, is_clean_old)
+        setup_on_oracle_guided_prop(nets, oracle_labels_file, dataset, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir, is_clean_old)
     else:
-        setup_on_standard(netnames, dataset_idxs_file, dataset, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir, is_clean_old)
+        setup_on_standard(nets, dataset_idxs_file, dataset, timeout, epsilons, target_benchmarks_dir, vnncomp_benchmarks_dir, is_clean_old)
     
