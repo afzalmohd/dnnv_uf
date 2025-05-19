@@ -81,6 +81,7 @@ def get_accuracy(net_path):
     indeces = []
     index = 0
     high_conf = 0
+    sum_conf = 0
     for image, label in dataset_loader:
         image_np = image.numpy().reshape(1,784,1).astype(np.float32)
         output = session.run(None, {input_name: image_np})
@@ -91,13 +92,14 @@ def get_accuracy(net_path):
         print(pred, pred_conf1)
         if pred == label.item():
             correct_label += 1
-            if pred_conf1 <= 20.0:
+            sum_conf += pred_conf
+            if pred_conf1 <= 21.5:
                 counter += 1
                 indeces.append(index) 
-            elif pred_conf1 >= 24.0 and high_conf <= 500:
-                high_conf += 1
-                counter += 1
-                indeces.append(index)
+            # elif pred_conf1 >= 24.0 and high_conf <= 500:
+            #     high_conf += 1
+            #     counter += 1
+            #     indeces.append(index)
         
         total += 1
 
@@ -112,6 +114,7 @@ def get_accuracy(net_path):
     accuracy = correct_label / total
     print(f"Accuracy: {accuracy * 100: .2f}%")
     print(f"Max conf: {max_conf}, Min conf: {min_conf}")
+    print(f"Mean conf: {(sum_conf/total) * 100: .2f}")
     print(f"Number of selected images: {counter}")
 
     return indeces
@@ -125,10 +128,10 @@ net_name = 'mnist-net_256x2.onnx'
 
 net_path = os.path.join(net_dir, net_name)
 indeces =  get_accuracy(net_path)
-indeces = random.sample(indeces, 1000)
+# indeces = random.sample(indeces, 1000)
 # print_as_grid(indeces=indeces[:1000])
 # indeces = random.sample(range(0,60000), 1000)
 indeces.sort()
 
 with open("indices.txt", "w") as f:
-    f.write(",".join(map(str, indeces[:1000])))
+    f.write(",".join(map(str, indeces)))
