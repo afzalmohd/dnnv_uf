@@ -18,6 +18,7 @@ from extract_logs.logs_extract_abcrown import get_result
 import pandas as pd
 import json
 import shutil
+from generate_benchmarks.setup import get_final_dirs
 
 
 
@@ -440,6 +441,7 @@ if __name__ == '__main__':
     is_gans_input = config['is_gans_input']
     image_shape = config['image_shape']
     vnncomp_benchmarks_dir = config['vnncomp_benchmarks_dir']
+    vnncomp_benchmarks_dir, _, _ = get_final_dirs("", dataset, vnncomp_benchmarks_dir, "", "")
     if dataset == 'MNIST':
         orig_net_dir = os.path.join(vnncomp_benchmarks_dir, 'onnx')
     else:
@@ -459,12 +461,12 @@ if __name__ == '__main__':
     assert dataset in potential_datasets, "Invalid dataset"
     set_images_labels(dataset, is_test_data) 
 
-    # analyse_dir(vnncomp_benchmarks_dir, netnames, epsilons, oracle_labels_file, log_dir=log_dir, dataset=dataset)
-    # # analyse_oracle_result(vnncomp_benchmarks_dir, netnames, epsilons, oracle_labels_file, log_dir)
+    analyse_dir(vnncomp_benchmarks_dir, netnames, epsilons, oracle_labels_file, log_dir=log_dir, dataset=dataset)
+    # analyse_oracle_result(vnncomp_benchmarks_dir, netnames, epsilons, oracle_labels_file, log_dir)
 
-    # print(RES_TABLE)
+    print(RES_TABLE)
 
     # with open("res.json", 'w') as f:
     #     json.dump(RES_TABLE, f, indent=4)
 
-    get_oracles_labels_on_orig_images(index_files=dataset_idxs_file, dataset=dataset, oracle_labels_file = oracle_labels_files)
+    # get_oracles_labels_on_orig_images(index_files=dataset_idxs_file, dataset=dataset, oracle_labels_file = oracle_labels_files)
