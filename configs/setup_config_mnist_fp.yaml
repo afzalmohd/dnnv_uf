@@ -1,5 +1,5 @@
-property: 'standard' # standard or fp
-sub_property: 'standard'
+property: 'fp' # standard or fp
+sub_property: 'fp'
 # property: 'mod_prop'
 dataset: 'MNIST' 
 is_test_data: False
@@ -19,8 +19,8 @@ image_shape: [1,784,1]
 is_gans_input: False
 is_clean_old_benchmarks: True
 
-oracle_net_dir: '/home/u1411251/tools/networks/oracle_nets'
+oracle_net_dir: '/home/u1411251/tools/networks/oracle_nets/mnist'
 oracle_nets: ['mnist_relu_5_100.onnx', 'ffnnRELU__Point_6_500.onnx', 'ffnnRELU__PGDK_w_0.1_6_500.onnx', 'ffnnRELU__PGDK_w_0.3_6_500.onnx', 'convSmallRELU__Point.onnx', 'convSmallRELU__PGDK.onnx', 'convSmallRELU__DiffAI.onnx', 'convMedGRELU__Point.onnx', 'convBigRELU__DiffAI.onnx']
-res_log_dir: '/home/u1411251/tools/result_dir/saiv/mnist/oracle_all'
+res_log_dir: '/home/u1411251/tools/result_dir/fp/mnist/fp/mnist_fc'
 is_print_images: True
-result_csv: 'res_fp.csv'
+result_csv: 'res_fp_net1_fp.csv'

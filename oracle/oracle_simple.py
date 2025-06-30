@@ -225,9 +225,16 @@ def is_false_negative(netname, idx, ep):
     else:
         return False
 
-
+def rename_files(log_file_path):
+    dir_path, filename = os.path.split(log_file_path)
+    filename_l = filename.split('+')
+    idx = filename_l[1].split('_')[1]
+    new_filename = f"{filename_l[0]}_{idx}+{filename_l[1]}"
+    os.rename(log_file_path, os.path.join(dir_path, new_filename))
 
 def analyse_log_file_count(log_file_path, is_analyse_standard = True, dataset='MNIST'):
+    # rename_files(log_file_path)
+    # return
     netname, im, ep = get_net_im_ep(log_file_path, is_standard=is_analyse_standard)
     net_path = os.path.join(orig_net_dir, netname)
     orig_indeces_top, orig_conf_top, max_val, max_ind, smax_val, smax_ind, min_val, min_ind = get_im_label(IMAGES[im], net_path, top_k=3, dataset=dataset, is_cex=False)
@@ -357,7 +364,7 @@ def analyse_dir(vnncomp_benchmarks_dir, netnames, epsilons, oracle_labels_file, 
 
 
 def analyse_standard_logfile_oracle(netname, idx, ep, is_already_analysed=True):
-    standard_log_dir = '/home/u1411251/tools/result_dir/saiv/mnist/net_all'
+    standard_log_dir = '/home/u1411251/tools/result_dir/fp/mnist/net_1'
     if is_already_analysed:
         filtered_df = df[(df['netname'] == netname) & (df['image_index'] == idx) & (df['epsilon'] == ep)]
         res = filtered_df['result'].values[0]
@@ -407,6 +414,7 @@ def analyse_oracle_result(vnncomp_benchmarks_dir, netnames, epsilons, oracle_lab
                 if len(indexes_vs_oracles[idx]) == 1:
                     # filtered_df = df[(df['netname'] == net) & (df['image_index'] == idx) & (df['epsilon'] == ep)]
                     # if filtered_df.empty:
+                    #     print('--------check----------')
                     #     analyse_log_file_count(log_file_path, is_analyse_standard=False)
                     # else:
                     #     analyse_standard_logfile_oracle(net, idx, ep)
@@ -461,8 +469,9 @@ if __name__ == '__main__':
     assert dataset in potential_datasets, "Invalid dataset"
     set_images_labels(dataset, is_test_data) 
 
-    analyse_dir(vnncomp_benchmarks_dir, netnames, epsilons, oracle_labels_file, log_dir=log_dir, dataset=dataset)
-    # analyse_oracle_result(vnncomp_benchmarks_dir, netnames, epsilons, oracle_labels_file, log_dir)
+    standard_res_file = '/home/u1411251/tools/my_scripts/res_fp_net1.csv'
+    # analyse_dir(vnncomp_benchmarks_dir, netnames, epsilons, oracle_labels_file, log_dir=log_dir, dataset=dataset)
+    analyse_oracle_result(vnncomp_benchmarks_dir, netnames, epsilons, oracle_labels_file, log_dir, standard_res_csv=standard_res_file)
 
     print(RES_TABLE)
 
