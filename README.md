@@ -33,6 +33,9 @@ The goal is to reduce complexity while preserving the semantics of the original 
 - Property simplification for analysis
 - Research and experimentation with property-aware networks
 
+## Reference Paper
+-[Formal Reasoning About Confidence and Automated Verification of Neural Networks](https://arxiv.org/pdf/2511.07293)
+
 ## Notes
 
 This tool is designed to maintain the logical intent of the original property while reducing its complexity, making it easier to work with large or complex neural networks.
